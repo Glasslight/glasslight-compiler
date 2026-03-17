@@ -1,0 +1,18 @@
+package c;
+require core.basic ~> basic;
+
+[[:system, :dynamic]]
+foreign "c" ~> .
+{
+	+ strlen(s<basic.cstring>) -> basic.size;
+	+ strnlen(s<basic.cstring>, n<basic.size>) -> basic.size;
+	+ abs(x<basic.s4>) -> basic.s4;
+	+ atoi(s<basic.cstring>) -> basic.s4;
+	+ atoll(s<basic.cstring>) -> basic.s8;
+	+ strcmp(lhs<basic.cstring>, rhs<basic.cstring>) -> basic.s4;
+	+ getenv(name<basic.cstring>) -> basic.cstring ->> basic.voidptr;
+	+ llabs(x<basic.s8>) -> basic.s8;
+	+ memcmp(lhs<basic.voidptr>, rhs<basic.voidptr>, n<basic.size>) -> basic.s4;
+	+ memcpy(dst<basic.voidptr>, src<basic.voidptr>, n<basic.size>) -> basic.voidptr;
+	+ memset(dst<basic.voidptr>, v<basic.s4>, n<basic.size>) -> basic.voidptr;
+}

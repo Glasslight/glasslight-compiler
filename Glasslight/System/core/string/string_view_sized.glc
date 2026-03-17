@@ -1,0 +1,129 @@
+package string;
+require core.basic ~> .;
+require core.array ~> .;
+
+record string_view_sized_r<$n<size> >
+{
+	let av<[c1, (n,)]>;
+
+	# Return the underlying array sized view.
+	- view -> [c1, (n, )] { ^ self.av; }
+
+	# Returns an equivalent unsized array view over the same data.
+	- view -> [c1, ()] { ^ self.av.view; }
+
+	# Returns an equivalent unsized string view over the same data.
+	- view -> {c1, ()} { ^ make_string_view(self.av.data(), n); }
+
+	# Returns the compile-time length of the view.
+	- length -> size { ^ self.av.length; }
+
+	# Returns the byte at the requested index.
+	- at(idx<size>) -> c1 { ^ self.av.at(idx); }
+
+	# Returns the byte at the requested index via subscript syntax.
+	- subscript(idx<size>) -> c1 { ^ self.av[idx]; }
+
+	# Returns the start pointer for the viewed data.
+	- data() -> c1* { ^ self.av.data(); }
+
+	# Returns whether the given index is within bounds.
+	- valid_index?(idx<size>) -> atom { ^ self.av.valid_index?(idx); }
+
+	# Sized views are never empty.
+	- empty? -> atom { ^ self.av.empty?; }
+
+	# Return an index of a given byte value.
+	- index_of(v<c1>) -> (atom, size) { ^ self.av.index_of(v); }
+
+	# Return :true if view contains a given byte.
+	- contains?(e<c1>) -> atom { ^ self.av.contains?(e); }
+
+	# Return first byte.
+	- first -> c1 { ^ self.av.first; }
+
+	# Return last byte.
+	- last -> c1 { ^ self.av.last; }
+
+	# Return top/last byte.
+	- top -> c1 { ^ self.av.top; }
+
+	# Find a single byte (alias for index_of).
+	- find(v<c1>) -> (atom, size) { ^ self.view.find(v); }
+
+	# Return last index of a given byte value.
+	- last_index_of(v<c1>) -> (atom, size) { ^ self.view.last_index_of(v); }
+
+	# Find last occurrence of a byte (alias for last_index_of).
+	- find_last(v<c1>) -> (atom, size) { ^ self.view.find_last(v); }
+
+	# Find first occurrence of a substring needle.
+	- index_of(needle<{c1, ()}>) -> (atom, size) { ^ self.view.index_of(needle); }
+
+	# Find first occurrence of a substring (alias for index_of).
+	- find(needle<{c1, ()}>) -> (atom, size) { ^ self.view.find(needle); }
+
+	# Find last occurrence of a substring needle.
+	- last_index_of(needle<{c1, ()}>) -> (atom, size) { ^ self.view.last_index_of(needle); }
+
+	# Find last occurrence of a substring (alias for last_index_of).
+	- find_last(needle<{c1, ()}>) -> (atom, size) { ^ self.view.find_last(needle); }
+
+	# Return :true if view contains a given substring.
+	- contains?(needle<{c1, ()}>) -> atom { ^ self.view.contains?(needle); }
+
+	# Return a sub-view starting at start with length count.
+	- slice(start<size>, count<size>) -> (atom, {c1, ()}) { ^ self.view.slice(start, count); }
+
+	# Alias for slice.
+	- mid(start<size>, count<size>) -> (atom, {c1, ()}) { ^ self.view.mid(start, count); }
+
+	# Return a sub-view from start to the end.
+	- mid(start<size>) -> (atom, {c1, ()}) { ^ self.view.mid(start); }
+
+	# Return the first count bytes.
+	- left(count<size>) -> (atom, {c1, ()}) { ^ self.view.left(count); }
+
+	# Return the last count bytes.
+	- right(count<size>) -> (atom, {c1, ()}) { ^ self.view.right(count); }
+
+	# Drop first count bytes, return rest.
+	- left_chop(count<size>) -> (atom, {c1, ()}) { ^ self.view.left_chop(count); }
+
+	# Drop last count bytes, return rest.
+	- right_chop(count<size>) -> (atom, {c1, ()}) { ^ self.view.right_chop(count); }
+
+	# Check if view starts with a given byte.
+	- starts_with?(b<c1>) -> atom { ^ self.view.starts_with?(b); }
+
+	# Check if view starts with a given prefix.
+	- starts_with?(prefix<{c1, ()}>) -> atom { ^ self.view.starts_with?(prefix); }
+
+	# Check if view ends with a given byte.
+	- ends_with?(b<c1>) -> atom { ^ self.view.ends_with?(b); }
+
+	# Check if view ends with a given suffix.
+	- ends_with?(suffix<{c1, ()}>) -> atom { ^ self.view.ends_with?(suffix); }
+
+	# Check if view equals another view byte-by-byte.
+	- equals?(other<{c1, ()}>) -> atom { ^ self.view.equals?(other); }
+
+	# Lexicographic comparison returning compare_result_e.
+	- compare(other<{c1, ()}>) -> compare_result_e { ^ self.view.compare(other); }
+}
+
+# Creates a sized string view from a pointer.
++ make_string_view($n<size>, ptr<c1*>) -> {c1, (n,)}
+{
+	let result<{c1, (n,)}>;
+	result.av = make_array_view(c1, n, ptr);
+	^ result;
+}
+
+# Creates a sized string view from an array view.
++ make_string_view($n<size>, av<[c1, (n,)]>) -> {c1, (n,)}
+{
+	let result<{c1, (n,)}>;
+	result.av = av;
+	^ result;
+}

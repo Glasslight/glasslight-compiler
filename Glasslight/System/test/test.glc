@@ -1,0 +1,62 @@
+package test;
+require core.basic;
+
+[[:builtin, :static]]
+foreign "test" ~> .
+{
+	# Test lifecycle.
+	+ glc_test_report_test_start(name<basic.cstring>) -> basic.cvoid ->> ();
+	+ glc_test_report_test_end(name<basic.cstring>, passed<basic.atom ->> basic.cbool>) -> basic.cvoid ->> ();
+	+ glc_test_finalize() -> basic.cvoid ->> ();
+
+	# Result queries.
+	+ glc_test_get_fail_count() -> basic.size;
+	+ glc_test_get_pass_count() -> basic.size;
+	+ glc_test_get_total_count() -> basic.size;
+	+ glc_test_current_test_passed() -> basic.cbool ->> basic.atom;
+
+	# Expect - continue on failure, return pass/fail as atom.
+	+ glc_test_expect_true(condition<basic.atom ->> basic.cbool>, message<basic.cstring>) -> basic.cbool ->> basic.atom;
+	+ glc_test_expect_false(condition<basic.atom ->> basic.cbool>, message<basic.cstring>) -> basic.cbool ->> basic.atom;
+	+ glc_test_expect_eq_atom(condition<basic.atom ->> basic.catom>, expected<basic.atom ->> basic.catom>, message<basic.cstring>) -> basic.cbool ->> basic.atom;
+
+	# Signed integer expects.
+	+ glc_test_expect_eq_s1(actual<basic.s1>, expected<basic.s1>, message<basic.cstring>) -> basic.cbool ->> basic.atom;
+	+ glc_test_expect_eq_s2(actual<basic.s2>, expected<basic.s2>, message<basic.cstring>) -> basic.cbool ->> basic.atom;
+	+ glc_test_expect_eq_s4(actual<basic.s4>, expected<basic.s4>, message<basic.cstring>) -> basic.cbool ->> basic.atom;
+	+ glc_test_expect_eq_s8(actual<basic.s8>, expected<basic.s8>, message<basic.cstring>) -> basic.cbool ->> basic.atom;
+	+ glc_test_expect_ne_s4(actual<basic.s4>, expected<basic.s4>, message<basic.cstring>) -> basic.cbool ->> basic.atom;
+	+ glc_test_expect_lt_s4(actual<basic.s4>, expected<basic.s4>, message<basic.cstring>) -> basic.cbool ->> basic.atom;
+	+ glc_test_expect_le_s4(actual<basic.s4>, expected<basic.s4>, message<basic.cstring>) -> basic.cbool ->> basic.atom;
+	+ glc_test_expect_gt_s4(actual<basic.s4>, expected<basic.s4>, message<basic.cstring>) -> basic.cbool ->> basic.atom;
+	+ glc_test_expect_ge_s4(actual<basic.s4>, expected<basic.s4>, message<basic.cstring>) -> basic.cbool ->> basic.atom;
+
+	# Size expects.
+	+ glc_test_expect_eq_size(actual<basic.size>, expected<basic.size>, message<basic.cstring>) -> basic.cbool ->> basic.atom;
+	+ glc_test_expect_ne_size(actual<basic.size>, expected<basic.size>, message<basic.cstring>) -> basic.cbool ->> basic.atom;
+	+ glc_test_expect_lt_size(actual<basic.size>, expected<basic.size>, message<basic.cstring>) -> basic.cbool ->> basic.atom;
+	+ glc_test_expect_le_size(actual<basic.size>, expected<basic.size>, message<basic.cstring>) -> basic.cbool ->> basic.atom;
+	+ glc_test_expect_gt_size(actual<basic.size>, expected<basic.size>, message<basic.cstring>) -> basic.cbool ->> basic.atom;
+	+ glc_test_expect_ge_size(actual<basic.size>, expected<basic.size>, message<basic.cstring>) -> basic.cbool ->> basic.atom;
+
+	# Character expects.
+	+ glc_test_expect_eq_c1(actual<basic.c1>, expected<basic.c1>, message<basic.cstring>) -> basic.cbool ->> basic.atom;
+	+ glc_test_expect_eq_c2(actual<basic.c2>, expected<basic.c2>, message<basic.cstring>) -> basic.cbool ->> basic.atom;
+	+ glc_test_expect_eq_c4(actual<basic.c4>, expected<basic.c4>, message<basic.cstring>) -> basic.cbool ->> basic.atom;
+
+	# Unsigned integer expects.
+	+ glc_test_expect_eq_u1(actual<basic.u1>, expected<basic.u1>, message<basic.cstring>) -> basic.cbool ->> basic.atom;
+	+ glc_test_expect_eq_u2(actual<basic.u2>, expected<basic.u2>, message<basic.cstring>) -> basic.cbool ->> basic.atom;
+	+ glc_test_expect_eq_u4(actual<basic.u4>, expected<basic.u4>, message<basic.cstring>) -> basic.cbool ->> basic.atom;
+	+ glc_test_expect_eq_u8(actual<basic.u8>, expected<basic.u8>, message<basic.cstring>) -> basic.cbool ->> basic.atom;
+
+	# Assert - abort on failure (no return on failure).
+	+ glc_test_assert_true(condition<basic.atom ->> basic.cbool>, message<basic.cstring>) -> basic.cvoid ->> ();
+	+ glc_test_assert_false(condition<basic.atom ->> basic.cbool>, message<basic.cstring>) -> basic.cvoid ->> ();
+
+	#  Signed integer asserts.
+	+ glc_test_assert_eq_s1(actual<basic.s1>, expected<basic.s1>, message<basic.cstring>) -> basic.cvoid ->> ();
+	+ glc_test_assert_eq_s2(actual<basic.s2>, expected<basic.s2>, message<basic.cstring>) -> basic.cvoid ->> ();
+	+ glc_test_assert_eq_s4(actual<basic.s4>, expected<basic.s4>, message<basic.cstring>) -> basic.cvoid ->> ();
+	+ glc_test_assert_eq_s8(actual<basic.s8>, expected<basic.s8>, message<basic.cstring>) -> basic.cvoid ->> ();
+}

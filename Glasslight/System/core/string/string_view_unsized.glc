@@ -1,0 +1,340 @@
+package string;
+require core.basic ~> .;
+require core.basic.limits ~> .;
+require core.array ~> .;
+
+record string_view_unsized_r
+{
+	let av<[c1, ()]>;
+
+	# Returns the runtime length of the view.
+	- length() -> size { ^ self.av.length(); }
+
+	# Returns the byte at the requested index.
+	- at(idx<size>) -> c1 { ^ self.av.at(idx); }
+
+	# Returns the byte at the requested index via subscript syntax.
+	- subscript(idx<size>) -> c1 { ^ self.av[idx]; }
+
+	# Returns the start pointer for the viewed data.
+	- data() -> c1* { ^ self.av.data(); }
+
+	# Return the underlying array unsized view.
+	- view -> [c1, ()] { ^ self.av; }
+
+	# Returns whether the given index is within bounds.
+	- valid_index?(idx<size>) -> atom { ^ self.av.valid_index?(idx); }
+
+	# Returns whether the view has no elements.
+	- empty? -> atom { ^ self.av.empty?; }
+
+	# Return an index of a given byte value.
+	- index_of(v<c1>) -> (atom, size) { ^ self.av.index_of(v); }
+
+	# Return :true if view contains a given byte.
+	- contains?(e<c1>) -> atom { ^ self.av.contains?(e); }
+
+	# Return first byte.
+	- first -> c1 { ^ self.av.first; }
+
+	# Return last byte.
+	- last -> c1 { ^ self.av.last; }
+
+	# Return top/last byte.
+	- top -> c1 { ^ self.av.top; }
+
+	# Find a single byte (alias for index_of).
+	- find(v<c1>) -> (atom, size) { ^ self.index_of(v); }
+
+	# Return last index of a given byte value (reverse search).
+	- last_index_of(v<c1>) -> (atom, size)
+	{
+		for(let i<size> = self.av.length(); i > 0_sz; i -= 1_sz)
+		{
+			if(*(self.av.data() + i - 1_sz) == v)
+			{
+				^ (:true, i - 1_sz);
+			}
+		}
+
+		^ (:false, max(size));
+	}
+
+	# Find last occurrence of a byte (alias for last_index_of).
+	- find_last(v<c1>) -> (atom, size) { ^ self.last_index_of(v); }
+
+	# Find first occurrence of a substring needle.
+	- index_of(needle<{c1, ()}>) -> (atom, size)
+	{
+		let needle_len<size> = needle.length();
+
+		if(needle_len == 0_sz)
+		{
+			^ (:true, 0_sz);
+		}
+
+		if(needle_len > self.av.length())
+		{
+			^ (:false, max(size));
+		}
+
+		let limit<size> = self.av.length() - needle_len + 1_sz;
+
+		for(let i<size> = 0_sz; i < limit; i += 1_sz)
+		{
+			let matched<atom> = :true;
+
+			for(let j<size> = 0_sz; j < needle_len; j += 1_sz)
+			{
+				if(*(self.av.data() + i + j) != *(needle.data() + j))
+				{
+					matched = :false;
+					j = needle_len;
+				}
+			}
+
+			if(matched == :true)
+			{
+				^ (:true, i);
+			}
+		}
+
+		^ (:false, max(size));
+	}
+
+	# Find first occurrence of a substring (alias for index_of).
+	- find(needle<{c1, ()}>) -> (atom, size) { ^ self.index_of(needle); }
+
+	# Find last occurrence of a substring needle (reverse search).
+	- last_index_of(needle<{c1, ()}>) -> (atom, size)
+	{
+		let needle_len<size> = needle.length();
+
+		if(needle_len == 0_sz)
+		{
+			^ (:true, self.av.length());
+		}
+
+		if(needle_len > self.av.length())
+		{
+			^ (:false, max(size));
+		}
+
+		let limit<size> = self.av.length() - needle_len + 1_sz;
+
+		for(let i<size> = limit; i > 0_sz; i -= 1_sz)
+		{
+			let pos<size> = i - 1_sz;
+			let matched<atom> = :true;
+
+			for(let j<size> = 0_sz; j < needle_len; j += 1_sz)
+			{
+				if(*(self.av.data() + pos + j) != *(needle.data() + j))
+				{
+					matched = :false;
+					j = needle_len;
+				}
+			}
+
+			if(matched == :true)
+			{
+				^ (:true, pos);
+			}
+		}
+
+		^ (:false, max(size));
+	}
+
+	# Find last occurrence of a substring (alias for last_index_of).
+	- find_last(needle<{c1, ()}>) -> (atom, size) { ^ self.last_index_of(needle); }
+
+	# Return :true if view contains a given substring.
+	- contains?(needle<{c1, ()}>) -> atom
+	{
+		let (ok<atom>, _) = self.index_of(needle);
+		^ ok;
+	}
+
+	# Return a sub-view starting at start with length count.
+	- slice(start<size>, count<size>) -> (atom, {c1, ()})
+	{
+		if(start + count > self.av.length())
+		{
+			^ (:false, make_string_view(self.av.data(), 0_sz));
+		}
+
+		^ (:true, make_string_view(self.av.data() + start, count));
+	}
+
+	# Alias for slice.
+	- mid(start<size>, count<size>) -> (atom, {c1, ()}) { ^ self.slice(start, count); }
+
+	# Return a sub-view from start to the end.
+	- mid(start<size>) -> (atom, {c1, ()})
+	{
+		if(start > self.av.length())
+		{
+			^ (:false, make_string_view(self.av.data(), 0_sz));
+		}
+
+		^ (:true, make_string_view(self.av.data() + start, self.av.length() - start));
+	}
+
+	# Return the first count bytes.
+	- left(count<size>) -> (atom, {c1, ()}) { ^ self.slice(0_sz, count); }
+
+	# Return the last count bytes.
+	- right(count<size>) -> (atom, {c1, ()})
+	{
+		if(count > self.av.length())
+		{
+			^ (:false, make_string_view(self.av.data(), 0_sz));
+		}
+
+		^ (:true, make_string_view(self.av.data() + self.av.length() - count, count));
+	}
+
+	# Drop first count bytes, return rest.
+	- left_chop(count<size>) -> (atom, {c1, ()}) { ^ self.mid(count); }
+
+	# Drop last count bytes, return rest.
+	- right_chop(count<size>) -> (atom, {c1, ()})
+	{
+		if(count > self.av.length())
+		{
+			^ (:false, make_string_view(self.av.data(), 0_sz));
+		}
+
+		^ (:true, make_string_view(self.av.data(), self.av.length() - count));
+	}
+
+	# Check if view starts with a given byte.
+	- starts_with?(b<c1>) when self.av.length() == 0_sz -> atom { ^ :false; }
+	- starts_with?(b<c1>) -> atom
+	{
+		^ *(self.av.data()) == b;
+	}
+
+	# Check if view starts with a given prefix.
+	- starts_with?(prefix<{c1, ()}>) -> atom
+	{
+		if(prefix.length() > self.av.length())
+		{
+			^ :false;
+		}
+
+		for(let i<size> = 0_sz; i < prefix.length(); i += 1_sz)
+		{
+			if(*(self.av.data() + i) != *(prefix.data() + i))
+			{
+				^ :false;
+			}
+		}
+
+		^ :true;
+	}
+
+	# Check if view ends with a given byte.
+	- ends_with?(b<c1>) when self.av.length() == 0_sz -> atom { ^ :false; }
+	- ends_with?(b<c1>) -> atom
+	{
+		^ *(self.av.data() + self.av.length() - 1_sz) == b;
+	}
+
+	# Check if view ends with a given suffix.
+	- ends_with?(suffix<{c1, ()}>) -> atom
+	{
+		if(suffix.length() > self.av.length())
+		{
+			^ :false;
+		}
+
+		let offset<size> = self.av.length() - suffix.length();
+
+		for(let i<size> = 0_sz; i < suffix.length(); i += 1_sz)
+		{
+			if(*(self.av.data() + offset + i) != *(suffix.data() + i))
+			{
+				^ :false;
+			}
+		}
+
+		^ :true;
+	}
+
+	# Check if view equals another view byte-by-byte.
+	- equals?(other<{c1, ()}>) -> atom
+	{
+		if(self.av.length() != other.length())
+		{
+			^ :false;
+		}
+
+		for(let i<size> = 0_sz; i < self.av.length(); i += 1_sz)
+		{
+			if(*(self.av.data() + i) != *(other.data() + i))
+			{
+				^ :false;
+			}
+		}
+
+		^ :true;
+	}
+
+	# Lexicographic comparison returning compare_result_e.
+	- compare(other<{c1, ()}>) -> compare_result_e
+	{
+		let self_len<size> = self.av.length();
+		let other_len<size> = other.length();
+		let min_len<size> = self_len;
+
+		if(other_len < self_len)
+		{
+			min_len = other_len;
+		}
+
+		for(let i<size> = 0_sz; i < min_len; i += 1_sz)
+		{
+			let a<c1> = *(self.av.data() + i);
+			let b<c1> = *(other.data() + i);
+
+			if(a < b)
+			{
+				^ :less;
+			}
+
+			if(a > b)
+			{
+				^ :greater;
+			}
+		}
+
+		if(self_len < other_len)
+		{
+			^ :less;
+		}
+
+		if(self_len > other_len)
+		{
+			^ :greater;
+		}
+
+		^ :equal;
+	}
+}
+
+# Creates an unsized string view from a pointer and length.
++ make_string_view(ptr<c1*>, length<size>) -> {c1, ()}
+{
+	let result<{c1, ()}>;
+	result.av = make_array_view(ptr, length);
+	^ result;
+}
+
+# Creates a sized string view from an array view.
++ make_string_view(av<[c1, ()]>) -> {c1, ()}
+{
+	let result<{c1, ()}>;
+	result.av = av;
+	^ result;
+}

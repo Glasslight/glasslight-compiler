@@ -1,0 +1,194 @@
+package math;
+require core.basic ~> .;
+require core.basic.limits;
+
+# Linear interpolation functions.
++ lerp(a<f2>, b<f2>, t<f2>) -> f2 { ^ a + t * (b - a); }
++ lerp(a<f4>, b<f4>, t<f4>) -> f4 { ^ a + t * (b - a); }
++ lerp(a<f8>, b<f8>, t<f8>) -> f8 { ^ a + t * (b - a); }
+
+# Smoothstep interpolation functions.
++ smoothstep(a<f2>, b<f2>, x<f2>) when x < a -> f2 { ^ 0.0_f2; }
++ smoothstep(a<f2>, b<f2>, x<f2>) when x >= b -> f2 { ^ 1.0_f2; }
++ smoothstep(a<f2>, b<f2>, x<f2>) -> f2
+{
+	let interp_fraction<f2> = (x - a) / (b - a);
+	^ interp_fraction * interp_fraction * (3.0_f2 - 2.0_f2 * interp_fraction);
+}
+
++ smoothstep(a<f4>, b<f4>, x<f4>) when x < a -> f4 { ^ 0.0_f4; }
++ smoothstep(a<f4>, b<f4>, x<f4>) when x >= b -> f4 { ^ 1.0_f4; }
++ smoothstep(a<f4>, b<f4>, x<f4>) -> f4
+{
+	let interp_fraction<f4> = (x - a) / (b - a);
+	^ interp_fraction * interp_fraction * (3.0_f4 - 2.0_f4 * interp_fraction);
+}
+
++ smoothstep(a<f8>, b<f8>, x<f8>) when x < a -> f8 { ^ 0.0_f8; }
++ smoothstep(a<f8>, b<f8>, x<f8>) when x >= b -> f8 { ^ 1.0_f8; }
++ smoothstep(a<f8>, b<f8>, x<f8>) -> f8
+{
+	let interp_fraction<f8> = (x - a) / (b - a);
+	^ interp_fraction * interp_fraction * (3.0_f8 - 2.0_f8 * interp_fraction);
+}
+
+# Midpoint functions.
++ midpoint(a<f2>, b<f2>) -> f2 { ^ (a + b) * 0.5_f2; }
++ midpoint(a<f4>, b<f4>) -> f4 { ^ (a + b) * 0.5_f4; }
++ midpoint(a<f8>, b<f8>) -> f8 { ^ (a + b) * 0.5_f8; }
+
+# Angle conversion functions.
++ degtorad(x<f2>) -> f2
+{
+	const factor<f2> = 0x2478_u2 ~~> f2;
+	^ x * factor;
+}
+
++ degtorad(x<f4>) -> f4
+{
+	const factor<f4> = 0x3c8efa35_u4 ~~> f4;
+	^ x * factor;
+}
+
++ degtorad(x<f8>) -> f8
+{
+	const factor<f8> = 0x3f91df46a2529d39_u8 ~~> f8;
+	^ x * factor;
+}
+
++ radtodeg(x<f2>) -> f2
+{
+	const factor<f2> = 0x5329_u2 ~~> f2;
+	^ x * factor;
+}
+
++ radtodeg(x<f4>) -> f4
+{
+	const factor<f4> = 0x42652ee1_u4 ~~> f4;
+	^ x * factor;
+}
+
++ radtodeg(x<f8>) -> f8
+{
+	const factor<f8> = 0x404ca5dc1a63c1f8_u8 ~~> f8;
+	^ x * factor;
+}
+
+# Near-equality functions.
++ nearly_equal?(x<f2>, y<f2>) -> atom { ^ nearly_equal?(x, y, limits.epsilon(f2)); }
++ nearly_equal?(x<f2>, y<f2>, eps<f2>) when x == y -> atom { ^ :true; }
++ nearly_equal?(x<f2>, y<f2>, eps<f2>) -> atom { ^ abs(x - y) <= eps; }
+
++ nearly_equal?(x<f4>, y<f4>) -> atom { ^ nearly_equal?(x, y, limits.epsilon(f4)); }
++ nearly_equal?(x<f4>, y<f4>, eps<f4>) when x == y -> atom { ^ :true; }
++ nearly_equal?(x<f4>, y<f4>, eps<f4>) -> atom { ^ abs(x - y) <= eps; }
+
++ nearly_equal?(x<f8>, y<f8>) -> atom { ^ nearly_equal?(x, y, limits.epsilon(f8)); }
++ nearly_equal?(x<f8>, y<f8>, eps<f8>) when x == y -> atom { ^ :true; }
++ nearly_equal?(x<f8>, y<f8>, eps<f8>) -> atom { ^ abs(x - y) <= eps; }
+
+# Near-zero functions.
++ nearly_zero?(x<f2>) -> atom { ^ nearly_equal?(x, 0.0_f2); }
++ nearly_zero?(x<f2>, eps<f2>) -> atom { ^ nearly_equal?(x, 0.0_f2, eps); }
++ nearly_zero?(x<f4>) -> atom { ^ nearly_equal?(x, 0.0_f4); }
++ nearly_zero?(x<f4>, eps<f4>) -> atom { ^ nearly_equal?(x, 0.0_f4, eps); }
++ nearly_zero?(x<f8>) -> atom { ^ nearly_equal?(x, 0.0_f8); }
++ nearly_zero?(x<f8>, eps<f8>) -> atom { ^ nearly_equal?(x, 0.0_f8, eps); }
+
+# Power of two check functions.
++ pow2?(val<u1>) -> atom { ^ val > 0_u1 && (val & (val - 1_u1)) == 0_u1; }
++ pow2?(val<u2>) -> atom { ^ val > 0_u2 && (val & (val - 1_u2)) == 0_u2; }
++ pow2?(val<u4>) -> atom { ^ val > 0_u4 && (val & (val - 1_u4)) == 0_u4; }
++ pow2?(val<u8>) -> atom { ^ val > 0_u8 && (val & (val - 1_u8)) == 0_u8; }
++ pow2?(val<s1>) -> atom { ^ val > 0_s1 && (val & (val - 1_s1)) == 0_s1; }
++ pow2?(val<s2>) -> atom { ^ val > 0_s2 && (val & (val - 1_s2)) == 0_s2; }
++ pow2?(val<s4>) -> atom { ^ val > 0_s4 && (val & (val - 1_s4)) == 0_s4; }
++ pow2?(val<s8>) -> atom { ^ val > 0_s8 && (val & (val - 1_s8)) == 0_s8; }
++ pow2?(val<size>) -> atom { ^ val > 0_sz && (val & (val - 1_sz)) == 0_sz; }
+
+# Round up to next power of two functions.
++ pow2_ceil(val<u1>) when val <= 1_u1 -> (overflow_e, u1) { ^ (:ok, 1_u1); }
++ pow2_ceil(val<u1>) when val > (1_u1 << 7_sz) -> (overflow_e, u1) { ^ (:overflow, val); }
++ pow2_ceil(val<u1>) -> (overflow_e, u1) {
+	let val_s<s1> = (val - 1_u1) ~~> s1;
+	let zeros<s1> = ctlz(val_s);
+	let shift<size> = 8_sz - ((zeros ~> s8) ~~> size);
+	^ (:ok, 1_u1 << shift);
+}
+
++ pow2_ceil(val<u2>) when val <= 1_u2 -> (overflow_e, u2) { ^ (:ok, 1_u2); }
++ pow2_ceil(val<u2>) when val > (1_u2 << 15_sz) -> (overflow_e, u2) { ^ (:overflow, val); }
++ pow2_ceil(val<u2>) -> (overflow_e, u2) {
+	let val_s<s2> = (val - 1_u2) ~~> s2;
+	let zeros<s2> = ctlz(val_s);
+	let shift<size> = 16_sz - ((zeros ~> s8) ~~> size);
+	^ (:ok, 1_u2 << shift);
+}
+
++ pow2_ceil(val<u4>) when val <= 1_u4 -> (overflow_e, u4) { ^ (:ok, 1_u4); }
++ pow2_ceil(val<u4>) when val > (1_u4 << 31_sz) -> (overflow_e, u4) { ^ (:overflow, val); }
++ pow2_ceil(val<u4>) -> (overflow_e, u4) {
+	let val_s<s4> = (val - 1_u4) ~~> s4;
+	let zeros<s4> = ctlz(val_s);
+	let shift<size> = 32_sz - ((zeros ~> s8) ~~> size);
+	^ (:ok, 1_u4 << shift);
+}
+
++ pow2_ceil(val<u8>) when val <= 1_u8 -> (overflow_e, u8) { ^ (:ok, 1_u8); }
++ pow2_ceil(val<u8>) when val > (1_u8 << 63_sz) -> (overflow_e, u8) { ^ (:overflow, val); }
++ pow2_ceil(val<u8>) -> (overflow_e, u8) {
+	let val_s<s8> = (val - 1_u8) ~~> s8;
+	let zeros<s8> = ctlz(val_s);
+	let shift<size> = 64_sz - (zeros ~~> size);
+	^ (:ok, 1_u8 << shift);
+}
+
++ pow2_ceil(val<size>) when val <= 1_sz -> (overflow_e, size) { ^ (:ok, 1_sz); }
++ pow2_ceil(val<size>) when val > (1_sz << 63_sz) -> (overflow_e, size) { ^ (:overflow, val); }
++ pow2_ceil(val<size>) -> (overflow_e, size) {
+	let val_s<s8> = (val - 1_sz) ~~> s8;
+	let zeros<s8> = ctlz(val_s);
+	let shift<size> = 64_sz - (zeros ~~> size);
+	^ (:ok, 1_sz << shift);
+}
+
+# Round down to previous power of two functions.
++ pow2_floor(val<u1>) when val <= 1_u1 -> u1 { ^ val; }
++ pow2_floor(val<u1>) -> u1 {
+	let val_s<s1> = val ~~> s1;
+	let zeros<s1> = ctlz(val_s);
+	let shift<size> = 7_sz - ((zeros ~> s8) ~~> size);
+	^ 1_u1 << shift;
+}
+
++ pow2_floor(val<u2>) when val <= 1_u2 -> u2 { ^ val; }
++ pow2_floor(val<u2>) -> u2 {
+	let val_s<s2> = val ~~> s2;
+	let zeros<s2> = ctlz(val_s);
+	let shift<size> = 15_sz - ((zeros ~> s8) ~~> size);
+	^ 1_u2 << shift;
+}
+
++ pow2_floor(val<u4>) when val <= 1_u4 -> u4 { ^ val; }
++ pow2_floor(val<u4>) -> u4 {
+	let val_s<s4> = val ~~> s4;
+	let zeros<s4> = ctlz(val_s);
+	let shift<size> = 31_sz - ((zeros ~> s8) ~~> size);
+	^ 1_u4 << shift;
+}
+
++ pow2_floor(val<u8>) when val <= 1_u8 -> u8 { ^ val; }
++ pow2_floor(val<u8>) -> u8 {
+	let val_s<s8> = val ~~> s8;
+	let zeros<s8> = ctlz(val_s);
+	let shift<size> = 63_sz - (zeros ~~> size);
+	^ 1_u8 << shift;
+}
+
++ pow2_floor(val<size>) when val <= 1_sz -> size { ^ val; }
++ pow2_floor(val<size>) -> size {
+	let val_s<s8> = val ~~> s8;
+	let zeros<s8> = ctlz(val_s);
+	let shift<size> = 63_sz - (zeros ~~> size);
+	^ 1_sz << shift;
+}

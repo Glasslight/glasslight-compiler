@@ -1,0 +1,5 @@
+package paths;
+require core.basic ~> .;
+
+# Windows specific file separator.
++ separator -> c1 { ^ '\\'_c1; }

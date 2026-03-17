@@ -1,0 +1,8 @@
+package limits;
+require core.basic ~> .;
+
+# Smallest finite value.
++ min($t<typeid>) when t == typeof hash -> hash { ^ 0_hs; }
+
+# Largest finite positive.
++ max($t<typeid>) when t == typeof hash -> hash { ^ 0xffffffffffffffff_hs; }

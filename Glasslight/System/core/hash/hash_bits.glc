@@ -1,0 +1,21 @@
+package hash;
+require core.basic ~> .;
+
++ hash_bits(bits<hash>) -> hash { ^ bits; }
+
++ hash_bits(bits<u1>) -> hash { ^ bits ~> hash; }
++ hash_bits(bits<u2>) -> hash { ^ bits ~> hash; }
++ hash_bits(bits<u4>) -> hash { ^ bits ~> hash; }
++ hash_bits(bits<u8>) -> hash { ^ bits ~~> hash; }
+
++ hash_bits(bits<size>) -> hash { ^ bits ~~> hash; }
++ hash_bits(bits<voidptr>) -> hash { ^ (bits ~~> size) ~~> hash; }
+
++ hash_bits(bits<f2>) -> hash { ^ hash_bits(bits ~~> u2); }
++ hash_bits(bits<f4>) -> hash { ^ hash_bits(bits ~~> u4); }
++ hash_bits(bits<f8>) -> hash { ^ hash_bits(bits ~~> u8); }
+
++ hash_bits(bytes<{c1, ()}>) -> hash { ^ hash_fnv1(bytes); }
++ hash_bits(bytes<[c1, ()]>) -> hash { ^ hash_fnv1(bytes); }
+
++ hash_bits(s<{c1}>) -> hash { ^ hash_bits(s.view); }

@@ -1,0 +1,64 @@
+package allocator;
+require core.basic ~> .;
+
+# Allocator operation type.
+atomenum alloc_op_e
+{
+	:alloc,
+	:free,
+	:realloc
+}
+
+# Allocator record. Holds a dispatch function and user data pointer.
+record allocator_r
+{
+	let func<(alloc_op_e, voidptr, voidptr, size, size) -> voidptr> = nil;
+	let user_data<voidptr> = nil;
+}
+
+# Align a size value upward to the requested alignment.
++ align_up(value<size>, align<size>) -> size
+{
+	if(align <= 1_sz)
+	{
+		^ value;
+	}
+
+	let rem<size> = value % align;
+	if(rem == 0_sz)
+	{
+		^ value;
+	}
+
+	^ value + (align - rem);
+}
+
+# Resolve allocator alignment, defaulting zero to pointer alignment.
++ effective_align(0_sz) -> size { ^ alignof voidptr; }
++ effective_align(align<size>) -> size { ^ align; }
+
+# Allocate memory using an allocator.
++ allocator_alloc(a<allocator_r>, bytes<size>) -> voidptr
+{
+	^ a.func(:alloc, a.user_data, nil, bytes, 0_sz);
+}
+
+# Allocate aligned memory using an allocator.
++ allocator_alloc_aligned(a<allocator_r>, bytes<size>, align<size>) -> voidptr
+{
+	^ a.func(:alloc, a.user_data, nil, bytes, align);
+}
+
+# Free memory using an allocator.
++ allocator_free(a<allocator_r>, ptr<voidptr>) when nil?(ptr) -> () { ^ (); }
++ allocator_free(a<allocator_r>, ptr<voidptr>) -> ()
+{
+	let _discard<voidptr> = a.func(:free, a.user_data, ptr, 0_sz, 0_sz);
+	^ ();
+}
+
+# Reallocate memory using an allocator.
++ allocator_realloc(a<allocator_r>, ptr<voidptr>, bytes<size>) -> voidptr
+{
+	^ a.func(:realloc, a.user_data, ptr, bytes, 0_sz);
+}

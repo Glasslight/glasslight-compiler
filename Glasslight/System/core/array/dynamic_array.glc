@@ -1,0 +1,508 @@
+package array;
+require core.basic ~> .;
+require core.context ~> .;
+require core.allocator ~> .;
+require core.mem ~> .;
+
+record dynamic_array_r<$t<typeid> >
+{
+	let data<t*> = nil;
+	let length<size> = 0_sz;
+	let capacity<size> = 0_sz;
+	let alloc<allocator_r>;
+
+	# Returns the current number of elements.
+	- length() -> size { ^ self.length; }
+
+	# Returns the current allocated capacity.
+	- capacity() -> size { ^ self.capacity; }
+
+	# Returns the raw data pointer.
+	- data() -> t* { ^ self.data; }
+
+	# Returns the element at idx.
+	- at(idx<size>) -> t { ^ *(self.data + idx); }
+
+	# Returns the element at idx via subscript operator.
+	- subscript(idx<size>) -> t { ^ *(self.data + idx); }
+
+	# Sets the element at idx via subscript operator.
+	- subscript(idx<size>, val<t>) -> ()
+	{
+		*(self.data + idx) = val;
+		^ ();
+	}
+
+	# Returns :true when empty and :false otherwise.
+	- empty? -> atom
+	{
+		let v<[t, ()]> = self.view;
+		^ v.empty?;
+	}
+
+	# Returns :true for in-range idx and :false otherwise.
+	- valid_index?(idx<size>) -> atom
+	{
+		let v<[t, ()]> = self.view;
+		^ v.valid_index?(idx);
+	}
+
+	constif(comparable?(t))
+	{
+		# Return an index of a given value.
+		- index_of(e<t>) -> (atom, size)
+		{
+			let v<[t, ()]> = self.view;
+			^ v.index_of(e);
+		}
+
+		# Return :true if array contains a given element.
+		- contains?(e<t>) -> atom
+		{
+			let v<[t, ()]> = self.view;
+			^ v.contains?(e);
+		}
+	}
+
+	# Return first element.
+	- first -> t
+	{
+		let v<[t, ()]> = self.view;
+		^ v.first;
+	}
+
+	# Return last element.
+	- last -> t
+	{
+		let v<[t, ()]> = self.view;
+		^ v.last;
+	}
+
+	# Return top/last element.
+	- top -> t
+	{
+		let v<[t, ()]> = self.view;
+		^ v.top;
+	}
+
+	# Ensures room for at least `needed` elements with amortized growth.
+	- ensure_capacity(needed<size>) when needed <= self.capacity -> () { ^ (); }
+	- ensure_capacity(needed<size>) -> ()
+	{
+		let new_cap<size> = self.capacity * 2_sz;
+
+		if(new_cap < 4_sz)
+		{
+			new_cap = 4_sz;
+		}
+
+		if(new_cap < needed)
+		{
+			new_cap = needed;
+		}
+
+		self.reserve(new_cap);
+		^ ();
+	}
+
+	# Ensures capacity is at least new_cap.
+	- reserve(new_cap<size>) when new_cap <= self.capacity -> () { ^ (); }
+	- reserve(new_cap<size>) -> ()
+	{
+		let bytes<size> = new_cap * (sizeof t);
+		let old_raw<voidptr> = self.data ~~> voidptr;
+		let new_raw<voidptr> = nil;
+
+		if(nil?(old_raw))
+		{
+			new_raw = allocator_alloc(self.alloc, bytes);
+		}
+		else
+		{
+			new_raw = allocator_realloc(self.alloc, old_raw, bytes);
+		}
+
+		if(nil?(new_raw))
+		{
+			runtime_error("dynamic_array_r.reserve: out of memory");
+		}
+
+		self.data = new_raw ~~> t*;
+		self.capacity = new_cap;
+
+		^ ();
+	}
+
+	# Appends one element, growing storage if needed.
+	- append!(value<t>) -> ()
+	{
+		self.ensure_capacity(self.length + 1_sz);
+
+		*(self.data + self.length) = value;
+		self.length += 1_sz;
+
+		^ ();
+	}
+
+	# Appends all elements from an unsized array view.
+	- append!(a<[t, ()]>) -> ()
+	{
+		let add_len<size> = a.length();
+		if(add_len == 0_sz)
+		{
+			^ ();
+		}
+
+		let old_len<size> = self.length;
+		let new_len<size> = old_len + add_len;
+		let src<t*> = a.data();
+		let self_alias<atom> = self.data == src;
+
+		self.ensure_capacity(new_len);
+
+		let dst<voidptr> = (self.data + old_len) ~~> voidptr;
+		let bytes<size> = add_len * (sizeof t);
+		if(self_alias)
+		{
+			__glc_mem_move(dst, self.data ~~> voidptr, bytes);
+		}
+		else
+		{
+			__glc_mem_copy(dst, src ~~> voidptr, bytes);
+		}
+
+		self.length = new_len;
+		^ ();
+	}
+
+	# Appends all elements from another dynamic array.
+	- append!(a<[t, :dynamic]>) -> ()
+	{
+		let v<[t, ()]> = a.view;
+		^ self.append!(v);
+	}
+
+	constif(comparable?(t))
+	{
+		# Removes all matching elements and returns the number removed.
+		- remove!(e<t>) -> size
+		{
+			let removed<size> = 0_sz;
+			let write_idx<size> = 0_sz;
+
+			for(let read_idx<size> = 0_sz; read_idx < self.length; read_idx += 1_sz)
+			{
+				let current<t> = *(self.data + read_idx);
+
+				if(current == e)
+				{
+					removed += 1_sz;
+				}
+				else
+				{
+					if(write_idx != read_idx)
+					{
+						*(self.data + write_idx) = current;
+					}
+
+					write_idx += 1_sz;
+				}
+			}
+
+			self.length = write_idx;
+			^ removed;
+		}
+
+		# Removes the first matching element and returns :true when removed.
+		- remove_single!(e<t>) -> atom
+		{
+			let found<(atom, size)> = self.index_of(e);
+			if(!elem(found, 0_sz))
+			{
+				^ :false;
+			}
+
+			let idx<size> = elem(found, 1_sz);
+			for(let i<size> = idx; i + 1_sz < self.length; i += 1_sz)
+			{
+				*(self.data + i) = *(self.data + i + 1_sz);
+			}
+
+			self.length -= 1_sz;
+			^ :true;
+		}
+	}
+
+	# Inserts an element at idx, shifting the tail right. No-op when idx > length.
+	- insert_at!(element<t>, idx<size>) when idx > self.length -> () { ^ (); }
+	- insert_at!(element<t>, idx<size>) -> ()
+	{
+		self.ensure_capacity(self.length + 1_sz);
+
+		let tail_count<size> = self.length - idx;
+		if(tail_count > 0_sz)
+		{
+			let src<voidptr> = (self.data + idx) ~~> voidptr;
+			let dst<voidptr> = (self.data + idx + 1_sz) ~~> voidptr;
+			let bytes<size> = tail_count * (sizeof t);
+			__glc_mem_move(dst, src, bytes);
+		}
+
+		*(self.data + idx) = element;
+		self.length += 1_sz;
+		^ ();
+	}
+
+	# Removes the element at idx and shifts the tail left.
+	- remove_at!(idx<size>) when !self.valid_index?(idx) -> () { ^ (); }
+	- remove_at!(idx<size>) -> ()
+	{
+		for(let i<size> = idx; i + 1_sz < self.length; i += 1_sz)
+		{
+			*(self.data + i) = *(self.data + i + 1_sz);
+		}
+
+		self.length -= 1_sz;
+		^ ();
+	}
+
+	# Removes the element at idx by swapping with the last live element.
+	- remove_at_swap!(idx<size>) when !self.valid_index?(idx) -> () { ^ (); }
+	- remove_at_swap!(idx<size>) -> ()
+	{
+		let last_idx<size> = self.length - 1_sz;
+		*(self.data + idx) = *(self.data + last_idx);
+		self.length -= 1_sz;
+
+		^ ();
+	}
+
+	# Removes the last element and is a no-op when already empty.
+	- pop! when self.empty? -> () { ^ (); }
+	- pop! -> ()
+	{
+		self.length -= 1_sz;
+		^ ();
+	}
+
+	# Removes all elements but keeps allocation.
+	- clear! -> ()
+	{
+		self.length = 0_sz;
+		^ ();
+	}
+
+	# Reverses the array in-place.
+	- reverse! when self.length <= 1_sz -> () { ^ (); }
+	- reverse! -> ()
+	{
+		let left<size> = 0_sz;
+		let right<size> = self.length - 1_sz;
+
+		while(left < right)
+		{
+			let temp<t> = *(self.data + left);
+			*(self.data + left) = *(self.data + right);
+			*(self.data + right) = temp;
+			left += 1_sz;
+			right -= 1_sz;
+		}
+
+		^ ();
+	}
+
+	# Shrink capacity to fit the current live length.
+	- shrink when self.length == self.capacity -> () { ^ (); }
+	- shrink -> ()
+	{
+		if(self.length == 0_sz)
+		{
+			allocator_free(self.alloc, self.data ~~> voidptr);
+			self.data = nil;
+			self.capacity = 0_sz;
+			^ ();
+		}
+
+		let bytes<size> = self.length * (sizeof t);
+		let resized<voidptr> = allocator_realloc(self.alloc, self.data ~~> voidptr, bytes);
+
+		if(nil?(resized))
+		{
+			runtime_error("dynamic_array_r.shrink: out of memory");
+		}
+
+		self.data = resized ~~> t*;
+		self.capacity = self.length;
+		^ ();
+	}
+
+	# Resizes the array to n and fills all live elements with v.
+	- init(v<t>, n<size>) -> ()
+	{
+		self.ensure_capacity(n);
+
+		for(let i<size> = 0_sz; i < n; i += 1_sz)
+		{
+			*(self.data + i) = v;
+		}
+
+		self.length = n;
+		^ ();
+	}
+
+	# Resize the array but leave elements in uninitialized state.
+	- set_num_uninitialized(n<size>) -> ()
+	{
+		self.ensure_capacity(n);
+
+		self.length = n;
+		^ ();
+	}
+
+	# Resize the array and zero fill memory.
+	- set_num_zeroed(n<size>) -> ()
+	{
+		self.ensure_capacity(n);
+
+		let bytes<size> = n * (sizeof t);
+		__glc_mem_set(self.data ~~> voidptr, 0_u1, bytes);
+		self.length = n;
+		^ ();
+	}
+
+	# Create an unsized array view from this dynamic array.
+	- view -> [t, ()] { ^ make_array_view(t, self.data, self.length); }
+
+	# Frees storage and resets the array state.
+	- delete -> ()
+	{
+		allocator_free(self.alloc, self.data ~~> voidptr);
+
+		self.data = nil;
+		self.length = 0_sz;
+		self.capacity = 0_sz;
+
+		^ ();
+	}
+
+}
+
+# Create a dynamic array record with explicit context and initial capacity.
++ make_array($t<typeid>, ctx<context_r>, cap<size>) -> [t, :dynamic]
+{
+	let result<[t, :dynamic]>;
+	result.alloc = ctx.allocator_main;
+	result.capacity = cap;
+
+	if(cap > 0_sz)
+	{
+		let bytes<size> = cap * (sizeof t);
+		let raw<voidptr> = allocator_alloc(result.alloc, bytes);
+
+		if(nil?(raw))
+		{
+			runtime_error("make: out of memory");
+		}
+
+		result.data = raw ~~> t*;
+	}
+
+	^ result;
+}
+
+# Create a dynamic array record with default context and initial capacity.
++ make_array($t<typeid>, cap<size>) -> [t, :dynamic]
+{
+	let ctx<context_r> = get_default_ctx;
+	^ make_array(t, cap);
+}
+
+
+# Create a dynamic array from an unsized view, with explicit context.
++ make_array($t<typeid>, ctx<context_r>, a<[t, ()]>) -> [t, :dynamic]
+{
+	let n<size> = a.length;
+	let result<[t, :dynamic]> = make_array(t, n);
+	result.length = n;
+
+	if(n > 0_sz)
+	{
+		let dst<voidptr> = result.data ~~> voidptr;
+		let src<t*> = a.data();
+		let bytes<size> = n * (sizeof t);
+		__glc_mem_copy(dst, src ~~> voidptr, bytes);
+	}
+
+	^ result;
+}
+
+# Create a dynamic array from an unsized view, with default context.
++ make_array($t<typeid>, a<[t, ()]>) -> [t, :dynamic]
+{
+	let ctx<context_r> = get_default_ctx;
+	^ make_array(a);
+}
+
+# Create a dynamic array from a sized view, with explicit context.
++ make_array($t<typeid>, $n<size>, ctx<context_r>, a<[t, (n,)]>) -> [t, :dynamic]
+{
+	let v<[t, ()]> = a.view();
+	^ make_array(v);
+}
+
+# Create a dynamic array from a sized view, with default context.
++ make_array($t<typeid>, $n<size>, a<[t, (n,)]>) -> [t, :dynamic]
+{
+	let ctx<context_r> = get_default_ctx;
+	^ make_array(a);
+}
+
+# Create a dynamic array by copying a static array with explicit context.
++ make_array($t<typeid>, $n<size>, ctx<context_r>, a<[t, n]>) -> [t, :dynamic]
+{
+	let v<[t, (n,)]> = a.view();
+	^ make_array(v);
+}
+
+# Create a dynamic array by copying a static array with default context.
++ make_array($t<typeid>, $n<size>, a<[t, n]>) -> [t, :dynamic]
+{
+	let ctx<context_r> = get_default_ctx;
+	^ make_array(a);
+}
+
+# Create a dynamic array copy with explicit context.
++ copy_array($t<typeid>, ctx<context_r>, a<[t, :dynamic]>) -> [t, :dynamic]
+{
+	let v<[t, ()]> = a.view();
+	^ make_array(v);
+}
+
+# Create a dynamic array copy with default context.
++ copy_array($t<typeid>, a<[t, :dynamic]>) -> [t, :dynamic]
+{
+	let ctx<context_r> = get_default_ctx;
+	^ copy_array(t, a);
+}
+
+# Create a reversed copy with explicit context.
++ copy_reverse($t<typeid>, ctx<context_r>, a<[t, :dynamic]>) -> [t, :dynamic]
+{
+	let n<size> = a.length;
+	let result<[t, :dynamic]> = make_array(t, n);
+	result.length = n;
+
+	for(let i<size> = 0_sz; i < n; i += 1_sz)
+	{
+		*(result.data + i) = *(a.data + n - 1_sz - i);
+	}
+
+	^ result;
+}
+
+# Create a reversed copy with default context.
++ copy_reverse($t<typeid>, a<[t, :dynamic]>) -> [t, :dynamic]
+{
+	let ctx<context_r> = get_default_ctx;
+	^ copy_reverse(t, a);
+}

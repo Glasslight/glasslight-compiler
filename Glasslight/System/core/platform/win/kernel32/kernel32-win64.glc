@@ -1,0 +1,9 @@
+package kernel32;
+require core.basic ~> basic;
+
+[[:system, :dynamic]]
+foreign "Kernel32" ~> .
+{
+	+ GetEnvironmentVariableA(lpName<{basic.u1, :c}>, lpBuffer<basic.voidptr>, nSize<basic.u4>) -> basic.u4;
+	+ SetEnvironmentVariableA(lpName<{basic.u1, :c}>, lpValue<basic.voidptr>) -> basic.cbool ->> basic.atom;
+}

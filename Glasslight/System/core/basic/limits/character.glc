@@ -1,0 +1,14 @@
+package limits;
+require core.basic ~> .;
+
+# c1 limits.
++ min($t<typeid>) when t == typeof c1 -> c1 { ^ 0_c1; }
++ max($t<typeid>) when t == typeof c1 -> c1 { ^ 255_c1; }
+
+# c2 limits.
++ min($t<typeid>) when t == typeof c2 -> c2 { ^ 0_c2; }
++ max($t<typeid>) when t == typeof c2 -> c2 { ^ 65535_c2; }
+
+# c4 limits.
++ min($t<typeid>) when t == typeof c4 -> c4 { ^ 0_c4; }
++ max($t<typeid>) when t == typeof c4 -> c4 { ^ 0x10ffff_c4; }

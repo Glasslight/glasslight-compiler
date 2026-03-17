@@ -1,0 +1,24 @@
+package allocator;
+require core.basic ~> .;
+
+# Allocator function that always returns nil.
+# Useful for contexts where heap allocation should not occur.
++ nil_allocator_func(op<alloc_op_e>, user_data<voidptr>, ptr<voidptr>, bytes<size>, align<size>) -> voidptr
+{
+	# All operations return nil:
+	# - :alloc returns nil (no memory allocated)
+	# - :free returns nil (no-op)
+	# - :realloc returns nil (no memory allocated)
+	^ nil;
+}
+
+# Create a nil allocator that always returns nil on allocation.
+# Free and realloc are no-ops.
++ make_nil_allocator -> allocator_r
+{
+	let a<allocator_r>;
+	a.func = &nil_allocator_func;
+	a.user_data = nil;
+
+	^ a;
+}

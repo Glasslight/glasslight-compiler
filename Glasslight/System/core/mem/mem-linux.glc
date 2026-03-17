@@ -1,0 +1,24 @@
+package mem;
+require core.basic;
+require core.ffi.mem ~> .;
+
++ alloc(bytes<basic.size>) -> basic.voidptr
+{
+	^ __glc_mem_alloc(bytes);
+}
+
++ free(ptr<basic.voidptr>) -> ()
+{
+	__glc_mem_free(ptr);
+	^ ();
+}
+
++ calloc(num<basic.size>, bytes<basic.size>) -> basic.voidptr
+{
+	^ __glc_mem_calloc(num, bytes);
+}
+
++ realloc(ptr<basic.voidptr>, bytes<basic.size>) -> basic.voidptr
+{
+	^ __glc_mem_realloc(ptr, bytes);
+}

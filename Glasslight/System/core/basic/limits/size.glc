@@ -1,0 +1,8 @@
+package limits;
+require core.basic ~> .;
+
+# Smallest finite value.
++ min($t<typeid>) when t == typeof size -> size { ^ 0_sz; }
+
+# Largest finite positive.
++ max($t<typeid>) when t == typeof size -> size { ^ 0xffffffffffffffff_sz; }

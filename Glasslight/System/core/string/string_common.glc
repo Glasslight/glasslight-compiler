@@ -1,0 +1,9 @@
+package string;
+require core.basic ~> .;
+
+# Search case comparison atomenum.
+atomenum search_case_e
+{
+	:case_sensitive,
+	:ignore_case
+}

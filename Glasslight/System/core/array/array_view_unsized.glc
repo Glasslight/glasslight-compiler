@@ -1,0 +1,73 @@
+package array;
+require core.basic ~> .;
+require core.basic.limits ~> .;
+
+record array_view_r<$t<typeid> >
+{
+	let data<t*> = nil;
+	let length<size> = 0_sz;
+
+	# Returns the runtime length of the view.
+	- length() -> size { ^ self.length; }
+
+	# Returns the value at the requested index.
+	- at(idx<size>) -> t { ^ *(self.data + idx); }
+
+	# Returns the value at the requested index via subscript syntax.
+	- subscript(idx<size>) -> t { ^ *(self.data + idx); }
+
+	# Returns the start pointer for the viewed data.
+	- data() -> t* { ^ self.data; }
+
+	# Returns whether the given index is within bounds.
+	- valid_index?(idx<size>) when idx < self.length -> atom { ^ :true; }
+	- valid_index?(idx<size>) -> atom { ^ :false; }
+
+	# Returns whether the view has no elements.
+	- empty? when self.length == 0_sz -> atom { ^ :true; }
+	- empty? -> atom { ^ :false; }
+
+	constif(comparable?(t))
+	{
+		# Return an index of a given value.
+		- index_of(v<t>) -> (atom, size)
+		{
+			for(let i<size> = 0_sz; i < self.length; i += 1_sz)
+			{
+				let e<t> = *(self.data + i);
+
+				if(e == v)
+				{
+					^ (:true, i);
+				}
+			}
+
+			^ (:false, max(size));
+		}
+
+		# Return :true if view contains a given element.
+		- contains?(e<t>) -> atom
+		{
+			let (ok<atom>, _) = self.index_of(e);
+			^ ok;
+		}
+	}
+
+	# Return first element.
+	- first -> t { ^ *(self.data + 0_sz); }
+
+	# Return last element.
+	- last -> t { ^ *(self.data + self.length - 1_sz); }
+
+	# Return top/last element.
+	- top -> t { ^ *(self.data + self.length - 1_sz); }
+}
+
+# Creates an unsized array view from a pointer and length.
++ make_array_view($t<typeid>, ptr<t*>, length<size>) -> [t, ()]
+{
+	let result<[t, ()]>;
+	result.data = ptr;
+	result.length = length;
+	^ result;
+}

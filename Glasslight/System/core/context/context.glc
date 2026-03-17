@@ -1,0 +1,27 @@
+package context;
+require core.basic ~> .;
+require core.allocator ~> .;
+
+# Context record declaration.
+record context_r
+{
+	let allocator_main<allocator_r>;
+	let allocator_temp<allocator_r>;
+	let user_data<voidptr> = nil;
+}
+
+# Initialize context.
++ __glc_init_ctx(ctx<context_r*>) -> ()
+{
+	ctx.allocator_main = make_default_allocator();
+	ctx.allocator_temp = make_default_allocator();
+	^ ();
+}
+
+# Return default context.
++ get_default_ctx -> context_r
+{
+	let ctx<context_r>;
+	__glc_init_ctx(&ctx);
+	^ ctx;
+}

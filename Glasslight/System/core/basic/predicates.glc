@@ -1,0 +1,79 @@
+package basic;
+
+# Return true if type is an atom type.
++ atom?($t<typeid>) when t == typeof atom -> atom { ^ :true; }
++ atom?($t<typeid>) -> atom { ^ :false; }
+
+# Return true if type is a size type.
++ size?($t<typeid>) when t == typeof size -> atom { ^ :true; }
++ size?($t<typeid>) -> atom { ^ :false; }
+
+# Return true if type is a hash type.
++ hash?($t<typeid>) when t == typeof hash -> atom { ^ :true; }
++ hash?($t<typeid>) -> atom { ^ :false; }
+
+# Return true if type is a character type.
++ character?($t<typeid>) when kindof t == :character -> atom { ^ :true; }
++ character?($t<typeid>) -> atom { ^ :false; }
+
+# Return true if type is a float type.
++ float?($t<typeid>) when kindof t == :float -> atom { ^ :true; }
++ float?($t<typeid>) -> atom { ^ :false; }
+
+# Return true if type is a signed type.
++ signed?($t<typeid>) when kindof t == :signed -> atom { ^ :true; }
++ signed?($t<typeid>) -> atom { ^ :false; }
+
+# Return true if type is an unsigned type.
++ unsigned?($t<typeid>) when kindof t == :unsigned -> atom { ^ :true; }
++ unsigned?($t<typeid>) -> atom { ^ :false; }
+
+# Return true if type is an integer type.
++ integer?($t<typeid>) when signed?(t) || unsigned?(t) || size?(t) || hash?(t) -> atom { ^ :true; }
++ integer?($t<typeid>) -> atom { ^ :false; }
+
+# Return true if type is a numeric type.
++ numeric?($t<typeid>) when float?(t) || integer?(t) -> atom { ^ :true; }
++ numeric?($t<typeid>) -> atom { ^ :false; }
+
+# Return true if type is a tuple.
++ tuple?($t<typeid>) when kindof t == :tuple -> atom { ^ :true; }
++ tuple?($t<typeid>) -> atom { ^ :false; }
+
+# Return true if type is a static array type.
++ static_array?($t<typeid>) when kindof t == :static_array -> atom { ^ :true; }
++ static_array?($t<typeid>) -> atom { ^ :false; }
+
+# Return true if type is a function.
++ function?($t<typeid>) when kindof t == :function -> atom { ^ :true; }
++ function?($t<typeid>) -> atom { ^ :false; }
+
+# Return true if type is a record type.
++ record?($t<typeid>) when kindof t == :record -> atom { ^ :true; }
++ record?($t<typeid>) -> atom { ^ :false; }
+
+# Return true if type is a typeid.
++ typeid?($t<typeid>) when kindof t == :typeid -> atom { ^ :true; }
++ typeid?($t<typeid>) -> atom { ^ :false; }
+
+# Return true if type is a managed/dynamic array.
++ dynamic_array?($t<typeid>) when kindof t == :dynamic_array -> atom { ^ :true; }
++ dynamic_array?($t<typeid>) -> atom { ^ :false; }
+
+# Return true if type is an atomset.
++ atomset?($t<typeid>) when kindof t == :atomset -> atom { ^ :true; }
++ atomset?($t<typeid>) -> atom { ^ :false; }
+
+# Return true if type supports equality comparison.
++ comparable?($t<typeid>) when compareof t != :none -> atom { ^ :true; }
++ comparable?($t<typeid>) -> atom { ^ :false; }
+
+# Return true if type supports relational ordering.
++ orderable?($t<typeid>) when orderof t != :none -> atom { ^ :true; }
++ orderable?($t<typeid>) -> atom { ^ :false; }
+
+# Return type size in bits.
++ type_bits($t<typeid>) -> size { ^ sizeof t * 8_sz; }
+
+# Return type size in bytes.
++ type_bytes($t<typeid>) -> size { ^ sizeof t; }

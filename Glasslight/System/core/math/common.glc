@@ -1,0 +1,8 @@
+package math;
+
+# Common result types for math operations.
+atomenum overflow_e
+{
+	:ok,
+	:overflow
+}

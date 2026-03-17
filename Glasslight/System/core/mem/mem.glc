@@ -1,0 +1,55 @@
+package mem;
+require core.basic ~> .;
+
+intrinsic
+{
+	# memset intrinsic.
+	+__glc_mem_set(dst<voidptr>, val<u1>, num_bytes<size>) -> ();
+
+	# memcpy intrinsic.
+	+__glc_mem_copy(dst<voidptr>, src<voidptr>, num_bytes<size>) -> ();
+
+	# memmove intrinsic.
+	+__glc_mem_move(dst<voidptr>, src<voidptr>, num_bytes<size>) -> ();
+}
+
+# Allocate memory for a given type.
++ alloc($t<typeid>) -> t*
+{
+	let bytes<size> = sizeof t;
+	let raw<voidptr> = alloc(bytes);
+	^ raw ~~> t*;
+}
+
+# Allocate memory for a given type (number of instances).
++ alloc($t<typeid>, $count<size>) -> t*
+{
+	const bytes<size> = (sizeof t) * count;
+	let raw<voidptr> = alloc(bytes);
+	^ raw ~~> t*;
+}
+
+# Allocate memory for a given type (number of instances) and zero the memory.
++ calloc($t<typeid>, count<size>) -> t*
+{
+	let bytes<size> = sizeof t;
+	let raw<voidptr> = calloc(count, bytes);
+	^ raw ~~> t*;
+}
+
+# Reallocate memory for a given type (number of instances).
++ realloc($t<typeid>, ptr<t*>, count<size>) -> t*
+{
+	let bytes<size> = (sizeof t) * count;
+	let old_ptr<voidptr> = ptr ~~> voidptr;
+	let raw<voidptr> = realloc(old_ptr, bytes);
+	^ raw ~~> t*;
+}
+
+# Free memory for a given type allocation.
++ free($t<typeid>, ptr<t*>) -> ()
+{
+	let raw<voidptr> = ptr ~~> voidptr;
+	free(raw);
+	^ ();
+}

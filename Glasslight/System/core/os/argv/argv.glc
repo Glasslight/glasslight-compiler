@@ -1,0 +1,46 @@
+package argv;
+require core.basic ~> .;
+require core.context ~> .;
+require core.string ~> .;
+require core.array ~> .;
+require core.ffi.argv ~> ffi_argv;
+
+# Return the number of command-line arguments.
++ argv_count -> size { ^ ffi_argv.glc_argv_count() ~~> size; }
+
+# Copy a single command-line argument into an owned string.
++ argv_get(ctx<context_r>, index<size>) -> {c1}
+{
+	let raw<cstring> = ffi_argv.glc_argv_get(index ~~> u8);
+	^ make_string(raw.view());
+}
+
+# Copy a single command-line argument (default context).
++ argv_get(index<size>) -> {c1}
+{
+	let ctx<context_r> = get_default_ctx;
+	^ argv_get(index);
+}
+
+# Return all command-line arguments as a dynamic array of owned strings.
++ argv_all(ctx<context_r>) -> [{c1}, :dynamic]
+{
+	let count<size> = argv_count();
+	let result<[{c1}, :dynamic]> = make_array({c1}, count);
+	let i<size> = 0_sz;
+
+	while(i < count)
+	{
+		result.append!(argv_get(i));
+		i += 1_sz;
+	}
+
+	^ result;
+}
+
+# Return all command-line arguments (default context).
++ argv_all -> [{c1}, :dynamic]
+{
+	let ctx<context_r> = get_default_ctx;
+	^ argv_all();
+}

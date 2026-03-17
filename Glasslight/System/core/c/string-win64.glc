@@ -1,0 +1,16 @@
+package c;
+require core.basic ~> basic;
+
+[[:system, :dynamic]]
+foreign "ucrt" ~> .
+{
+	+ strncmp(lhs<basic.cstring>, rhs<basic.cstring>, n<basic.size>) -> basic.s4;
+	+ strchr(s<basic.cstring>, ch<basic.s4>) -> basic.cstring;
+	+ strcspn(s<basic.cstring>, reject<basic.cstring>) -> basic.size;
+	+ strpbrk(s<basic.cstring>, accept<basic.cstring>) -> basic.cstring;
+	+ strrchr(s<basic.cstring>, ch<basic.s4>) -> basic.cstring;
+	+ strspn(s<basic.cstring>, accept<basic.cstring>) -> basic.size;
+	+ strstr(haystack<basic.cstring>, needle<basic.cstring>) -> basic.cstring;
+	+ memmove(dst<basic.voidptr>, src<basic.voidptr>, n<basic.size>) -> basic.voidptr;
+	+ memchr(ptr<basic.voidptr>, ch<basic.s4>, n<basic.size>) -> basic.voidptr;
+}

@@ -1,0 +1,72 @@
+package vec;
+require core.basic ~> .;
+
+intrinsic
+{
+	# Intrinsic that constructs a v4atom from explicit components.
+	+ make(x<atom>, y<atom>, z<atom>, w<atom>) -> v4atom;
+
+	# Intrinsic that splats a scalar across all components.
+	+ make(v<atom>) -> v4atom;
+
+	# Intrinsic that constructs a v4atom from a tuple.
+	+ make(v<(atom, atom, atom, atom)>) -> v4atom;
+
+	# Intrinsic all-true vector constant.
+	+ true -> v4atom;
+
+	# Intrinsic all-false vector constant.
+	+ false -> v4atom;
+
+	# Intrinsic component-wise equality comparison.
+	+ equal?(a<v4atom>, b<v4atom>) -> v4atom;
+
+	# Intrinsic that returns true when any component equals target.
+	+ has_any?(v<v4atom>, target<atom>) -> atom;
+
+	# Intrinsic that returns true when all components equal target.
+	+ has_all?(v<v4atom>, target<atom>) -> atom;
+
+	# Intrinsic that returns true when no component equals target.
+	+ has_none?(v<v4atom>, target<atom>) -> atom;
+}
+
+# Converts a vector to a tuple of components.
++ to_tuple(v<v4atom>) -> (atom, atom, atom, atom) { ^ (v.x, v.y, v.z, v.w); }
+
+typemix v4atom
+{
+	# Class wrappers for vector construction and constants.
+	# Forwarding wrappers to global constructors/constants.
+	# Class wrapper for make overload.
+	+ make(x<atom>, y<atom>, z<atom>, w<atom>) -> v4atom { ^ make(x, y, z, w); }
+
+	# Class wrapper for make overload.
+	+ make(v<atom>) -> v4atom { ^ make(v); }
+
+	# Class wrapper for make overload.
+	+ make(v<(atom, atom, atom, atom)>) -> v4atom { ^ make(v); }
+
+	# Class wrapper for true constant.
+	+ true -> v4atom { ^ true; }
+
+	# Class wrapper for false constant.
+	+ false -> v4atom { ^ false; }
+
+	# Instance wrappers for vector operations.
+	# These forward to free intrinsics/functions with self as first argument.
+	# Instance wrapper for intrinsic equal.
+	- equal?(b<v4atom>) -> v4atom { ^ equal?(*self, b); }
+
+	# Instance wrapper for intrinsic has_any.
+	- has_any?(target<atom>) -> atom { ^ has_any?(*self, target); }
+
+	# Instance wrapper for intrinsic has_all.
+	- has_all?(target<atom>) -> atom { ^ has_all?(*self, target); }
+
+	# Instance wrapper for intrinsic has_none.
+	- has_none?(target<atom>) -> atom { ^ has_none?(*self, target); }
+
+	# Instance wrapper for tuple conversion helper.
+	- to_tuple -> (atom, atom, atom, atom) { ^ to_tuple(*self); }
+}

@@ -1,0 +1,105 @@
+package limits;
+require core.basic ~> .;
+
+# Smallest positive normalized.
++ min($t<typeid>) when t == typeof f2 -> f2
+{
+	const bits<u2> = 0x0400_u2;
+	^ bits ~~> f2;
+}
++ min($t<typeid>) when t == typeof f4 -> f4
+{
+	const bits<u4> = 0x00800000_u4;
+	^ bits ~~> f4;
+}
++ min($t<typeid>) when t == typeof f8 -> f8
+{
+	const bits<u8> = 0x0010000000000000_u8;
+	^ bits ~~> f8;
+}
+
+# Largest finite positive.
++ max($t<typeid>) when t == typeof f2 -> f2
+{
+	const bits<u2> = 0x7bff_u2;
+	^ bits ~~> f2;
+}
++ max($t<typeid>) when t == typeof f4 -> f4
+{
+	const bits<u4> = 0x7f7fffff_u4;
+	^ bits ~~> f4;
+}
++ max($t<typeid>) when t == typeof f8 -> f8
+{
+	const bits<u8> = 0x7fefffffffffffff_u8;
+	^ bits ~~> f8;
+}
+
+# Most negative finite.
++ lowest($t<typeid>) when t == typeof f2 -> f2
+{
+	const bits<u2> = 0xfbff_u2;
+	^ bits ~~> f2;
+}
++ lowest($t<typeid>) when t == typeof f4 -> f4
+{
+	const bits<u4> = 0xff7fffff_u4;
+	^ bits ~~> f4;
+}
++ lowest($t<typeid>) when t == typeof f8 -> f8
+{
+	const bits<u8> = 0xffefffffffffffff_u8;
+	^ bits ~~> f8;
+}
+
+# 1.0 + epsilon != 1.0.
++ epsilon($t<typeid>) when t == typeof f2 -> f2
+{
+	const bits<u2> = 0x1400_u2;
+	^ bits ~~> f2;
+}
++ epsilon($t<typeid>) when t == typeof f4 -> f4
+{
+	const bits<u4> = 0x34000000_u4;
+	^ bits ~~> f4;
+}
++ epsilon($t<typeid>) when t == typeof f8 -> f8
+{
+	const bits<u8> = 0x3cb0000000000000_u8;
+	^ bits ~~> f8;
+}
+
+# Canonical quiet NaN values for deterministic construction in tests and FFI boundaries.
+# Use math.nan?(x) for semantic NaN checks; NaN payload bits can vary across producers.
++ quiet_nan($t<typeid>) when t == typeof f2 -> f2
+{
+	const bits<u2> = 0x7e00_u2;
+	^ bits ~~> f2;
+}
++ quiet_nan($t<typeid>) when t == typeof f4 -> f4
+{
+	const bits<u4> = 0x7fc00000_u4;
+	^ bits ~~> f4;
+}
++ quiet_nan($t<typeid>) when t == typeof f8 -> f8
+{
+	const bits<u8> = 0x7ff8000000000000_u8;
+	^ bits ~~> f8;
+}
+
+# Positive infinity.
++ inf($t<typeid>) when t == typeof f2 -> f2
+{
+	const bits<u2> = 0x7c00_u2;
+	^ bits ~~> f2;
+}
++ inf($t<typeid>) when t == typeof f4 -> f4
+{
+	const bits<u4> = 0x7f800000_u4;
+	^ bits ~~> f4;
+}
++ inf($t<typeid>) when t == typeof f8 -> f8
+{
+	const bits<u8> = 0x7ff0000000000000_u8;
+	^ bits ~~> f8;
+}

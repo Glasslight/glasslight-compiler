@@ -1,0 +1,166 @@
+package allocator;
+require core.basic ~> .;
+require core.mem ~> mem;
+
+#[
+Frame-local scratch allocator backed by caller-supplied storage.
+
+Expected usage:
+- declare a local byte buffer and scratch_allocator_state_r in the owning function
+- construct the allocator with make_scratch_allocator(&state, buf.data(), cap)
+- assign it to a local context allocator when temporary allocations should use the buffer
+- keep all allocated values within the lifetime of the buffer and state
+
+Example:
+	let buf<[u1, 1024_sz]>;
+	let state<scratch_allocator_state_r>;
+	let ctx<context_r> = get_default_ctx;
+
+	ctx.allocator_main = make_scratch_allocator(&state, buf.data(), 1024_sz);
+
+This allocator uses bump allocation, rewinds only when freeing the most recent block,
+and may move older allocations during realloc by reserving a new block and copying data.
+]#
+
+# Mutable frame-local state for the scratch allocator.
+record scratch_allocator_state_r
+{
+	let base<u1*> = nil;
+	let capacity<size> = 0_sz;
+	let offset<size> = 0_sz;
+	let last_ptr<voidptr> = nil;
+	let last_size<size> = 0_sz;
+}
+
+# Per-allocation header stored immediately before each payload.
+record scratch_allocator_header_r
+{
+	let size<size>;
+	let block_start<size>;
+}
+
+# Returns the allocation header associated with a payload pointer.
++ scratch_allocator_get_header(ptr<voidptr>) -> scratch_allocator_header_r*
+{
+	let header_bytes<size> = sizeof scratch_allocator_header_r;
+	let payload<u1*> = ptr ~~> u1*;
+
+	^ (payload - header_bytes) ~~> scratch_allocator_header_r*;
+}
+
+# Allocates a new block from the scratch buffer and records its header.
++ scratch_allocator_alloc_impl(state<scratch_allocator_state_r*>, bytes<size>, align<size>) -> voidptr
+{
+	let resolved_align<size> = effective_align(align);
+	let header_bytes<size> = sizeof scratch_allocator_header_r;
+	let block_start<size> = state.offset;
+	let payload_offset<size> = align_up(block_start + header_bytes, resolved_align);
+	let end_offset<size> = payload_offset + bytes;
+
+	if(end_offset > state.capacity)
+	{
+		^ nil;
+	}
+
+	let header<scratch_allocator_header_r*> = (state.base + payload_offset - header_bytes) ~~> scratch_allocator_header_r*;
+	header.size = bytes;
+	header.block_start = block_start;
+
+	let result<voidptr> = (state.base + payload_offset) ~~> voidptr;
+	state.offset = end_offset;
+	state.last_ptr = result;
+	state.last_size = bytes;
+
+	^ result;
+}
+
+# Dispatches alloc/free/realloc operations for the scratch allocator.
++ scratch_allocator_func(op<alloc_op_e>, user_data<voidptr>, ptr<voidptr>, bytes<size>, align<size>) -> voidptr
+{
+	let state<scratch_allocator_state_r*> = user_data ~~> scratch_allocator_state_r*;
+
+	match(op)
+	{
+		case :alloc =>
+		{
+			^ scratch_allocator_alloc_impl(state, bytes, align);
+		}
+
+		case :free =>
+		{
+			if(ptr == state.last_ptr)
+			{
+				let header<scratch_allocator_header_r*> = scratch_allocator_get_header(ptr);
+				state.offset = header.block_start;
+				state.last_ptr = nil;
+				state.last_size = 0_sz;
+			}
+
+			^ nil;
+		}
+
+		case :realloc =>
+		{
+			if(nil?(ptr))
+			{
+				^ scratch_allocator_alloc_impl(state, bytes, align);
+			}
+
+			let header<scratch_allocator_header_r*> = scratch_allocator_get_header(ptr);
+			let old_size<size> = header.size;
+
+			if(ptr == state.last_ptr)
+			{
+				let resolved_align<size> = effective_align(align);
+				let header_bytes<size> = sizeof scratch_allocator_header_r;
+				let payload_offset<size> = align_up(header.block_start + header_bytes, resolved_align);
+				let end_offset<size> = payload_offset + bytes;
+
+				if(end_offset > state.capacity)
+				{
+					^ nil;
+				}
+
+				header.size = bytes;
+				state.offset = end_offset;
+				state.last_size = bytes;
+				^ ptr;
+			}
+
+			let result<voidptr> = scratch_allocator_alloc_impl(state, bytes, align);
+			if(nil?(result))
+			{
+				^ nil;
+			}
+
+			let copy_bytes<size> = old_size;
+			if(bytes < old_size)
+			{
+				copy_bytes = bytes;
+			}
+
+			if(copy_bytes > 0_sz)
+			{
+				mem.__glc_mem_copy(result, ptr, copy_bytes);
+			}
+
+			^ result;
+		}
+	}
+}
+
+# Initializes scratch allocator state around caller-supplied storage.
++ make_scratch_allocator(state<scratch_allocator_state_r*>, ptr<u1*>, cap<size>) -> allocator_r
+{
+	state.base = ptr;
+	state.capacity = cap;
+	state.offset = 0_sz;
+	state.last_ptr = nil;
+	state.last_size = 0_sz;
+
+	let a<allocator_r>;
+	a.func = &scratch_allocator_func;
+	a.user_data = state ~~> voidptr;
+
+	^ a;
+}

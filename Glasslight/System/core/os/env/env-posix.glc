@@ -1,0 +1,68 @@
+package env;
+require core.basic ~> .;
+require core.context ~> .;
+require core.string ~> .;
+require core.platform.posix.env ~> posix_env;
+
+# Get an env var through the POSIX backend.
++ get_env(ctx<context_r>, name<{u1, :c}>) -> (env_get_result_e, {u1})
+{
+	let raw<voidptr> = posix_env.getenv(name);
+	if(raw == nil)
+	{
+		^ (:missing, make_string(ctx, 0_sz));
+	}
+
+	^ (:found, copy_env_value(ctx, raw ~~> {u1, :c}));
+}
+
+# Check whether an env var exists through the POSIX backend.
++ has_env?(name<{u1, :c}>) -> atom { ^ posix_env.getenv(name) != nil; }
+
+# Set an env var through the POSIX backend.
++ set_env(name<{u1, :c}>, value<{u1, :c}>, overwrite<atom>) -> env_set_result_e
+{
+	let existed<atom> = has_env?(name);
+	if(!overwrite)
+	{
+		if(existed)
+		{
+			^ :unchanged;
+		}
+
+		if(posix_env.setenv(name, value, 0_s4) != 0_s4)
+		{
+			runtime_error("env.set_env: POSIX setenv failed");
+		}
+
+		^ :set;
+	}
+
+	if(posix_env.setenv(name, value, 1_s4) != 0_s4)
+	{
+		runtime_error("env.set_env: POSIX setenv failed");
+	}
+
+	if(existed)
+	{
+		^ :replaced;
+	}
+
+	^ :set;
+}
+
+# Unset an env var through the POSIX backend.
++ unset_env(name<{u1, :c}>) -> env_unset_result_e
+{
+	if(!has_env?(name))
+	{
+		^ :missing;
+	}
+
+	if(posix_env.unsetenv(name) != 0_s4)
+	{
+		runtime_error("env.unset_env: POSIX unsetenv failed");
+	}
+
+	^ :removed;
+}

@@ -1,0 +1,152 @@
+package basic;
+
+# Internal structural types — behavior declarations only.
+[[(:kind, :nil), (:compare, :value)]] typecreate _;
+[[(:kind, :pointer), (:compare, :value)]] typecreate _;
+[[(:kind, :function), (:compare, :value)]] typecreate _;
+[[(:kind, :tuple), (:compare, :fields), (:order, :fields)]] typecreate _;
+[[(:kind, :atomenum), (:compare, :value)]] typecreate _;
+
+# Size type, 64 bit, unsigned.
+[[(:kind, :size), (:suffix, :sz), :integral, (:compare, :value), (:order, :value)]] typecreate size;
+
+# Hash type, 64 bit, integral.
+[[(:kind, :hash), (:suffix, :hs), :integral, (:compare, :value), (:order, :value)]] typecreate hash;
+
+# Atom type, 64 bit, unsigned.
+[[(:kind, :atom), (:compare, :value)]] typecreate atom;
+
+# Float types.
+[[(:kind, :float), (:bits, 16_sz), (:compare, :value), (:order, :value)]] typecreate f2;
+[[(:kind, :float), (:bits, 32_sz), (:compare, :value), (:order, :value)]] typecreate f4;
+[[(:kind, :float), (:bits, 64_sz), (:compare, :value), (:order, :value)]] typecreate f8;
+
+# Unsigned integers.
+[[(:kind, :unsigned), (:bits, 8_sz), :integral, (:compare, :value), (:order, :value)]] typecreate u1;
+[[(:kind, :unsigned), (:bits, 16_sz), :integral, (:compare, :value), (:order, :value)]] typecreate u2;
+[[(:kind, :unsigned), (:bits, 32_sz), :integral, (:compare, :value), (:order, :value)]] typecreate u4;
+[[(:kind, :unsigned), (:bits, 64_sz), :integral, (:compare, :value), (:order, :value)]] typecreate u8;
+
+# Signed integers.
+[[(:kind, :signed), (:bits, 8_sz), :integral, (:compare, :value), (:order, :value)]] typecreate s1;
+[[(:kind, :signed), (:bits, 16_sz), :integral, (:compare, :value), (:order, :value)]] typecreate s2;
+[[(:kind, :signed), (:bits, 32_sz), :integral, (:compare, :value), (:order, :value)]] typecreate s4;
+[[(:kind, :signed), (:bits, 64_sz), :integral, (:compare, :value), (:order, :value)]] typecreate s8;
+
+# Character types.
+[[(:kind, :character), (:bits, 8_sz), :integral, (:compare, :value), (:order, :value)]] typecreate c1;
+[[(:kind, :character), (:bits, 16_sz), :integral, (:compare, :value), (:order, :value)]] typecreate c2;
+[[(:kind, :character), (:bits, 32_sz), :integral, (:compare, :value), (:order, :value)]] typecreate c4;
+
+# Vector types — half (f2) element.
+[[(:kind, :vector), (:dim, 2_sz), (:element, :f2), :mixable, (:compare, :value)]] typecreate v2f2;
+[[(:kind, :vector), (:dim, 3_sz), (:element, :f2), :mixable, (:compare, :value)]] typecreate v3f2;
+[[(:kind, :vector), (:dim, 4_sz), (:element, :f2), :mixable, (:compare, :value)]] typecreate v4f2;
+
+# Vector types — float (f4) element.
+[[(:kind, :vector), (:dim, 2_sz), (:element, :f4), :mixable, (:compare, :value)]] typecreate v2f4;
+[[(:kind, :vector), (:dim, 3_sz), (:element, :f4), :mixable, (:compare, :value)]] typecreate v3f4;
+[[(:kind, :vector), (:dim, 4_sz), (:element, :f4), :mixable, (:compare, :value)]] typecreate v4f4;
+
+# Vector types — double (f8) element.
+[[(:kind, :vector), (:dim, 2_sz), (:element, :f8), :mixable, (:compare, :value)]] typecreate v2f8;
+[[(:kind, :vector), (:dim, 3_sz), (:element, :f8), :mixable, (:compare, :value)]] typecreate v3f8;
+[[(:kind, :vector), (:dim, 4_sz), (:element, :f8), :mixable, (:compare, :value)]] typecreate v4f8;
+
+# Vector types — atom element.
+[[(:kind, :vector), (:dim, 2_sz), (:element, :atom), :mixable, (:compare, :value)]] typecreate v2atom;
+[[(:kind, :vector), (:dim, 3_sz), (:element, :atom), :mixable, (:compare, :value)]] typecreate v3atom;
+[[(:kind, :vector), (:dim, 4_sz), (:element, :atom), :mixable, (:compare, :value)]] typecreate v4atom;
+
+# C string literals - {u1, :c} resolves to cstring.
+[[(:kind, :cstring), :mixable, (:compare, :value)]] typecreate cstring;
+
+# Compile-time only/const string literal - {u1, :const} resolves to strlit.
+[[(:kind, :strlit), :const_only]] typecreate strlit;
+
+# Opaque (void*) type.
+[[(:kind, :voidptr), (:compare, :value)]] typecreate voidptr;
+
+# Type id handle.
+[[(:kind, :typeid), (:compare, :value)]] typecreate typeid;
+
+# C atom type (64-bit hash) used by foreign functions.
+[[(:kind, :foreignatom), :foreign]] typecreate catom;
+
+# C boolean type used by foreign functions.
+[[(:kind, :foreignbool), :foreign]] typecreate cbool;
+
+# C void type used by foreign functions.
+[[(:kind, :foreignvoid), :foreign]] typecreate cvoid;
+
+# Base type for atom sets — atomset resolves to atomset_r.
+[[(:kind, :atomset), (:record, :atomset_r)]] typecreate atomset;
+
+# Base type for dynamic arrays — [T, :dynamic] resolves to dynamic_array_r<T>.
+[[(:kind, :dynamic_array), (:record, :dynamic_array_r)]] typecreate _;
+
+# Base type for static arrays — enables typemix methods on all [T, N] types.
+[[(:kind, :static_array), :mixable, (:compare, :fields), (:order, :fields)]] typecreate static_array;
+
+# Base type for unsized array views — [T, ()] resolves to array_view_r<T>.
+[[(:kind, :array_view_unsized), (:record, :array_view_r)]] typecreate _;
+
+# Base type for sized array views — [T, (N_sz,)] resolves to array_view_r<T, N>.
+[[(:kind, :array_view_sized), (:record, :array_view_r)]] typecreate _;
+
+# Base type for strings — {u1} resolves to string_r.
+[[(:kind, :string), (:record, :string_r)]] typecreate _;
+
+# Base type for unsized string views — {u1, ()} resolves to string_view_unsized_r.
+[[(:kind, :string_view_unsized), (:record, :string_view_unsized_r)]] typecreate _;
+
+# Base type for sized string views — {u1, (N_sz,)} resolves to string_view_sized_r<N>.
+[[(:kind, :string_view_sized), (:record, :string_view_sized_r)]] typecreate _;
+
+# Comparison mode for compare/order attributes.
+atomenum type_compare_mode_e
+{
+	:value,		# Compare by the raw value (bitwise equality/ordering).
+	:memory,	# Compare by raw memory representation.
+	:fields,	# Compare field-by-field in declaration order.
+	:none		# Explicitly not compare/order.
+}
+
+# Comparison result atomenum for lexicographic ordering.
+atomenum compare_result_e
+{
+	:less,
+	:equal,
+	:greater
+}
+
+# Type kind atomenum for the kindof operator.
+atomenum typekind_e
+{
+	:signed,
+	:unsigned,
+	:float,
+	:function,
+	:character,
+	:size,
+	:hash,
+	:pointer,
+	:tuple,
+	:record,
+	:vector,
+	:enum,
+	:atom,
+	:atomenum,
+	:atomset,
+	:voidptr,
+	:typeid,
+	:static_array,
+	:dynamic_array,
+	:array_view_unsized,
+	:array_view_sized,
+	:cstring,
+	:strlit,
+	:string,
+	:string_view_unsized,
+	:string_view_sized
+}

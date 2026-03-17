@@ -1,0 +1,403 @@
+package atom;
+require core.basic ~> .;
+require core.context ~> .;
+require core.allocator ~> .;
+require core.mem ~> .;
+
+record atomset_r
+{
+	let keys<atom*> = nil;
+	let states<u1*> = nil;
+	let length<size> = 0_sz;
+	let capacity<size> = 0_sz;
+	let deleted<size> = 0_sz;
+	let alloc<allocator_r>;
+	let alloc_initialized<atom> = :false;
+
+	# Round capacity up to the next power of two, with a minimum of 8.
+	+ round_capacity(requested<size>) when requested <= 8_sz -> size { ^ 8_sz; }
+	+ round_capacity(requested<size>) -> size
+	{
+		let cap<size> = 8_sz;
+		while(cap < requested)
+		{
+			cap *= 2_sz;
+		}
+
+		^ cap;
+	}
+
+	# Map an atom value to a bucket index within the current capacity.
+	+ bucket(value<atom>, capacity<size>) -> size
+	{
+		let bits<size> = value ~~> size;
+		^ bits % capacity;
+	}
+
+	# Ensure the set has a valid allocator before allocating storage.
+	- ensure_allocator! -> ()
+	{
+		if(!self.alloc_initialized)
+		{
+			let ctx<context_r> = get_default_ctx;
+			self.alloc = ctx.allocator_main;
+			self.alloc_initialized = :true;
+		}
+
+		^ ();
+	}
+
+	# Return the current number of live elements.
+	- length() -> size { ^ self.length; }
+
+	# Return the current bucket capacity.
+	- capacity() -> size { ^ self.capacity; }
+
+	# Return :true when the set contains no live elements.
+	- empty? -> atom { ^ self.length == 0_sz; }
+
+	# Rebuild the table at a requested capacity and reinsert live entries.
+	- rehash!(requested<size>) -> ()
+	{
+		let target<size> = atomset_r.round_capacity(requested);
+		let key_bytes<size> = target * (sizeof atom);
+		let state_bytes<size> = target * (sizeof u1);
+
+		self.ensure_allocator!;
+
+		let new_keys<voidptr> = allocator_alloc(self.alloc, key_bytes);
+		let new_states<voidptr> = allocator_alloc(self.alloc, state_bytes);
+
+		if(nil?(new_keys) || nil?(new_states))
+		{
+			allocator_free(self.alloc, new_keys);
+			allocator_free(self.alloc, new_states);
+			runtime_error("atomset_r.rehash!: out of memory");
+		}
+
+		__glc_mem_set(new_states, 0_u1, state_bytes);
+
+		let old_keys<atom*> = self.keys;
+		let old_states<u1*> = self.states;
+		let old_capacity<size> = self.capacity;
+
+		self.keys = new_keys ~~> atom*;
+		self.states = new_states ~~> u1*;
+		self.capacity = target;
+		self.deleted = 0_sz;
+
+		if(old_capacity > 0_sz)
+		{
+			for(let old_idx<size> = 0_sz; old_idx < old_capacity; old_idx += 1_sz)
+			{
+				if(*(old_states + old_idx) == 1_u1)
+				{
+					let value<atom> = *(old_keys + old_idx);
+					let idx<size> = atomset_r.bucket(value, self.capacity);
+
+					while(*(self.states + idx) == 1_u1)
+					{
+						idx += 1_sz;
+						if(idx == self.capacity)
+						{
+							idx = 0_sz;
+						}
+					}
+
+					*(self.keys + idx) = value;
+					*(self.states + idx) = 1_u1;
+				}
+			}
+
+			allocator_free(self.alloc, old_keys ~~> voidptr);
+			allocator_free(self.alloc, old_states ~~> voidptr);
+		}
+
+		^ ();
+	}
+
+	# Ensure capacity is at least the requested bucket count.
+	- reserve(new_cap<size>) when new_cap == 0_sz -> () { ^ (); }
+	- reserve(new_cap<size>) -> ()
+	{
+		let target<size> = atomset_r.round_capacity(new_cap);
+		if(target <= self.capacity)
+		{
+			^ ();
+		}
+
+		self.rehash!(target);
+		^ ();
+	}
+
+	# Return :true when the set contains the given atom.
+	- contains?(value<atom>) when self.capacity == 0_sz -> atom { ^ :false; }
+	- contains?(value<atom>) -> atom
+	{
+		let idx<size> = atomset_r.bucket(value, self.capacity);
+
+		while(:true)
+		{
+			let state<u1> = *(self.states + idx);
+			if(state == 0_u1)
+			{
+				^ :false;
+			}
+
+			if(state == 1_u1 && *(self.keys + idx) == value)
+			{
+				^ :true;
+			}
+
+			idx += 1_sz;
+			if(idx == self.capacity)
+			{
+				idx = 0_sz;
+			}
+		}
+	}
+
+	# Insert a new atom and return :true, or :false if it already exists.
+	- add!(value<atom>) -> atom
+	{
+		if(self.capacity == 0_sz)
+		{
+			self.rehash!(8_sz);
+		}
+
+		let used_after_insert<size> = self.length + self.deleted + 1_sz;
+		if(used_after_insert * 10_sz >= self.capacity * 7_sz)
+		{
+			let target<size> = self.capacity * 2_sz;
+			if(self.deleted > self.length)
+			{
+				target = self.capacity;
+			}
+
+			self.rehash!(target);
+		}
+
+		let idx<size> = atomset_r.bucket(value, self.capacity);
+		let first_tombstone<size> = self.capacity;
+
+		while(:true)
+		{
+			let state<u1> = *(self.states + idx);
+
+			if(state == 0_u1)
+			{
+				if(first_tombstone != self.capacity)
+				{
+					idx = first_tombstone;
+					self.deleted -= 1_sz;
+				}
+
+				*(self.keys + idx) = value;
+				*(self.states + idx) = 1_u1;
+				self.length += 1_sz;
+				^ :true;
+			}
+
+			if(state == 1_u1 && *(self.keys + idx) == value)
+			{
+				^ :false;
+			}
+
+			if(state == 2_u1 && first_tombstone == self.capacity)
+			{
+				first_tombstone = idx;
+			}
+
+			idx += 1_sz;
+			if(idx == self.capacity)
+			{
+				idx = 0_sz;
+			}
+		}
+	}
+
+	# Remove an atom and return :true, or :false if it is absent.
+	- remove!(value<atom>) when self.capacity == 0_sz -> atom { ^ :false; }
+	- remove!(value<atom>) -> atom
+	{
+		let idx<size> = atomset_r.bucket(value, self.capacity);
+
+		while(:true)
+		{
+			let state<u1> = *(self.states + idx);
+			if(state == 0_u1)
+			{
+				^ :false;
+			}
+
+			if(state == 1_u1 && *(self.keys + idx) == value)
+			{
+				*(self.states + idx) = 2_u1;
+				self.length -= 1_sz;
+				self.deleted += 1_sz;
+				^ :true;
+			}
+
+			idx += 1_sz;
+			if(idx == self.capacity)
+			{
+				idx = 0_sz;
+			}
+		}
+	}
+
+	# Remove all live elements while preserving allocated storage.
+	- clear! -> ()
+	{
+		if(self.capacity > 0_sz)
+		{
+			let state_bytes<size> = self.capacity * (sizeof u1);
+			__glc_mem_set(self.states ~~> voidptr, 0_u1, state_bytes);
+		}
+
+		self.length = 0_sz;
+		self.deleted = 0_sz;
+		^ ();
+	}
+
+	# Release all owned storage and reset to zero-initialized state.
+	- delete -> ()
+	{
+		if(self.alloc_initialized)
+		{
+			allocator_free(self.alloc, self.keys ~~> voidptr);
+			allocator_free(self.alloc, self.states ~~> voidptr);
+		}
+
+		self.keys = nil;
+		self.states = nil;
+		self.length = 0_sz;
+		self.capacity = 0_sz;
+		self.deleted = 0_sz;
+		self.alloc_initialized = :false;
+
+		let reset_alloc<allocator_r>;
+		self.alloc = reset_alloc;
+
+		^ ();
+	}
+
+	# Return :true when both sets contain the same atoms.
+	- equals?(other<atomset_r>) when self.length != other.length() -> atom { ^ :false; }
+	- equals?(other<atomset_r>) -> atom { ^ self.contains_all?(other); }
+
+	# Return :true when self is a superset of other.
+	- contains_all?(other<atomset_r>) when other.length() == 0_sz -> atom { ^ :true; }
+	- contains_all?(other<atomset_r>) when other.length() > self.length -> atom { ^ :false; }
+	- contains_all?(other<atomset_r>) -> atom
+	{
+		for(let idx<size> = 0_sz; idx < other.capacity(); idx += 1_sz)
+		{
+			if(*(other.states + idx) == 1_u1)
+			{
+				if(!self.contains?(*(other.keys + idx)))
+				{
+					^ :false;
+				}
+			}
+		}
+
+		^ :true;
+	}
+
+	# Scan this set and return :true on the first shared atom.
+	- intersects_scan?(other<atomset_r>) -> atom
+	{
+		for(let idx<size> = 0_sz; idx < self.capacity; idx += 1_sz)
+		{
+			if(*(self.states + idx) == 1_u1)
+			{
+				if(other.contains?(*(self.keys + idx)))
+				{
+					^ :true;
+				}
+			}
+		}
+
+		^ :false;
+	}
+
+	# Return :true when the two sets share at least one atom.
+	- intersects?(other<atomset_r>) when self.length == 0_sz -> atom { ^ :false; }
+	- intersects?(other<atomset_r>) when other.length() == 0_sz -> atom { ^ :false; }
+	- intersects?(other<atomset_r>) -> atom
+	{
+		if(self.length <= other.length())
+		{
+			^ self.intersects_scan?(other);
+		}
+
+		for(let idx<size> = 0_sz; idx < other.capacity(); idx += 1_sz)
+		{
+			if(*(other.states + idx) == 1_u1)
+			{
+				if(self.contains?(*(other.keys + idx)))
+				{
+					^ :true;
+				}
+			}
+		}
+
+		^ :false;
+	}
+}
+
+# Create a new atomset with an explicit context and optional reserved capacity.
++ make_atomset(ctx<context_r>, cap<size>) -> atomset_r
+{
+	let result<atomset_r>;
+	result.alloc = ctx.allocator_main;
+	result.alloc_initialized = :true;
+
+	if(cap > 0_sz)
+	{
+		result.reserve(cap);
+	}
+
+	^ result;
+}
+
+# Create a new atomset with an explicit context and zero reserved capacity.
++ make_atomset(ctx<context_r>) -> atomset_r { ^ make_atomset(0_sz); }
+
+# Create a new atomset with the default context and optional reserved capacity.
++ make_atomset(cap<size>) -> atomset_r
+{
+	let ctx<context_r> = get_default_ctx;
+	^ make_atomset(cap);
+}
+
+# Create a new atomset with the default context and zero reserved capacity.
++ make_atomset() -> atomset_r
+{
+	let ctx<context_r> = get_default_ctx;
+	^ make_atomset();
+}
+
+# Create an atomset copy with explicit context.
++ copy_atomset(ctx<context_r>, a<atomset*>) -> atomset_r
+{
+	let result<atomset_r> = make_atomset(a.length());
+
+	for(let idx<size> = 0_sz; idx < a.capacity(); idx += 1_sz)
+	{
+		if(*(a.states + idx) == 1_u1)
+		{
+			result.add!(*(a.keys + idx));
+		}
+	}
+
+	^ result;
+}
+
+# Create an atomset copy with default context.
++ copy_atomset(a<atomset*>) -> atomset_r
+{
+	let ctx<context_r> = get_default_ctx;
+	^ copy_atomset(a);
+}

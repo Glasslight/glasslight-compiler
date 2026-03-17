@@ -1,0 +1,14 @@
+package limits;
+require core.basic ~> .;
+
+# Smallest finite value.
++ min($t<typeid>) when t == typeof u1 -> u1 { ^ 0_u1; }
++ min($t<typeid>) when t == typeof u2 -> u2 { ^ 0_u2; }
++ min($t<typeid>) when t == typeof u4 -> u4 { ^ 0_u4; }
++ min($t<typeid>) when t == typeof u8 -> u8 { ^ 0_u8; }
+
+# Largest finite positive.
++ max($t<typeid>) when t == typeof u1 -> u1 { ^ 0xff_u1; }
++ max($t<typeid>) when t == typeof u2 -> u2 { ^ 0xffff_u2; }
++ max($t<typeid>) when t == typeof u4 -> u4 { ^ 0xffffffff_u4; }
++ max($t<typeid>) when t == typeof u8 -> u8 { ^ 0xffffffffffffffff_u8; }

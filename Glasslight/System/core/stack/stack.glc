@@ -1,0 +1,91 @@
+package stack;
+require core.basic ~> .;
+require core.context ~> .;
+require core.allocator ~> .;
+require core.array ~> .;
+
+record stack_r<$t<typeid> >
+{
+	let buf<[t, :dynamic]>;
+
+	# Returns the current number of elements.
+	- length() -> size { ^ self.buf.length; }
+
+	# Returns the current allocated capacity.
+	- capacity() -> size { ^ self.buf.capacity; }
+
+	# Returns :true when empty and :false otherwise.
+	- empty? -> atom { ^ self.buf.empty?; }
+
+	# Pushes a value onto the top of the stack.
+	- push!(value<t>) -> ()
+	{
+		self.buf.append!(value);
+		^ ();
+	}
+
+	# Pop is a no-op when the stack is empty.
+	- pop! when self.empty? -> () { ^ (); }
+
+	# Removes the top element.
+	- pop! -> ()
+	{
+		self.buf.pop!;
+		^ ();
+	}
+
+	# Returns the top element. Errors on empty stack.
+	- top when self.empty? -> t { runtime_error("stack_r.top: empty stack"); }
+	- top -> t { ^ self.buf.top; }
+
+	# Removes all elements but keeps allocation.
+	- clear! -> ()
+	{
+		self.buf.clear!;
+		^ ();
+	}
+
+	# Frees storage and resets the stack state.
+	- delete -> ()
+	{
+		self.buf.delete;
+		^ ();
+	}
+
+	# Ensures capacity is at least new_cap.
+	- reserve(new_cap<size>) -> ()
+	{
+		self.buf.reserve(new_cap);
+		^ ();
+	}
+
+	# Shrinks capacity to fit the current number of elements.
+	- shrink when self.buf.length == self.buf.capacity -> () { ^ (); }
+	- shrink -> ()
+	{
+		self.buf.shrink;
+		^ ();
+	}
+}
+
+# Create a stack with explicit context and initial capacity.
++ make_stack($t<typeid>, ctx<context_r>, cap<size>) -> stack_r<t>
+{
+	let result<stack_r<t> >;
+	result.buf = make_array(t, cap);
+	^ result;
+}
+
+# Create a stack with default context and initial capacity.
++ make_stack($t<typeid>, cap<size>) -> stack_r<t>
+{
+	let ctx<context_r> = get_default_ctx;
+	^ make_stack(t, cap);
+}
+
+# Create a stack with default context and zero capacity.
++ make_stack($t<typeid>) -> stack_r<t>
+{
+	let ctx<context_r> = get_default_ctx;
+	^ make_stack(t, 0_sz);
+}

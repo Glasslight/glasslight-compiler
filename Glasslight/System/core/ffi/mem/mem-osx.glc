@@ -1,0 +1,11 @@
+package ffi_mem;
+require core.basic;
+
+[[:builtin, :static]]
+foreign "core/ffi/mem" ~> .
+{
+	+ __glc_mem_alloc(bytes<basic.size>) -> basic.voidptr;
+	+ __glc_mem_free(ptr<basic.voidptr>) -> basic.cvoid ->> ();
+	+ __glc_mem_calloc(num<basic.size>, bytes<basic.size>) -> basic.voidptr;
+	+ __glc_mem_realloc(ptr<basic.voidptr>, bytes<basic.size>) -> basic.voidptr;
+}

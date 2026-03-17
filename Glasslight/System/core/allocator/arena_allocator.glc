@@ -1,0 +1,324 @@
+package allocator;
+require core.basic ~> .;
+require core.mem ~> mem;
+
+# Internal arena block descriptor.
+record arena_allocator_block_r
+{
+	let next_block<voidptr> = nil;
+	let base<u1*> = nil;
+	let capacity<size> = 0_sz;
+	let offset<size> = 0_sz;
+}
+
+# Public state for an owning arena allocator.
+record arena_allocator_state_r
+{
+	let backing<allocator_r>;
+	let head<voidptr> = nil;
+	let tail<voidptr> = nil;
+	let default_block_size<size> = 0_sz;
+	let last_ptr<voidptr> = nil;
+	let last_size<size> = 0_sz;
+	let last_block<voidptr> = nil;
+}
+
+# Per-allocation header stored immediately before each arena payload.
+record arena_allocator_header_r
+{
+	let size<size>;
+	let block_start<size>;
+}
+
+# Cast a stored arena block handle back to its internal type.
++ arena_allocator_as_block(ptr<voidptr>) -> arena_allocator_block_r*
+{
+	^ ptr ~~> arena_allocator_block_r*;
+}
+
+# Return the allocation header for an arena payload pointer.
++ arena_allocator_get_header(ptr<voidptr>) -> arena_allocator_header_r*
+{
+	let header_bytes<size> = sizeof arena_allocator_header_r;
+	let payload<u1*> = ptr ~~> u1*;
+
+	^ (payload - header_bytes) ~~> arena_allocator_header_r*;
+}
+
+# Return the minimum payload bytes needed for a request.
++ arena_allocator_min_payload(bytes<size>, align<size>) -> size
+{
+	let resolved_align<size> = effective_align(align);
+	let header_bytes<size> = sizeof arena_allocator_header_r;
+
+	^ header_bytes + bytes + (resolved_align - 1_sz);
+}
+
+# Allocate and append a new internal arena block.
++ arena_allocator_append_block(state<arena_allocator_state_r*>, min_payload<size>) -> arena_allocator_block_r*
+{
+	let payload_bytes<size> = state.default_block_size;
+	if(payload_bytes < min_payload)
+	{
+		payload_bytes = min_payload;
+	}
+
+	let raw_bytes<size> = sizeof arena_allocator_block_r + payload_bytes;
+	let raw<voidptr> = allocator_alloc(state.backing, raw_bytes);
+	if(nil?(raw))
+	{
+		^ nil;
+	}
+
+	let block<arena_allocator_block_r*> = raw ~~> arena_allocator_block_r*;
+	block.next_block = nil;
+	block.base = (raw ~~> u1*) + (sizeof arena_allocator_block_r);
+	block.capacity = payload_bytes;
+	block.offset = 0_sz;
+
+	if(nil?(state.head))
+	{
+		state.head = raw;
+		state.tail = raw;
+	}
+	else
+	{
+		let tail<arena_allocator_block_r*> = arena_allocator_as_block(state.tail);
+		tail.next_block = block ~~> voidptr;
+		state.tail = raw;
+	}
+
+	^ block;
+}
+
+# Allocate from one arena block and write the per-allocation header.
++ arena_allocator_alloc_in_block(block<arena_allocator_block_r*>, bytes<size>, align<size>) -> voidptr
+{
+	let resolved_align<size> = effective_align(align);
+	let header_bytes<size> = sizeof arena_allocator_header_r;
+	let block_start<size> = block.offset;
+	let block_base<u1*> = block.base;
+	let block_base_addr<size> = block_base ~~> size;
+	let payload_addr<size> = align_up(block_base_addr + block_start + header_bytes, resolved_align);
+	let payload_offset<size> = payload_addr - block_base_addr;
+	let end_offset<size> = payload_offset + bytes;
+
+	if(end_offset > block.capacity)
+	{
+		^ nil;
+	}
+
+	let header<arena_allocator_header_r*> = (payload_addr - header_bytes) ~~> arena_allocator_header_r*;
+	header.size = bytes;
+	header.block_start = block_start;
+
+	block.offset = end_offset;
+	^ payload_addr ~~> voidptr;
+}
+
+# Allocate arena memory, reusing existing blocks after reset and appending new ones as needed.
++ arena_allocator_alloc_impl(state<arena_allocator_state_r*>, bytes<size>, align<size>) -> voidptr
+{
+	let current<arena_allocator_block_r*> = nil;
+	let min_payload<size> = arena_allocator_min_payload(bytes, align);
+
+	if(nil?(state.tail))
+	{
+		current = arena_allocator_append_block(state, min_payload);
+		if(nil?(current))
+		{
+			^ nil;
+		}
+	}
+	else
+	{
+		current = arena_allocator_as_block(state.tail);
+	}
+
+	while(:true)
+	{
+		let result<voidptr> = arena_allocator_alloc_in_block(current, bytes, align);
+		if(!nil?(result))
+		{
+			state.tail = current ~~> voidptr;
+			state.last_ptr = result;
+			state.last_size = bytes;
+			state.last_block = current ~~> voidptr;
+
+			^ result;
+		}
+
+		if(nil?(current.next_block))
+		{
+			current = arena_allocator_append_block(state, min_payload);
+			if(nil?(current))
+			{
+				^ nil;
+			}
+		}
+		else
+		{
+			current = arena_allocator_as_block(current.next_block);
+			state.tail = current ~~> voidptr;
+		}
+	}
+}
+
+# Reset the arena for bulk reuse while keeping owned blocks.
++ arena_allocator_reset!(state<arena_allocator_state_r*>) -> ()
+{
+	let current<voidptr> = state.head;
+
+	while(!nil?(current))
+	{
+		let block<arena_allocator_block_r*> = arena_allocator_as_block(current);
+		block.offset = 0_sz;
+		current = block.next_block;
+	}
+
+	state.tail = state.head;
+	state.last_ptr = nil;
+	state.last_size = 0_sz;
+	state.last_block = nil;
+
+	^ ();
+}
+
+# Release all owned arena blocks back to the backing allocator.
++ arena_allocator_release!(state<arena_allocator_state_r*>) -> ()
+{
+	let current<voidptr> = state.head;
+
+	while(!nil?(current))
+	{
+		let block<arena_allocator_block_r*> = arena_allocator_as_block(current);
+		let next_ptr<voidptr> = block.next_block;
+		allocator_free(state.backing, current);
+		current = next_ptr;
+	}
+
+	state.head = nil;
+	state.tail = nil;
+	state.last_ptr = nil;
+	state.last_size = 0_sz;
+	state.last_block = nil;
+
+	^ ();
+}
+
+# Dispatches arena allocator operations over an internal block chain.
++ arena_allocator_func(op<alloc_op_e>, user_data<voidptr>, ptr<voidptr>, bytes<size>, align<size>) -> voidptr
+{
+	let state<arena_allocator_state_r*> = user_data ~~> arena_allocator_state_r*;
+
+	match(op)
+	{
+		case :alloc =>
+		{
+			^ arena_allocator_alloc_impl(state, bytes, align);
+		}
+
+		case :free =>
+		{
+			if(ptr == state.last_ptr && !nil?(state.last_block))
+			{
+				let block<arena_allocator_block_r*> = arena_allocator_as_block(state.last_block);
+				let header<arena_allocator_header_r*> = arena_allocator_get_header(ptr);
+				block.offset = header.block_start;
+				state.last_ptr = nil;
+				state.last_size = 0_sz;
+				state.last_block = nil;
+			}
+
+			^ nil;
+		}
+
+		case :realloc =>
+		{
+			if(nil?(ptr))
+			{
+				^ arena_allocator_alloc_impl(state, bytes, align);
+			}
+
+			if(bytes == 0_sz)
+			{
+				if(ptr == state.last_ptr && !nil?(state.last_block))
+				{
+					let block<arena_allocator_block_r*> = arena_allocator_as_block(state.last_block);
+					let header<arena_allocator_header_r*> = arena_allocator_get_header(ptr);
+					block.offset = header.block_start;
+					state.last_ptr = nil;
+					state.last_size = 0_sz;
+					state.last_block = nil;
+				}
+
+				^ nil;
+			}
+
+			let header<arena_allocator_header_r*> = arena_allocator_get_header(ptr);
+			let old_size<size> = header.size;
+
+			if(ptr == state.last_ptr && !nil?(state.last_block))
+			{
+				let block<arena_allocator_block_r*> = arena_allocator_as_block(state.last_block);
+				let resolved_align<size> = effective_align(align);
+				let header_bytes<size> = sizeof arena_allocator_header_r;
+				let block_base<u1*> = block.base;
+				let block_base_addr<size> = block_base ~~> size;
+				let payload_addr<size> = align_up(block_base_addr + header.block_start + header_bytes, resolved_align);
+				let payload_offset<size> = payload_addr - block_base_addr;
+				let end_offset<size> = payload_offset + bytes;
+
+				if(end_offset <= block.capacity)
+				{
+					header.size = bytes;
+					block.offset = end_offset;
+					state.last_size = bytes;
+					^ ptr;
+				}
+			}
+
+			let result<voidptr> = arena_allocator_alloc_impl(state, bytes, align);
+			if(nil?(result))
+			{
+				^ nil;
+			}
+
+			let copy_bytes<size> = old_size;
+			if(bytes < old_size)
+			{
+				copy_bytes = bytes;
+			}
+
+			if(copy_bytes > 0_sz)
+			{
+				mem.__glc_mem_copy(result, ptr, copy_bytes);
+			}
+
+			^ result;
+		}
+	}
+}
+
+# Create a growing arena allocator that owns its internal block chain.
++ make_arena_allocator(state<arena_allocator_state_r*>, backing<allocator_r>, block_size<size>) -> allocator_r
+{
+	state.backing = backing;
+	state.head = nil;
+	state.tail = nil;
+	state.default_block_size = block_size;
+
+	if(state.default_block_size == 0_sz)
+	{
+		state.default_block_size = alignof voidptr;
+	}
+	state.last_ptr = nil;
+	state.last_size = 0_sz;
+	state.last_block = nil;
+
+	let a<allocator_r>;
+	a.func = &arena_allocator_func;
+	a.user_data = state ~~> voidptr;
+
+	^ a;
+}

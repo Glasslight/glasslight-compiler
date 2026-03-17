@@ -1,0 +1,40 @@
+package hash;
+require core.basic ~> .;
+require core.atom ~> .;
+
++ hash_fnv_offset_basis -> hash { ^ 0xcbf29ce484222325_hs; }
++ hash_fnv_prime -> hash { ^ 0x100000001b3_hs; }
+
++ hash_fnv1(bytes<[c1, ()]>) -> hash
+{
+	let result<hash> = hash_fnv_offset_basis;
+	let prime<hash> = hash_fnv_prime;
+
+	for(let idx<size> = 0_sz; idx < bytes.length(); idx += 1_sz)
+	{
+		result *= prime;
+		result $= hash_bits(*(bytes.data() + idx) ~> u1);
+	}
+
+	^ result;
+}
+
++ hash_fnv1a(bytes<[c1, ()]>) -> hash
+{
+	let result<hash> = hash_fnv_offset_basis;
+	let prime<hash> = hash_fnv_prime;
+
+	for(let idx<size> = 0_sz; idx < bytes.length(); idx += 1_sz)
+	{
+		result $= hash_bits(*(bytes.data() + idx) ~> u1);
+		result *= prime;
+	}
+
+	^ result;
+}
+
++ hash_fnv1(bytes<{c1, ()}>) -> hash { ^ hash_fnv1(bytes.view); }
++ hash_fnv1a(bytes<{c1, ()}>) -> hash { ^ hash_fnv1a(bytes.view); }
+
++ hash_fnv1(a<atom>) -> hash { ^ hash_fnv1(__glc_atom_to_string_view(a)); }
++ hash_fnv1a(a<atom>) -> hash { ^ hash_fnv1a(__glc_atom_to_string_view(a)); }

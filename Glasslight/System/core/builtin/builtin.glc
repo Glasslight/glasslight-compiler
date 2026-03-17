@@ -1,0 +1,24 @@
+package builtin;
+require core.basic;
+
+# Operating system atomenum for __glc_os builtin constant.
+atomenum os_e
+{
+	:windows,
+	:osx,
+	:linux
+}
+
+# Architecture atomenum for __glc_arch builtin constant.
+atomenum arch_e
+{
+	:x64,
+	:arm64
+}
+
+# Endianness atomenum for __glc_endianness builtin constant.
+atomenum endian_e
+{
+	:little,
+	:big
+}

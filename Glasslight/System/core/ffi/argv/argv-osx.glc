@@ -1,0 +1,9 @@
+package ffi_argv;
+require core.basic;
+
+[[:builtin, :static]]
+foreign "core/ffi/argv" ~> .
+{
+	+ glc_argv_count() -> basic.u8;
+	+ glc_argv_get(index<basic.u8>) -> basic.cstring;
+}

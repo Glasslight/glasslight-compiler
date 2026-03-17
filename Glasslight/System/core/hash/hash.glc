@@ -1,0 +1,47 @@
+package hash;
+require core.basic ~> .;
+require core.atom ~> .;
+require core.math ~> math;
+
++ hash_zero -> hash { ^ 0_hs; }
+
++ hash_combine(lhs<hash>, rhs<hash>) -> hash
+{
+	^ lhs $ (rhs + 0x9e3779b97f4a7c15_hs + (lhs << 6_sz) + (lhs >> 2_sz));
+}
+
++ hash_value(v<hash>) -> hash { ^ v; }
+
++ hash_value(v<u1>) -> hash { ^ v ~> hash; }
++ hash_value(v<u2>) -> hash { ^ v ~> hash; }
++ hash_value(v<u4>) -> hash { ^ v ~> hash; }
++ hash_value(v<u8>) -> hash { ^ v ~~> hash; }
+
++ hash_value(v<s1>) -> hash { ^ v ~> hash; }
++ hash_value(v<s2>) -> hash { ^ v ~> hash; }
++ hash_value(v<s4>) -> hash { ^ v ~> hash; }
++ hash_value(v<s8>) -> hash { ^ v ~> hash; }
+
++ hash_value(v<size>) -> hash { ^ v ~~> hash; }
++ hash_value(v<c1>) -> hash { ^ hash_bits(v ~> u1); }
++ hash_value(v<c2>) -> hash { ^ hash_bits(v ~> u2); }
++ hash_value(v<c4>) -> hash { ^ hash_bits(v ~> u4); }
++ hash_value(v<voidptr>) -> hash { ^ hash_bits(v); }
++ hash_value(v<atom>) -> hash { ^ v ~> hash; }
+
++ hash_value(v<{c1, ()}>) -> hash { ^ hash_bits(v); }
++ hash_value(v<[c1, ()]>) -> hash { ^ hash_bits(v); }
+
++ hash_value(v<{c1}>) -> hash { ^ hash_bits(v); }
+
++ hash_value(v<f2>) when math.nan?(v) -> hash { ^ hash_bits(0x7e00_u2); }
++ hash_value(v<f2>) when v == 0.0_f2 -> hash { ^ hash_zero; }
++ hash_value(v<f2>) -> hash { ^ hash_bits(v); }
+
++ hash_value(v<f4>) when math.nan?(v) -> hash { ^ hash_bits(0x7fc00000_u4); }
++ hash_value(v<f4>) when v == 0.0_f4 -> hash { ^ hash_zero; }
++ hash_value(v<f4>) -> hash { ^ hash_bits(v); }
+
++ hash_value(v<f8>) when math.nan?(v) -> hash { ^ hash_bits(0x7ff8000000000000_u8); }
++ hash_value(v<f8>) when v == 0.0_f8 -> hash { ^ hash_zero; }
++ hash_value(v<f8>) -> hash { ^ hash_bits(v); }

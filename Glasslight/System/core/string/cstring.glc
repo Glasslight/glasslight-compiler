@@ -1,0 +1,18 @@
+package string;
+require core.basic ~> .;
+require core.c ~> c;
+
+typemix cstring
+{
+	# Return the length of cstring.
+	- length() -> size { ^ c.strlen(*self); }
+
+	# Return the length of cstring (with a cap).
+	- length(n<size>) -> size { ^ c.strnlen(*self, n); }
+
+	# Return :true if cstring is empty.
+	- empty? -> atom { ^ c.strlen(*self) == 0_sz; }
+
+	# Return an unsized string view over the cstring bytes.
+	- view -> {c1, ()} { ^ make_string_view(*self ~~> c1*, self.length()); }
+}

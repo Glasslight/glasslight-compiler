@@ -1,0 +1,42 @@
+package allocator;
+require core.basic ~> .;
+
+# Allocator function that raises a runtime error on allocation attempts.
+# Free is a no-op, and zero-size realloc is treated as a no-op.
++ panic_allocator_func(op<alloc_op_e>, user_data<voidptr>, ptr<voidptr>, bytes<size>, align<size>) -> voidptr
+{
+	match(op)
+	{
+		case :alloc =>
+		{
+			runtime_error("panic allocator: allocation attempted");
+			^ nil;
+		}
+
+		case :free =>
+		{
+			^ nil;
+		}
+
+		case :realloc =>
+		{
+			if(bytes == 0_sz)
+			{
+				^ nil;
+			}
+
+			runtime_error("panic allocator: reallocation attempted");
+			^ nil;
+		}
+	}
+}
+
+# Create a panic allocator that traps on alloc and non-zero realloc.
++ make_panic_allocator -> allocator_r
+{
+	let a<allocator_r>;
+	a.func = &panic_allocator_func;
+	a.user_data = nil;
+
+	^ a;
+}

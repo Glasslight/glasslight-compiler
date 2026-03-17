@@ -1,0 +1,77 @@
+package array;
+require core.basic ~> .;
+
+intrinsic
+{
+	# Internal data pointer accessor for static array values.
+	+ __glc_static_array_data($t<typeid>, $n<size>, a<[t, n]*>) -> t*;
+
+	# Internal element read for static array values. Returns element at index.
+	+ __glc_static_array_at($t<typeid>, $n<size>, a<[t, n]*>, idx<size>) -> t;
+
+	# Check whether an index is within bounds.
+	+ __glc_static_array_valid_index($t<typeid>, $n<size>, a<[t, n]*>, idx<size>) -> atom;
+}
+
+typemix static_array
+{
+	# Return element count.
+	[[:constfold]]
+	- length($t<typeid>, $n<size>) -> size { ^ n; }
+
+	# Return pointer to data.
+	- data($t<typeid>, $n<size>) -> t* { ^ __glc_static_array_data(t, n, self); }
+
+	# Get element at index.
+	- at($t<typeid>, $n<size>, idx<size>) -> t { ^ __glc_static_array_at(t, n, self, idx); }
+
+	# Check whether an index is within bounds.
+	- valid_index?($t<typeid>, $n<size>, idx<size>) -> atom { ^ __glc_static_array_valid_index(t, n, self, idx); }
+
+	# Return an index of a given value.
+	- index_of($t<typeid>, $n<size>, e<t>) -> (atom, size)
+	{
+		let v<[t, ()]> = self.view();
+		^ v.index_of(e);
+	}
+
+	# Return :true if array contains a given element.
+	- contains?($t<typeid>, $n<size>, e<t>) -> atom
+	{
+		let v<[t, ()]> = self.view();
+		^ v.contains?(e);
+	}
+
+	# Return first element.
+	- first($t<typeid>, $n<size>) -> t
+	{
+		let v<[t, ()]> = self.view();
+		^ v.first();
+	}
+
+	# Return last element.
+	- last($t<typeid>, $n<size>) -> t
+	{
+		let v<[t, ()]> = self.view();
+		^ v.last();
+	}
+
+	# Return top/last element.
+	- top($t<typeid>, $n<size>) -> t
+	{
+		let v<[t, ()]> = self.view();
+		^ v.top();
+	}
+
+	# Create an unsized array view from a static array.
+	- view($t<typeid>, $n<size>) -> [t, ()]
+	{
+		^ make_array_view(t, self.data(), n);
+	}
+
+	# Create a sized array view from a static array.
+	- view($t<typeid>, $n<size>) -> [t, (n,)]
+	{
+		^ make_array_view(t, n, self.data());
+	}
+}

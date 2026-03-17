@@ -1,0 +1,460 @@
+package paths;
+require core.basic ~> .;
+require core.context ~> .;
+require core.string ~> .;
+require core.array ~> .;
+require core.c ~> c;
+
+# Find the position of the last path separator (/ or \).
++ find_last_separator(path<{c1, ()}>) -> (atom, size)
+{
+	let (found_fwd<atom>, pos_fwd<size>) = path.find_last('/'_c1);
+	let (found_bwd<atom>, pos_bwd<size>) = path.find_last('\\'_c1);
+
+	if(found_fwd)
+	{
+		if(found_bwd)
+		{
+			if(pos_bwd > pos_fwd)
+			{
+				^ (:true, pos_bwd);
+			}
+		}
+
+		^ (:true, pos_fwd);
+	}
+
+	if(found_bwd)
+	{
+		^ (:true, pos_bwd);
+	}
+
+	^ (:false, max(size));
+}
+
+# Returns :true when path is relative (does not start with /, \\, or a drive letter).
++ relative?(path<{c1, ()}>) -> atom
+{
+	let n<size> = path.length();
+
+	if(n == 0_sz)
+	{
+		^ :true;
+	}
+
+	if(path.starts_with?('/'_c1))
+	{
+		^ :false;
+	}
+
+	if(n >= 2_sz)
+	{
+		if((path.at(0_sz) == '\\'_c1) && (path.at(1_sz) == '\\'_c1))
+		{
+			^ :false;
+		}
+
+		if(path.at(1_sz) == ':'_c1)
+		{
+			if(c.isalpha(path.at(0_sz) ~> s4) != 0_s4)
+			{
+				^ :false;
+			}
+		}
+	}
+
+	^ :true;
+}
+
+# Returns :true when path is absolute.
++ absolute?(path<{c1, ()}>) -> atom
+{
+	^ !relative?(path);
+}
+
+# Returns the directory portion of a path (up to and including the last separator).
++ directory(ctx<context_r>, path<{c1, ()}>) -> {c1}
+{
+	let (found<atom>, last_sep<size>) = find_last_separator(path);
+
+	if(!found)
+	{
+		^ make_string(0_sz);
+	}
+
+	let (_, dir_view<{c1, ()}>) = path.left(last_sep + 1_sz);
+	^ make_string(dir_view);
+}
+
+# Returns the directory portion of a path (up to and including the last separator).
++ directory(path<{c1, ()}>) -> {c1}
+{
+	let ctx<context_r> = get_default_ctx;
+	^ directory(path);
+}
+
+# Returns the filename with extension, without directory.
++ clean_filename(ctx<context_r>, path<{c1, ()}>) -> {c1}
+{
+	let (found<atom>, last_sep<size>) = find_last_separator(path);
+
+	if(!found)
+	{
+		^ make_string(path);
+	}
+
+	let (ok<atom>, name_view<{c1, ()}>) = path.mid(last_sep + 1_sz);
+
+	if(!ok)
+	{
+		^ make_string(0_sz);
+	}
+
+	^ make_string(name_view);
+}
+
+# Returns the filename with extension, without directory.
++ clean_filename(path<{c1, ()}>) -> {c1}
+{
+	let ctx<context_r> = get_default_ctx;
+	^ clean_filename(path);
+}
+
+# Returns the filename without extension.
++ base_filename(ctx<context_r>, path<{c1, ()}>) -> {c1}
+{
+	let filename<{c1}> = clean_filename(path);
+	let fv<{c1, ()}> = filename.view;
+	let (found<atom>, dot_pos<size>) = fv.find_last('.'_c1);
+
+	if(found)
+	{
+		let (_, base_view<{c1, ()}>) = fv.left(dot_pos);
+		let result<{c1}> = make_string(base_view);
+		filename.delete;
+		^ result;
+	}
+
+	^ filename;
+}
+
+# Returns the filename without extension.
++ base_filename(path<{c1, ()}>) -> {c1}
+{
+	let ctx<context_r> = get_default_ctx;
+	^ base_filename(path);
+}
+
+# Returns the extension without dot.
++ extension(ctx<context_r>, path<{c1, ()}>) -> {c1}
+{
+	^ extension(path, :false);
+}
+
+# Returns the extension without dot.
++ extension(path<{c1, ()}>) -> {c1}
+{
+	let ctx<context_r> = get_default_ctx;
+	^ extension(path, :false);
+}
+
+# Returns the extension, optionally with dot.
++ extension(path<{c1, ()}>, include_dot<atom>) -> {c1}
+{
+	let ctx<context_r> = get_default_ctx;
+	^ extension(path, include_dot);
+}
+
+# Returns the extension, optionally with dot.
++ extension(ctx<context_r>, path<{c1, ()}>, include_dot<atom>) -> {c1}
+{
+	let filename<{c1}> = clean_filename(path);
+	let fv<{c1, ()}> = filename.view;
+	let (found<atom>, dot_pos<size>) = fv.find_last('.'_c1);
+
+	if(found)
+	{
+		let start<size> = dot_pos;
+
+		if(!include_dot)
+		{
+			start += 1_sz;
+		}
+
+		let (ok<atom>, ext_view<{c1, ()}>) = fv.mid(start);
+
+		if(ok)
+		{
+			let result<{c1}> = make_string(ext_view);
+			filename.delete;
+			^ result;
+		}
+	}
+
+	filename.delete;
+	^ make_string(0_sz);
+}
+
+# Replace all backslashes with forward slashes, returning a new string.
++ normalize(ctx<context_r>, path<{c1, ()}>) -> {c1}
+{
+	let result<{c1}> = make_string(path);
+	result.replace!('\\'_c1, '/'_c1);
+	^ result;
+}
+
+# Replace all backslashes with forward slashes, returning a new string.
++ normalize(path<{c1, ()}>) -> {c1}
+{
+	let ctx<context_r> = get_default_ctx;
+	^ normalize(path);
+}
+
+# Remove consecutive forward slashes, returning a new string.
++ remove_duplicate_slashes(ctx<context_r>, path<{c1, ()}>) -> {c1}
+{
+	let n<size> = path.length();
+
+	if(n == 0_sz)
+	{
+		^ make_string(0_sz);
+	}
+
+	let result<{c1}> = make_string(n);
+	let prev_slash<atom> = :false;
+
+	for(let i<size> = 0_sz; i < n; i += 1_sz)
+	{
+		let ch<c1> = path.at(i);
+
+		if(ch == '/'_c1)
+		{
+			if(!prev_slash)
+			{
+				result.append!(ch);
+				prev_slash = :true;
+			}
+		}
+		else
+		{
+			result.append!(ch);
+			prev_slash = :false;
+		}
+	}
+
+	^ result;
+}
+
+# Remove consecutive forward slashes, returning a new string.
++ remove_duplicate_slashes(path<{c1, ()}>) -> {c1}
+{
+	let ctx<context_r> = get_default_ctx;
+	^ remove_duplicate_slashes(path);
+}
+
+# Resolve '.' and '..' components, returning a new string.
++ collapse(ctx<context_r>, path<{c1, ()}>) -> {c1}
+{
+	let n<size> = path.length();
+
+	if(n == 0_sz)
+	{
+		^ make_string(0_sz);
+	}
+
+	# Normalize backslashes into a working copy.
+	let p<{c1}> = make_string(path);
+	p.replace!('\\'_c1, '/'_c1);
+	let plen<size> = p.length();
+
+	# Can't collapse paths starting with ".." or "/..".
+	if(plen >= 2_sz)
+	{
+		if((p.at(0_sz) == '.'_c1) && (p.at(1_sz) == '.'_c1))
+		{
+			^ p;
+		}
+	}
+
+	if(plen >= 3_sz)
+	{
+		if((p.at(0_sz) == '/'_c1) && (p.at(1_sz) == '.'_c1) && (p.at(2_sz) == '.'_c1))
+		{
+			^ p;
+		}
+	}
+
+	let starts_slash<atom> = p.starts_with?('/'_c1);
+	let ends_slash<atom> = p.ends_with?('/'_c1);
+
+	# Phase 1: Extract segment boundaries.
+	let seg_starts<[size, :dynamic]> = make_array(size, 16_sz);
+	let seg_lens<[size, :dynamic]> = make_array(size, 16_sz);
+
+	let pos<size> = 0_sz;
+
+	while(pos < plen)
+	{
+		# Skip slashes.
+		let at_slash<atom> = :true;
+
+		while(at_slash)
+		{
+			if(pos < plen)
+			{
+				if(p.at(pos) == '/'_c1)
+				{
+					pos += 1_sz;
+				}
+				else
+				{
+					at_slash = :false;
+				}
+			}
+			else
+			{
+				at_slash = :false;
+			}
+		}
+
+		if(pos < plen)
+		{
+			let seg_start<size> = pos;
+
+			# Find end of segment.
+			let in_seg<atom> = :true;
+
+			while(in_seg)
+			{
+				if(pos < plen)
+				{
+					if(p.at(pos) == '/'_c1)
+					{
+						in_seg = :false;
+					}
+					else
+					{
+						pos += 1_sz;
+					}
+				}
+				else
+				{
+					in_seg = :false;
+				}
+			}
+
+			seg_starts.append!(seg_start);
+			seg_lens.append!(pos - seg_start);
+		}
+	}
+
+	# Phase 2: Process segments with a stack.
+	let stack<[size, :dynamic]> = make_array(size, 16_sz);
+
+	for(let si<size> = 0_sz; si < seg_starts.length; si += 1_sz)
+	{
+		let s<size> = seg_starts[si];
+		let l<size> = seg_lens[si];
+
+		let is_dot<atom> = (l == 1_sz) && (p.at(s) == '.'_c1);
+		let is_dotdot<atom> = (l == 2_sz) && (p.at(s) == '.'_c1) && (p.at(s + 1_sz) == '.'_c1);
+
+		if(is_dotdot)
+		{
+			if(stack.length > 0_sz)
+			{
+				stack.pop!;
+			}
+		}
+		else
+		{
+			if(!is_dot)
+			{
+				stack.append!(si);
+			}
+		}
+	}
+
+	# Phase 3: Build result.
+	let result<{c1}> = make_string(n);
+
+	if(starts_slash)
+	{
+		result.append!('/'_c1);
+	}
+
+	for(let ri<size> = 0_sz; ri < stack.length; ri += 1_sz)
+	{
+		if(ri > 0_sz)
+		{
+			result.append!('/'_c1);
+		}
+
+		let idx<size> = stack[ri];
+		let seg_s<size> = seg_starts[idx];
+		let seg_l<size> = seg_lens[idx];
+		let (_, seg_view<{c1, ()}>) = p.mid(seg_s, seg_l);
+		result.append!(seg_view);
+	}
+
+	if(ends_slash)
+	{
+		if(!result.empty?)
+		{
+			if(!result.ends_with?('/'_c1))
+			{
+				result.append!('/'_c1);
+			}
+		}
+	}
+
+	seg_starts.delete;
+	seg_lens.delete;
+	stack.delete;
+	p.delete;
+
+	^ result;
+}
+
+# Resolve '.' and '..' components, returning a new string.
++ collapse(path<{c1, ()}>) -> {c1}
+{
+	let ctx<context_r> = get_default_ctx;
+	^ collapse(path);
+}
+
+# Join two path segments with a separator.
+# If child is absolute, returns child. Otherwise appends child to base.
++ join(ctx<context_r>, base<{c1, ()}>, child<{c1, ()}>) -> {c1}
+{
+	if(absolute?(child))
+	{
+		^ make_string(child);
+	}
+
+	let base_len<size> = base.length();
+
+	if(base_len == 0_sz)
+	{
+		^ make_string(child);
+	}
+
+	let result<{c1}> = make_string(base_len + child.length() + 1_sz);
+	result.append!(base);
+
+	let last<c1> = base.at(base_len - 1_sz);
+
+	if((last != '/'_c1) && (last != '\\'_c1))
+	{
+		result.append!('/'_c1);
+	}
+
+	result.append!(child);
+	^ result;
+}
+
++ join(base<{c1, ()}>, child<{c1, ()}>) -> {c1}
+{
+	let ctx<context_r> = get_default_ctx;
+	^ join(base, child);
+}

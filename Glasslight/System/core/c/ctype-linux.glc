@@ -1,0 +1,21 @@
+package c;
+require core.basic ~> basic;
+
+[[:system, :dynamic]]
+foreign "c" ~> .
+{
+	+ isalnum(ch<basic.s4>) -> basic.s4;
+	+ isalpha(ch<basic.s4>) -> basic.s4;
+	+ isblank(ch<basic.s4>) -> basic.s4;
+	+ iscntrl(ch<basic.s4>) -> basic.s4;
+	+ isdigit(ch<basic.s4>) -> basic.s4;
+	+ isgraph(ch<basic.s4>) -> basic.s4;
+	+ isprint(ch<basic.s4>) -> basic.s4;
+	+ ispunct(ch<basic.s4>) -> basic.s4;
+	+ isspace(ch<basic.s4>) -> basic.s4;
+	+ isupper(ch<basic.s4>) -> basic.s4;
+	+ islower(ch<basic.s4>) -> basic.s4;
+	+ isxdigit(ch<basic.s4>) -> basic.s4;
+	+ tolower(ch<basic.s4>) -> basic.s4;
+	+ toupper(ch<basic.s4>) -> basic.s4;
+}

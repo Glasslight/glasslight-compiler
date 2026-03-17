@@ -1,0 +1,497 @@
+package string;
+require core.basic ~> .;
+require core.context ~> .;
+require core.allocator ~> .;
+require core.array ~> .;
+require core.mem ~> .;
+require core.c ~> c;
+
+record string_r
+{
+	let buf<[c1, :dynamic]>;
+
+	# Returns the current number of bytes.
+	- length() -> size { ^ self.buf.length; }
+
+	# Returns the current allocated capacity (excluding null terminator).
+	- capacity() when self.buf.capacity == 0_sz -> size { ^ 0_sz; }
+	- capacity() -> size { ^ self.buf.capacity - 1_sz; }
+
+	# Returns the raw data pointer.
+	- data() -> c1* { ^ self.buf.data; }
+
+	# Returns the byte at idx.
+	- at(idx<size>) -> c1 { ^ self.buf.at(idx); }
+
+	# Returns the byte at idx via subscript operator.
+	- subscript(idx<size>) -> c1 { ^ self.buf[idx]; }
+
+	# Sets the byte at idx via subscript operator.
+	- subscript(idx<size>, val<c1>) -> ()
+	{
+		self.buf[idx] = val;
+		^ ();
+	}
+
+	# Returns :true when empty and :false otherwise.
+	- empty? -> atom { ^ self.buf.empty?; }
+
+	# Ensures capacity is at least new_cap (reserves new_cap + 1 for null terminator).
+	- reserve(new_cap<size>) when new_cap <= self.capacity -> () { ^ (); }
+	- reserve(new_cap<size>) -> ()
+	{
+		self.buf.reserve(new_cap + 1_sz);
+		*(self.buf.data + self.buf.length) = 0_c1;
+		^ ();
+	}
+
+	# Appends one byte, growing storage if needed. Maintains null terminator.
+	- append!(value<c1>) -> ()
+	{
+		self.buf.ensure_capacity(self.buf.length + 2_sz);
+
+		*(self.buf.data + self.buf.length) = value;
+		self.buf.length += 1_sz;
+		*(self.buf.data + self.buf.length) = 0_c1;
+
+		^ ();
+	}
+
+	# Appends all bytes from a string view. Handles self-alias.
+	- append!(v<{c1, ()}>) -> ()
+	{
+		let add_len<size> = v.length;
+		if(add_len == 0_sz)
+		{
+			^ ();
+		}
+
+		let old_len<size> = self.buf.length;
+		let new_len<size> = old_len + add_len;
+		let src<c1*> = v.data();
+		let self_alias<atom> = self.buf.data == src;
+
+		self.buf.ensure_capacity(new_len + 1_sz);
+
+		let dst<voidptr> = (self.buf.data + old_len) ~~> voidptr;
+		let bytes<size> = add_len;
+		if(self_alias)
+		{
+			__glc_mem_move(dst, self.buf.data ~~> voidptr, bytes);
+		}
+		else
+		{
+			__glc_mem_copy(dst, src ~~> voidptr, bytes);
+		}
+
+		self.buf.length = new_len;
+		*(self.buf.data + self.buf.length) = 0_c1;
+		^ ();
+	}
+
+	# Removes all bytes but keeps allocation. Writes null terminator.
+	- clear! -> ()
+	{
+		self.buf.clear!;
+
+		if(self.buf.capacity > 0_sz)
+		{
+			*self.buf.data = 0_c1;
+		}
+
+		^ ();
+	}
+
+	# Frees storage and resets the string state.
+	- delete -> ()
+	{
+		self.buf.delete;
+		^ ();
+	}
+
+	# Reverses all bytes in-place.
+	- reverse! when self.buf.length <= 1_sz -> () { ^ (); }
+	- reverse! -> ()
+	{
+		self.buf.reverse!;
+		^ ();
+	}
+
+	# Removes all matching bytes and returns the number removed.
+	- remove!(e<c1>) -> size
+	{
+		let removed<size> = self.buf.remove!(e);
+		if(self.buf.capacity > 0_sz)
+		{
+			*(self.buf.data + self.buf.length) = 0_c1;
+		}
+		^ removed;
+	}
+
+	# Removes the byte at idx, shifting the tail left.
+	- remove_at!(idx<size>) when idx >= self.buf.length -> () { ^ (); }
+	- remove_at!(idx<size>) -> ()
+	{
+		self.buf.remove_at!(idx);
+		*(self.buf.data + self.buf.length) = 0_c1;
+		^ ();
+	}
+
+	# Removes count bytes starting at idx, shifting the tail left.
+	- remove!(idx<size>, count<size>) when idx >= self.buf.length -> () { ^ (); }
+	- remove!(idx<size>, count<size>) -> ()
+	{
+		let cur_len<size> = self.buf.length;
+		let avail<size> = cur_len - idx;
+		let actual<size> = count;
+		if(actual > avail)
+		{
+			actual = avail;
+		}
+
+		let tail_start<size> = idx + actual;
+		let tail_count<size> = cur_len - tail_start;
+		if(tail_count > 0_sz)
+		{
+			let dst<voidptr> = (self.buf.data + idx) ~~> voidptr;
+			let src<voidptr> = (self.buf.data + tail_start) ~~> voidptr;
+			__glc_mem_move(dst, src, tail_count);
+		}
+
+		self.buf.length = cur_len - actual;
+		*(self.buf.data + self.buf.length) = 0_c1;
+		^ ();
+	}
+
+	# Inserts a byte at idx, shifting the tail right. No-op when idx > length.
+	- insert_at!(element<c1>, idx<size>) when idx > self.buf.length -> () { ^ (); }
+	- insert_at!(element<c1>, idx<size>) -> ()
+	{
+		self.buf.ensure_capacity(self.buf.length + 2_sz);
+
+		let tail_count<size> = self.buf.length - idx;
+		if(tail_count > 0_sz)
+		{
+			let src<voidptr> = (self.buf.data + idx) ~~> voidptr;
+			let dst<voidptr> = (self.buf.data + idx + 1_sz) ~~> voidptr;
+			__glc_mem_move(dst, src, tail_count);
+		}
+
+		*(self.buf.data + idx) = element;
+		self.buf.length += 1_sz;
+		*(self.buf.data + self.buf.length) = 0_c1;
+		^ ();
+	}
+
+	# Inserts all bytes from a view at idx. Self-aliasing is unsupported.
+	- insert_at!(v<{c1, ()}>, idx<size>) when idx > self.buf.length -> () { ^ (); }
+	- insert_at!(v<{c1, ()}>, idx<size>) -> ()
+	{
+		let add_len<size> = v.length;
+		if(add_len == 0_sz)
+		{
+			^ ();
+		}
+
+		let cur_len<size> = self.buf.length;
+		self.buf.ensure_capacity(cur_len + add_len + 1_sz);
+
+		let tail_count<size> = cur_len - idx;
+		if(tail_count > 0_sz)
+		{
+			let src<voidptr> = (self.buf.data + idx) ~~> voidptr;
+			let dst<voidptr> = (self.buf.data + idx + add_len) ~~> voidptr;
+			__glc_mem_move(dst, src, tail_count);
+		}
+
+		__glc_mem_copy((self.buf.data + idx) ~~> voidptr, v.data() ~~> voidptr, add_len);
+
+		self.buf.length = cur_len + add_len;
+		*(self.buf.data + self.buf.length) = 0_c1;
+		^ ();
+	}
+
+	# Replaces all occurrences of from_byte with to_byte.
+	- replace!(from_byte<c1>, to_byte<c1>) -> ()
+	{
+		for(let i<size> = 0_sz; i < self.buf.length; i += 1_sz)
+		{
+			if(*(self.buf.data + i) == from_byte)
+			{
+				*(self.buf.data + i) = to_byte;
+			}
+		}
+		^ ();
+	}
+
+	# Converts all bytes to lowercase using C tolower.
+	- to_lower! -> ()
+	{
+		for(let i<size> = 0_sz; i < self.buf.length; i += 1_sz)
+		{
+			let b<c1> = *(self.buf.data + i);
+			*(self.buf.data + i) = c.tolower(b ~> s4) ~> c1;
+		}
+		^ ();
+	}
+
+	# Converts all bytes to uppercase using C toupper.
+	- to_upper! -> ()
+	{
+		for(let i<size> = 0_sz; i < self.buf.length; i += 1_sz)
+		{
+			let b<c1> = *(self.buf.data + i);
+			*(self.buf.data + i) = c.toupper(b ~> s4) ~> c1;
+		}
+		^ ();
+	}
+
+	# Truncates to keep only the first count bytes.
+	- left!(count<size>) when count >= self.buf.length -> () { ^ (); }
+	- left!(count<size>) -> ()
+	{
+		self.buf.length = count;
+		*(self.buf.data + self.buf.length) = 0_c1;
+		^ ();
+	}
+
+	# Keeps only the last count bytes.
+	- right!(count<size>) when count >= self.buf.length -> () { ^ (); }
+	- right!(count<size>) -> ()
+	{
+		let start<size> = self.buf.length - count;
+		__glc_mem_move(self.buf.data ~~> voidptr, (self.buf.data + start) ~~> voidptr, count);
+		self.buf.length = count;
+		*(self.buf.data + self.buf.length) = 0_c1;
+		^ ();
+	}
+
+	# Removes the first count bytes, keeping the rest.
+	- left_chop!(count<size>) when count >= self.buf.length -> ()
+	{
+		self.buf.length = 0_sz;
+		if(self.buf.capacity > 0_sz)
+		{
+			*self.buf.data = 0_c1;
+		}
+		^ ();
+	}
+	- left_chop!(count<size>) -> ()
+	{
+		let remaining<size> = self.buf.length - count;
+		__glc_mem_move(self.buf.data ~~> voidptr, (self.buf.data + count) ~~> voidptr, remaining);
+		self.buf.length = remaining;
+		*(self.buf.data + self.buf.length) = 0_c1;
+		^ ();
+	}
+
+	# Removes the last count bytes.
+	- right_chop!(count<size>) when count >= self.buf.length -> ()
+	{
+		self.buf.length = 0_sz;
+		if(self.buf.capacity > 0_sz)
+		{
+			*self.buf.data = 0_c1;
+		}
+		^ ();
+	}
+	- right_chop!(count<size>) -> ()
+	{
+		self.buf.length -= count;
+		*(self.buf.data + self.buf.length) = 0_c1;
+		^ ();
+	}
+
+	# Removes trailing whitespace.
+	- trim_end! -> ()
+	{
+		while(self.buf.length > 0_sz)
+		{
+			let b<c1> = *(self.buf.data + self.buf.length - 1_sz);
+			if(c.isspace(b ~> s4) != 0_s4)
+			{
+				self.buf.length -= 1_sz;
+			}
+			else
+			{
+				*(self.buf.data + self.buf.length) = 0_c1;
+				^ ();
+			}
+		}
+
+		if(self.buf.capacity > 0_sz)
+		{
+			*self.buf.data = 0_c1;
+		}
+		^ ();
+	}
+
+	# Removes leading whitespace.
+	- trim_start! -> ()
+	{
+		let skip<size> = 0_sz;
+		for(let i<size> = 0_sz; i < self.buf.length; i += 1_sz)
+		{
+			let b<c1> = *(self.buf.data + i);
+			if(c.isspace(b ~> s4) != 0_s4)
+			{
+				skip += 1_sz;
+			}
+			else
+			{
+				i = self.buf.length;
+			}
+		}
+
+		if(skip > 0_sz)
+		{
+			if(skip >= self.buf.length)
+			{
+				self.buf.length = 0_sz;
+				if(self.buf.capacity > 0_sz)
+				{
+					*self.buf.data = 0_c1;
+				}
+			}
+			else
+			{
+				let remaining<size> = self.buf.length - skip;
+				__glc_mem_move(self.buf.data ~~> voidptr, (self.buf.data + skip) ~~> voidptr, remaining);
+				self.buf.length = remaining;
+				*(self.buf.data + self.buf.length) = 0_c1;
+			}
+		}
+		^ ();
+	}
+
+	# Removes leading and trailing whitespace.
+	- trim! -> ()
+	{
+		self.trim_end!;
+		self.trim_start!;
+		^ ();
+	}
+
+	# Shrinks capacity to fit the current length (plus null terminator).
+	- shrink when self.buf.length + 1_sz >= self.buf.capacity -> () { ^ (); }
+	- shrink -> ()
+	{
+		if(self.buf.length == 0_sz)
+		{
+			self.buf.delete;
+			^ ();
+		}
+
+		let bytes<size> = self.buf.length + 1_sz;
+		let resized<voidptr> = allocator_realloc(self.buf.alloc, self.buf.data ~~> voidptr, bytes);
+
+		if(nil?(resized))
+		{
+			runtime_error("string_r.shrink: out of memory");
+		}
+
+		self.buf.data = resized ~~> c1*;
+		self.buf.capacity = bytes;
+		^ ();
+	}
+
+	# Create an unsized string view from this string.
+	- view -> {c1, ()} { ^ make_string_view(self.buf.view); }
+
+	# Return a cstring pointer to the null-terminated buffer.
+	- to_cstring -> {c1, :c} { ^ self.data() ~~> cstring; }
+
+	# Find a single byte (alias for index_of).
+	- find(v<c1>) -> (atom, size) { ^ self.view.find(v); }
+
+	# Return last index of a given byte value.
+	- last_index_of(v<c1>) -> (atom, size) { ^ self.view.last_index_of(v); }
+
+	# Find last occurrence of a byte (alias for last_index_of).
+	- find_last(v<c1>) -> (atom, size) { ^ self.view.find_last(v); }
+
+	# Find first occurrence of a substring needle.
+	- index_of(needle<{c1, ()}>) -> (atom, size) { ^ self.view.index_of(needle); }
+
+	# Find first occurrence of a substring (alias for index_of).
+	- find(needle<{c1, ()}>) -> (atom, size) { ^ self.view.find(needle); }
+
+	# Find last occurrence of a substring needle.
+	- last_index_of(needle<{c1, ()}>) -> (atom, size) { ^ self.view.last_index_of(needle); }
+
+	# Find last occurrence of a substring (alias for last_index_of).
+	- find_last(needle<{c1, ()}>) -> (atom, size) { ^ self.view.find_last(needle); }
+
+	# Return :true if view contains a given substring.
+	- contains?(needle<{c1, ()}>) -> atom { ^ self.view.contains?(needle); }
+
+	# Return a sub-view starting at start with length count.
+	- slice(start<size>, count<size>) -> (atom, {c1, ()}) { ^ self.view.slice(start, count); }
+
+	# Alias for slice.
+	- mid(start<size>, count<size>) -> (atom, {c1, ()}) { ^ self.view.mid(start, count); }
+
+	# Return a sub-view from start to the end.
+	- mid(start<size>) -> (atom, {c1, ()}) { ^ self.view.mid(start); }
+
+	# Return the first count bytes.
+	- left(count<size>) -> (atom, {c1, ()}) { ^ self.view.left(count); }
+
+	# Return the last count bytes.
+	- right(count<size>) -> (atom, {c1, ()}) { ^ self.view.right(count); }
+
+	# Drop first count bytes, return rest.
+	- left_chop(count<size>) -> (atom, {c1, ()}) { ^ self.view.left_chop(count); }
+
+	# Drop last count bytes, return rest.
+	- right_chop(count<size>) -> (atom, {c1, ()}) { ^ self.view.right_chop(count); }
+
+	# Check if view starts with a given byte.
+	- starts_with?(b<c1>) -> atom { ^ self.view.starts_with?(b); }
+
+	# Check if view starts with a given prefix.
+	- starts_with?(prefix<{c1, ()}>) -> atom { ^ self.view.starts_with?(prefix); }
+
+	# Check if view ends with a given byte.
+	- ends_with?(b<c1>) -> atom { ^ self.view.ends_with?(b); }
+
+	# Check if view ends with a given suffix.
+	- ends_with?(suffix<{c1, ()}>) -> atom { ^ self.view.ends_with?(suffix); }
+
+	# Check if view equals another view byte-by-byte.
+	- equals?(other<{c1, ()}>) -> atom { ^ self.view.equals?(other); }
+
+	# Lexicographic comparison returning compare_result_e.
+	- compare(other<{c1, ()}>) -> compare_result_e { ^ self.view.compare(other); }
+}
+
+# Create a string with explicit context and initial capacity.
++ make_string(ctx<context_r>, cap<size>) -> {c1}
+{
+	let result<{c1}>;
+	result.buf = make_array(c1, cap + 1_sz);
+	*result.buf.data = 0_c1;
+	^ result;
+}
+
+# Create a string with default context and initial capacity.
++ make_string(cap<size>) -> {c1}
+{
+	let ctx<context_r> = get_default_ctx;
+	^ make_string(cap);
+}
+
+# Create a string from a string view.
++ make_string(ctx<context_r>, v<{c1, ()}>) -> {c1}
+{
+	let result<{c1}> = make_string(v.length());
+	result.append!(v);
+	^ result;
+}
+
+# Create a string from a string view using default context.
++ make_string(v<{c1, ()}>) -> {c1}
+{
+	let ctx<context_r> = get_default_ctx;
+	^ make_string(v);
+}

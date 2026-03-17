@@ -1,0 +1,36 @@
+package allocator;
+require core.basic ~> .;
+require core.mem ~> mem;
+
+# Dispatches default allocator operations to core.mem.
++ default_allocator_func(op<alloc_op_e>, user_data<voidptr>, ptr<voidptr>, bytes<size>, align<size>) -> voidptr
+{
+	match(op)
+	{
+		case :alloc =>
+		{
+			^ mem.alloc(bytes);
+		}
+
+		case :free =>
+		{
+			mem.free(ptr);
+			^ nil;
+		}
+
+		case :realloc =>
+		{
+			^ mem.realloc(ptr, bytes);
+		}
+	}
+}
+
+# Creates the default allocator backed by core.mem.
++ make_default_allocator -> allocator_r
+{
+	let a<allocator_r>;
+	a.func = &default_allocator_func;
+	a.user_data = nil;
+
+	^ a;
+}

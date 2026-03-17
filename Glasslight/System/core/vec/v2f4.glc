@@ -1,0 +1,219 @@
+package vec;
+require core.basic ~> .;
+
+intrinsic
+{
+	# Intrinsic that constructs a v2f4 from explicit components.
+	+ make(x<f4>, y<f4>) -> v2f4;
+
+	# Intrinsic that splats a scalar across all components.
+	+ make(v<f4>) -> v2f4;
+
+	# Intrinsic that constructs a v2f4 from a tuple.
+	+ make(v<(f4, f4)>) -> v2f4;
+
+	# Intrinsic zero vector constant.
+	+ zero -> v2f4;
+
+	# Intrinsic one vector constant.
+	+ one -> v2f4;
+
+	# Intrinsic unit vector on the X axis.
+	+ unit_x -> v2f4;
+
+	# Intrinsic unit vector on the Y axis.
+	+ unit_y -> v2f4;
+
+	# Intrinsic dot product of two vectors.
+	+ dot(a<v2f4>, b<v2f4>) -> f4;
+
+	# Intrinsic that returns the squared Euclidean length of a vector.
+	+ length_squared(v<v2f4>) -> f4;
+
+	# Intrinsic that returns the Euclidean length of a vector.
+	+ length(v<v2f4>) -> f4;
+
+	# Intrinsic that returns a normalized vector.
+	+ normalize(v<v2f4>) -> v2f4;
+
+	# Intrinsic that normalizes when squared length exceeds tolerance.
+	# Note: tolerance is compared against squared length (pass a squared epsilon).
+	+ safe_normalize(v<v2f4>, tolerance<f4>) -> v2f4;
+
+	# Intrinsic absolute value applied component-wise.
+	+ abs(v<v2f4>) -> v2f4;
+
+	# Intrinsic component-wise addition.
+	+ add(a<v2f4>, b<v2f4>) -> v2f4;
+
+	# Intrinsic component-wise subtraction.
+	+ subtract(a<v2f4>, b<v2f4>) -> v2f4;
+
+	# Intrinsic component-wise multiplication.
+	+ mul(a<v2f4>, b<v2f4>) -> v2f4;
+
+	# Intrinsic scalar multiplication.
+	+ mul(a<v2f4>, b<f4>) -> v2f4;
+
+	# Intrinsic component-wise minimum.
+	+ min(a<v2f4>, b<v2f4>) -> v2f4;
+
+	# Intrinsic component-wise maximum.
+	+ max(a<v2f4>, b<v2f4>) -> v2f4;
+
+	# Intrinsic component-wise clamp into [lo, hi].
+	+ clamp(x<v2f4>, lo<v2f4>, hi<v2f4>) -> v2f4;
+
+	# Intrinsic component-wise clamp into [0, 1].
+	+ saturate(v<v2f4>) -> v2f4;
+
+	# Intrinsic linear interpolation from a to b by t.
+	+ lerp(a<v2f4>, b<v2f4>, t<f4>) -> v2f4;
+
+	# Intrinsic Euclidean distance between two vectors.
+	+ distance(a<v2f4>, b<v2f4>) -> f4;
+
+	# Intrinsic reflection of v about normal n.
+	+ reflect(v<v2f4>, n<v2f4>) -> v2f4;
+
+	# Intrinsic refraction of incident vector i through normal n.
+	+ refract(i<v2f4>, n<v2f4>, eta<f4>) -> v2f4;
+
+	# Intrinsic squared Euclidean distance between two vectors.
+	+ distance_squared(a<v2f4>, b<v2f4>) -> f4;
+
+	# Intrinsic projection of v onto the target vector.
+	# Note: does not guard zero-length onto vectors.
+	+ project(v<v2f4>, onto<v2f4>) -> v2f4;
+
+	# Intrinsic angle between two vectors in radians.
+	# Note: does not guard zero-length inputs.
+	+ angle_between(a<v2f4>, b<v2f4>) -> f4;
+
+	# Intrinsic projection of v with a squared-length guard on the target vector.
+	+ safe_project(v<v2f4>, onto<v2f4>, tolerance<f4>) -> v2f4;
+
+	# Intrinsic angle between vectors with a squared-length guard.
+	+ safe_angle_between(a<v2f4>, b<v2f4>, tolerance<f4>) -> f4;
+
+	# Intrinsic component-wise infinity classification.
+	+ inf?(v<v2f4>) -> v2atom;
+
+	# Intrinsic component-wise NaN classification.
+	+ nan?(v<v2f4>) -> v2atom;
+
+	# Intrinsic component-wise finite-value classification.
+	+ finite?(v<v2f4>) -> v2atom;
+}
+
+# Converts a vector to a tuple of components.
++ to_tuple(v<v2f4>) -> (f4, f4) { ^ (v.x, v.y); }
+
+typemix v2f4
+{
+	# Class wrappers for vector construction and constants.
+	# Forwarding wrappers to global constructors/constants.
+	# Class wrapper for make overload.
+	+ make(x<f4>, y<f4>) -> v2f4 { ^ make(x, y); }
+
+	# Class wrapper for make overload.
+	+ make(v<f4>) -> v2f4 { ^ make(v); }
+
+	# Class wrapper for make overload.
+	+ make(v<(f4, f4)>) -> v2f4 { ^ make(v); }
+
+	# Class wrapper for zero constant.
+	+ zero -> v2f4 { ^ zero; }
+
+	# Class wrapper for one constant.
+	+ one -> v2f4 { ^ one; }
+
+	# Class wrapper for unit_x constant.
+	+ unit_x -> v2f4 { ^ unit_x; }
+
+	# Class wrapper for unit_y constant.
+	+ unit_y -> v2f4 { ^ unit_y; }
+
+	# Instance wrappers for vector operations.
+	# These forward to free intrinsics/functions with self as first argument.
+	# Instance wrapper for intrinsic dot.
+	- dot(b<v2f4>) -> f4 { ^ dot(*self, b); }
+
+	# Instance wrapper for intrinsic length_squared.
+	- length_squared -> f4 { ^ length_squared(*self); }
+
+	# Instance wrapper for intrinsic length.
+	- length -> f4 { ^ length(*self); }
+
+	# Instance wrapper for intrinsic normalize.
+	- normalize -> v2f4 { ^ normalize(*self); }
+
+	# Instance wrapper for intrinsic safe_normalize.
+	- safe_normalize(tolerance<f4>) -> v2f4 { ^ safe_normalize(*self, tolerance); }
+
+	# Instance wrapper for intrinsic abs.
+	- abs -> v2f4 { ^ abs(*self); }
+
+	# Instance wrapper for intrinsic add.
+	- add(b<v2f4>) -> v2f4 { ^ add(*self, b); }
+
+	# Instance wrapper for intrinsic subtract.
+	- subtract(b<v2f4>) -> v2f4 { ^ subtract(*self, b); }
+
+	# Instance wrapper for intrinsic mul.
+	- mul(b<v2f4>) -> v2f4 { ^ mul(*self, b); }
+
+	# Instance wrapper for intrinsic mul.
+	- mul(b<f4>) -> v2f4 { ^ mul(*self, b); }
+
+	# Instance wrapper for intrinsic min.
+	- min(b<v2f4>) -> v2f4 { ^ min(*self, b); }
+
+	# Instance wrapper for intrinsic max.
+	- max(b<v2f4>) -> v2f4 { ^ max(*self, b); }
+
+	# Instance wrapper for intrinsic clamp.
+	- clamp(lo<v2f4>, hi<v2f4>) -> v2f4 { ^ clamp(*self, lo, hi); }
+
+	# Instance wrapper for intrinsic saturate.
+	- saturate -> v2f4 { ^ saturate(*self); }
+
+	# Instance wrapper for intrinsic lerp.
+	- lerp(b<v2f4>, t<f4>) -> v2f4 { ^ lerp(*self, b, t); }
+
+	# Instance wrapper for intrinsic distance.
+	- distance(b<v2f4>) -> f4 { ^ distance(*self, b); }
+
+	# Instance wrapper for intrinsic reflect.
+	- reflect(n<v2f4>) -> v2f4 { ^ reflect(*self, n); }
+
+	# Instance wrapper for intrinsic refract.
+	- refract(n<v2f4>, eta<f4>) -> v2f4 { ^ refract(*self, n, eta); }
+
+	# Instance wrapper for intrinsic distance_squared.
+	- distance_squared(b<v2f4>) -> f4 { ^ distance_squared(*self, b); }
+
+	# Instance wrapper for intrinsic project.
+	- project(onto<v2f4>) -> v2f4 { ^ project(*self, onto); }
+
+	# Instance wrapper for intrinsic angle_between.
+	- angle_between(b<v2f4>) -> f4 { ^ angle_between(*self, b); }
+
+	# Instance wrapper for intrinsic safe_project.
+	- safe_project(onto<v2f4>, tolerance<f4>) -> v2f4 { ^ safe_project(*self, onto, tolerance); }
+
+	# Instance wrapper for intrinsic safe_angle_between.
+	- safe_angle_between(b<v2f4>, tolerance<f4>) -> f4 { ^ safe_angle_between(*self, b, tolerance); }
+
+	# Instance wrapper for intrinsic inf.
+	- inf? -> v2atom { ^ inf?(*self); }
+
+	# Instance wrapper for intrinsic nan.
+	- nan? -> v2atom { ^ nan?(*self); }
+
+	# Instance wrapper for intrinsic finite.
+	- finite? -> v2atom { ^ finite?(*self); }
+
+	# Instance wrapper for tuple conversion helper.
+	- to_tuple -> (f4, f4) { ^ to_tuple(*self); }
+}

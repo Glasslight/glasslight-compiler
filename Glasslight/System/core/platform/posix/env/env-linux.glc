@@ -1,0 +1,10 @@
+package env;
+require core.basic ~> basic;
+
+[[:system, :dynamic]]
+foreign "c" ~> .
+{
+	+ getenv(name<{basic.u1, :c}>) -> {basic.u1, :c} ->> basic.voidptr;
+	+ setenv(name<{basic.u1, :c}>, value<{basic.u1, :c}>, overwrite<basic.s4>) -> basic.s4;
+	+ unsetenv(name<{basic.u1, :c}>) -> basic.s4;
+}
