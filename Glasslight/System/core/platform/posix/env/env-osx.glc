@@ -1,10 +1,13 @@
 package env;
 require core.basic ~> basic;
+require core.c ~> core_c;
 
 [[:system, :dynamic]]
 foreign "libSystem.B.tbd" ~> .
 {
-	+ getenv(name<{basic.u1, :c}>) -> {basic.u1, :c} ->> basic.voidptr;
 	+ setenv(name<{basic.u1, :c}>, value<{basic.u1, :c}>, overwrite<basic.s4>) -> basic.s4;
 	+ unsetenv(name<{basic.u1, :c}>) -> basic.s4;
 }
+
+# Do an alias rather than a foreigin import to avoid a duplicate symbol.
+const getenv<({basic.u1, :c}) -> basic.voidptr> = &core_c.getenv;

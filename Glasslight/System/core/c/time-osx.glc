@@ -1,0 +1,39 @@
+package c;
+require core.basic ~> basic;
+
+# CLOCKS_PER_SEC for POSIX platforms (microseconds).
+const CLOCKS_PER_SEC<basic.s8> = 1000000_s8;
+
+[[:system, :dynamic]]
+foreign "libSystem.B.tbd" ~> .
+{
+	# Get current calendar time.
+	+ time(timer<time_t*>) -> time_t;
+
+	# Compute difference between two calendar times.
+	+ difftime(end<time_t>, start<time_t>) -> basic.f8;
+
+	# Get processor time consumed.
+	+ clock -> clock_t;
+
+	# Get calendar time with nanoseconds.
+	+ timespec_get(ts<timespec_r*>, base<basic.s4>) -> basic.s4;
+
+	# Convert calendar time to local broken-down time.
+	+ localtime(timer<time_t*>) -> tm_r*;
+
+	# Convert calendar time to UTC broken-down time.
+	+ gmtime(timer<time_t*>) -> tm_r*;
+
+	# Convert broken-down time to calendar time.
+	+ mktime(tm<tm_r*>) -> time_t;
+
+	# Convert broken-down time to string.
+	+ asctime(tm<tm_r*>) -> basic.cstring;
+
+	# Convert calendar time to local time string.
+	+ ctime(timer<time_t*>) -> basic.cstring;
+
+	# Format broken-down time according to format string.
+	+ strftime(buf<basic.c1*>, maxsize<basic.size>, format<basic.cstring>, tm<tm_r*>) -> basic.size;
+}

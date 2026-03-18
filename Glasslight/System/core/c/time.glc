@@ -1,0 +1,34 @@
+package c;
+require core.basic ~> basic;
+
+# Weak alias for C time_t type (64-bit signed).
+[[(:kind, :alias), (:alias, :weak)]] typecreate time_t ~> basic.s8;
+
+# Weak alias for C clock_t type (64-bit signed).
+[[(:kind, :alias), (:alias, :weak)]] typecreate clock_t ~> basic.s8;
+
+# timespec struct (C11) - aligned for 64-bit fields.
+[[(:alignment, 8_sz)]]
+record timespec_r
+{
+	let tv_sec<time_t>;
+	let tv_nsec<time_t>;
+}
+
+# tm struct (broken-down time) - aligned for 32-bit int fields.
+[[(:alignment, 4_sz)]]
+record tm_r
+{
+	let tm_sec<basic.s4>;
+	let tm_min<basic.s4>;
+	let tm_hour<basic.s4>;
+	let tm_mday<basic.s4>;
+	let tm_mon<basic.s4>;
+	let tm_year<basic.s4>;
+	let tm_wday<basic.s4>;
+	let tm_yday<basic.s4>;
+	let tm_isdst<basic.s4>;
+}
+
+# TIME_UTC time base constant for timespec_get.
+let TIME_UTC<basic.s4> = 1_s4;
