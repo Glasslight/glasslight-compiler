@@ -1,0 +1,9 @@
+package unistd;
+require core.basic ~> basic;
+
+[[:system, :dynamic]]
+foreign "libSystem.B.tbd" ~> .
+{
+	# Get current working directory (unistd.h).
+	+ getcwd(buf<basic.c1*>, sz<basic.size>) -> {basic.c1, :c};
+}

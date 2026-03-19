@@ -1,19 +1,36 @@
 package env;
 require core.basic ~> .;
+require core.c ~> c;
 require core.context ~> .;
 require core.string ~> .;
 require core.platform.posix.env ~> posix_env;
 
-# Get an env var through the POSIX backend.
-+ get_env(ctx<context_r>, name<{u1, :c}>) -> (env_get_result_e, {u1})
+# Copy a native env string into an owned string.
+++ copy_env_value(value<{u1, :c}>) -> {u1}
 {
-	let raw<voidptr> = posix_env.getenv(name);
-	if(raw == nil)
+	let value_len<size> = value.length();
+	let result<{u1}> = make_string(value_len);
+
+	if(value_len > 0_sz)
 	{
-		^ (:missing, make_string(ctx, 0_sz));
+		c.memcpy(result.data() ~~> voidptr, (value ~~> u1*) ~~> voidptr, value_len);
 	}
 
-	^ (:found, copy_env_value(ctx, raw ~~> {u1, :c}));
+	result.buf.length = value_len;
+	^ result;
+}
+
+# Get an env var through the POSIX backend.
+++ get_env(name<{u1, :c}>) -> (env_get_result_e, {u1})
+{
+	let raw<{c1, :c}> = posix_env.getenv(name);
+
+	if(raw == nil)
+	{
+		^ (:missing, make_empty_string());
+	}
+
+	^ (:found, copy_env_value(raw));
 }
 
 # Check whether an env var exists through the POSIX backend.
@@ -23,6 +40,7 @@ require core.platform.posix.env ~> posix_env;
 + set_env(name<{u1, :c}>, value<{u1, :c}>, overwrite<atom>) -> env_set_result_e
 {
 	let existed<atom> = has_env?(name);
+
 	if(!overwrite)
 	{
 		if(existed)

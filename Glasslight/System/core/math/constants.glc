@@ -1,256 +1,304 @@
 package math;
 require core.basic ~> .;
 
+# Circle constant pi.
 + pi -> f2
 {
 	const bits<u2> = 0x4248_u2;
 	^ bits ~~> f2;
 }
+
 + pi -> f4
 {
 	const bits<u4> = 0x40490fdb_u4;
 	^ bits ~~> f4;
 }
+
 + pi -> f8
 {
 	const bits<u8> = 0x400921fb54442d18_u8;
 	^ bits ~~> f8;
 }
 
+# Two times pi.
 + twopi -> f2
 {
 	const bits<u2> = 0x4648_u2;
 	^ bits ~~> f2;
 }
+
 + twopi -> f4
 {
 	const bits<u4> = 0x40c90fdb_u4;
 	^ bits ~~> f4;
 }
+
 + twopi -> f8
 {
 	const bits<u8> = 0x401921fb54442d18_u8;
 	^ bits ~~> f8;
 }
 
+# Half of pi.
 + halfpi -> f2
 {
 	const bits<u2> = 0x3e48_u2;
 	^ bits ~~> f2;
 }
+
 + halfpi -> f4
 {
 	const bits<u4> = 0x3fc90fdb_u4;
 	^ bits ~~> f4;
 }
+
 + halfpi -> f8
 {
 	const bits<u8> = 0x3ff921fb54442d18_u8;
 	^ bits ~~> f8;
 }
 
+# Reciprocal of pi.
 + invpi -> f2
 {
 	const bits<u2> = 0x3518_u2;
 	^ bits ~~> f2;
 }
+
 + invpi -> f4
 {
 	const bits<u4> = 0x3ea2f983_u4;
 	^ bits ~~> f4;
 }
+
 + invpi -> f8
 {
 	const bits<u8> = 0x3fd45f306dc9c883_u8;
 	^ bits ~~> f8;
 }
 
+# Reciprocal of two pi.
 + invtwopi -> f2
 {
 	const bits<u2> = 0x3118_u2;
 	^ bits ~~> f2;
 }
+
 + invtwopi -> f4
 {
 	const bits<u4> = 0x3e22f983_u4;
 	^ bits ~~> f4;
 }
+
 + invtwopi -> f8
 {
 	const bits<u8> = 0x3fc45f306dc9c883_u8;
 	^ bits ~~> f8;
 }
 
+# Square root of two.
 + sqrt2 -> f2
 {
 	const bits<u2> = 0x3da8_u2;
 	^ bits ~~> f2;
 }
+
 + sqrt2 -> f4
 {
 	const bits<u4> = 0x3fb504f3_u4;
 	^ bits ~~> f4;
 }
+
 + sqrt2 -> f8
 {
 	const bits<u8> = 0x3ff6a09e667f3bcd_u8;
 	^ bits ~~> f8;
 }
 
+# Reciprocal of square root of two.
 + invsqrt2 -> f2
 {
 	const bits<u2> = 0x39a8_u2;
 	^ bits ~~> f2;
 }
+
 + invsqrt2 -> f4
 {
 	const bits<u4> = 0x3f3504f3_u4;
 	^ bits ~~> f4;
 }
+
 + invsqrt2 -> f8
 {
 	const bits<u8> = 0x3fe6a09e667f3bcc_u8;
 	^ bits ~~> f8;
 }
 
+# Square root of three.
 + sqrt3 -> f2
 {
 	const bits<u2> = 0x3eee_u2;
 	^ bits ~~> f2;
 }
+
 + sqrt3 -> f4
 {
 	const bits<u4> = 0x3fddb3d7_u4;
 	^ bits ~~> f4;
 }
+
 + sqrt3 -> f8
 {
 	const bits<u8> = 0x3ffbb67ae8584caa_u8;
 	^ bits ~~> f8;
 }
 
+# Reciprocal of square root of three.
 + invsqrt3 -> f2
 {
 	const bits<u2> = 0x389e_u2;
 	^ bits ~~> f2;
 }
+
 + invsqrt3 -> f4
 {
 	const bits<u4> = 0x3f13cd3a_u4;
 	^ bits ~~> f4;
 }
+
 + invsqrt3 -> f8
 {
 	const bits<u8> = 0x3fe279a74590331d_u8;
 	^ bits ~~> f8;
 }
 
+# Natural logarithm of two.
 + ln2 -> f2
 {
 	const bits<u2> = 0x398c_u2;
 	^ bits ~~> f2;
 }
+
 + ln2 -> f4
 {
 	const bits<u4> = 0x3f317218_u4;
 	^ bits ~~> f4;
 }
+
 + ln2 -> f8
 {
 	const bits<u8> = 0x3fe62e42fefa39ef_u8;
 	^ bits ~~> f8;
 }
 
+# Euler's number.
 + e -> f2
 {
 	const bits<u2> = 0x4170_u2;
 	^ bits ~~> f2;
 }
+
 + e -> f4
 {
 	const bits<u4> = 0x402df854_u4;
 	^ bits ~~> f4;
 }
+
 + e -> f8
 {
 	const bits<u8> = 0x4005bf0a8b145769_u8;
 	^ bits ~~> f8;
 }
 
+# Log base 2 of e.
 + log2e -> f2
 {
 	const bits<u2> = 0x3dc5_u2;
 	^ bits ~~> f2;
 }
+
 + log2e -> f4
 {
 	const bits<u4> = 0x3fb8aa3b_u4;
 	^ bits ~~> f4;
 }
+
 + log2e -> f8
 {
 	const bits<u8> = 0x3ff71547652b82fe_u8;
 	^ bits ~~> f8;
 }
 
+# Log base 10 of e.
 + log10e -> f2
 {
 	const bits<u2> = 0x36f3_u2;
 	^ bits ~~> f2;
 }
+
 + log10e -> f4
 {
 	const bits<u4> = 0x3ede5bd9_u4;
 	^ bits ~~> f4;
 }
+
 + log10e -> f8
 {
 	const bits<u8> = 0x3fdbcb7b1526e50e_u8;
 	^ bits ~~> f8;
 }
 
+# Natural logarithm of ten.
 + ln10 -> f2
 {
 	const bits<u2> = 0x409b_u2;
 	^ bits ~~> f2;
 }
+
 + ln10 -> f4
 {
 	const bits<u4> = 0x40135d8e_u4;
 	^ bits ~~> f4;
 }
+
 + ln10 -> f8
 {
 	const bits<u8> = 0x40026bb1bbb55516_u8;
 	^ bits ~~> f8;
 }
 
+# Euler-Mascheroni constant.
 + gamma -> f2
 {
 	const bits<u2> = 0x389e_u2;
 	^ bits ~~> f2;
 }
+
 + gamma -> f4
 {
 	const bits<u4> = 0x3f13c468_u4;
 	^ bits ~~> f4;
 }
+
 + gamma -> f8
 {
 	const bits<u8> = 0x3fe2788cfc6fb619_u8;
 	^ bits ~~> f8;
 }
 
+# Golden ratio.
 + phi -> f2
 {
 	const bits<u2> = 0x3e79_u2;
 	^ bits ~~> f2;
 }
+
 + phi -> f4
 {
 	const bits<u4> = 0x3fcf1bbd_u4;
 	^ bits ~~> f4;
 }
+
 + phi -> f8
 {
 	const bits<u8> = 0x3ff9e3779b97f4a8_u8;

@@ -61,6 +61,7 @@ record string_r
 	- append!(v<{c1, ()}>) -> ()
 	{
 		let add_len<size> = v.length;
+
 		if(add_len == 0_sz)
 		{
 			^ ();
@@ -75,6 +76,7 @@ record string_r
 
 		let dst<voidptr> = (self.buf.data + old_len) ~~> voidptr;
 		let bytes<size> = add_len;
+
 		if(self_alias)
 		{
 			__glc_mem_move(dst, self.buf.data ~~> voidptr, bytes);
@@ -86,6 +88,7 @@ record string_r
 
 		self.buf.length = new_len;
 		*(self.buf.data + self.buf.length) = 0_c1;
+
 		^ ();
 	}
 
@@ -121,10 +124,12 @@ record string_r
 	- remove!(e<c1>) -> size
 	{
 		let removed<size> = self.buf.remove!(e);
+
 		if(self.buf.capacity > 0_sz)
 		{
 			*(self.buf.data + self.buf.length) = 0_c1;
 		}
+
 		^ removed;
 	}
 
@@ -144,6 +149,7 @@ record string_r
 		let cur_len<size> = self.buf.length;
 		let avail<size> = cur_len - idx;
 		let actual<size> = count;
+
 		if(actual > avail)
 		{
 			actual = avail;
@@ -160,6 +166,7 @@ record string_r
 
 		self.buf.length = cur_len - actual;
 		*(self.buf.data + self.buf.length) = 0_c1;
+
 		^ ();
 	}
 
@@ -170,6 +177,7 @@ record string_r
 		self.buf.ensure_capacity(self.buf.length + 2_sz);
 
 		let tail_count<size> = self.buf.length - idx;
+
 		if(tail_count > 0_sz)
 		{
 			let src<voidptr> = (self.buf.data + idx) ~~> voidptr;
@@ -180,6 +188,7 @@ record string_r
 		*(self.buf.data + idx) = element;
 		self.buf.length += 1_sz;
 		*(self.buf.data + self.buf.length) = 0_c1;
+
 		^ ();
 	}
 
@@ -188,6 +197,7 @@ record string_r
 	- insert_at!(v<{c1, ()}>, idx<size>) -> ()
 	{
 		let add_len<size> = v.length;
+
 		if(add_len == 0_sz)
 		{
 			^ ();
@@ -197,6 +207,7 @@ record string_r
 		self.buf.ensure_capacity(cur_len + add_len + 1_sz);
 
 		let tail_count<size> = cur_len - idx;
+
 		if(tail_count > 0_sz)
 		{
 			let src<voidptr> = (self.buf.data + idx) ~~> voidptr;
@@ -208,6 +219,7 @@ record string_r
 
 		self.buf.length = cur_len + add_len;
 		*(self.buf.data + self.buf.length) = 0_c1;
+
 		^ ();
 	}
 
@@ -221,6 +233,7 @@ record string_r
 				*(self.buf.data + i) = to_byte;
 			}
 		}
+
 		^ ();
 	}
 
@@ -232,6 +245,7 @@ record string_r
 			let b<c1> = *(self.buf.data + i);
 			*(self.buf.data + i) = c.tolower(b ~> s4) ~> c1;
 		}
+
 		^ ();
 	}
 
@@ -243,6 +257,7 @@ record string_r
 			let b<c1> = *(self.buf.data + i);
 			*(self.buf.data + i) = c.toupper(b ~> s4) ~> c1;
 		}
+
 		^ ();
 	}
 
@@ -252,6 +267,7 @@ record string_r
 	{
 		self.buf.length = count;
 		*(self.buf.data + self.buf.length) = 0_c1;
+
 		^ ();
 	}
 
@@ -263,6 +279,7 @@ record string_r
 		__glc_mem_move(self.buf.data ~~> voidptr, (self.buf.data + start) ~~> voidptr, count);
 		self.buf.length = count;
 		*(self.buf.data + self.buf.length) = 0_c1;
+
 		^ ();
 	}
 
@@ -270,10 +287,12 @@ record string_r
 	- left_chop!(count<size>) when count >= self.buf.length -> ()
 	{
 		self.buf.length = 0_sz;
+
 		if(self.buf.capacity > 0_sz)
 		{
 			*self.buf.data = 0_c1;
 		}
+
 		^ ();
 	}
 	- left_chop!(count<size>) -> ()
@@ -282,6 +301,7 @@ record string_r
 		__glc_mem_move(self.buf.data ~~> voidptr, (self.buf.data + count) ~~> voidptr, remaining);
 		self.buf.length = remaining;
 		*(self.buf.data + self.buf.length) = 0_c1;
+
 		^ ();
 	}
 
@@ -289,16 +309,19 @@ record string_r
 	- right_chop!(count<size>) when count >= self.buf.length -> ()
 	{
 		self.buf.length = 0_sz;
+
 		if(self.buf.capacity > 0_sz)
 		{
 			*self.buf.data = 0_c1;
 		}
+
 		^ ();
 	}
 	- right_chop!(count<size>) -> ()
 	{
 		self.buf.length -= count;
 		*(self.buf.data + self.buf.length) = 0_c1;
+
 		^ ();
 	}
 
@@ -308,6 +331,7 @@ record string_r
 		while(self.buf.length > 0_sz)
 		{
 			let b<c1> = *(self.buf.data + self.buf.length - 1_sz);
+
 			if(c.isspace(b ~> s4) != 0_s4)
 			{
 				self.buf.length -= 1_sz;
@@ -323,6 +347,7 @@ record string_r
 		{
 			*self.buf.data = 0_c1;
 		}
+
 		^ ();
 	}
 
@@ -330,9 +355,11 @@ record string_r
 	- trim_start! -> ()
 	{
 		let skip<size> = 0_sz;
+
 		for(let i<size> = 0_sz; i < self.buf.length; i += 1_sz)
 		{
 			let b<c1> = *(self.buf.data + i);
+
 			if(c.isspace(b ~> s4) != 0_s4)
 			{
 				skip += 1_sz;
@@ -348,6 +375,7 @@ record string_r
 			if(skip >= self.buf.length)
 			{
 				self.buf.length = 0_sz;
+
 				if(self.buf.capacity > 0_sz)
 				{
 					*self.buf.data = 0_c1;
@@ -361,6 +389,7 @@ record string_r
 				*(self.buf.data + self.buf.length) = 0_c1;
 			}
 		}
+
 		^ ();
 	}
 
@@ -369,6 +398,7 @@ record string_r
 	{
 		self.trim_end!;
 		self.trim_start!;
+
 		^ ();
 	}
 
@@ -392,6 +422,7 @@ record string_r
 
 		self.buf.data = resized ~~> c1*;
 		self.buf.capacity = bytes;
+
 		^ ();
 	}
 
@@ -465,8 +496,8 @@ record string_r
 	- compare(other<{c1, ()}>) -> compare_result_e { ^ self.view.compare(other); }
 }
 
-# Create a string with explicit context and initial capacity.
-+ make_string(ctx<context_r>, cap<size>) -> {c1}
+# Create a string with initial capacity.
+++ make_string(cap<size>) -> {c1}
 {
 	let result<{c1}>;
 	result.buf = make_array(c1, cap + 1_sz);
@@ -474,24 +505,16 @@ record string_r
 	^ result;
 }
 
-# Create a string with default context and initial capacity.
-+ make_string(cap<size>) -> {c1}
-{
-	let ctx<context_r> = get_default_ctx;
-	^ make_string(cap);
-}
-
 # Create a string from a string view.
-+ make_string(ctx<context_r>, v<{c1, ()}>) -> {c1}
+++ make_string(v<{c1, ()}>) -> {c1}
 {
 	let result<{c1}> = make_string(v.length());
 	result.append!(v);
 	^ result;
 }
 
-# Create a string from a string view using default context.
-+ make_string(v<{c1, ()}>) -> {c1}
+# Create an empty string.
+++ make_empty_string -> {c1}
 {
-	let ctx<context_r> = get_default_ctx;
-	^ make_string(v);
+	^ make_string(0_sz);
 }

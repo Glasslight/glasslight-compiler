@@ -1,5 +1,220 @@
 package paths;
 require core.basic ~> .;
+require core.context ~> .;
+require core.string ~> .;
+require core.c ~> c;
+require core.os.env ~> env;
+require core.platform.win.kernel32 ~> kernel32;
 
 # Windows specific file separator.
 + separator -> c1 { ^ '\\'_c1; }
+
+const invalid_file_attributes<u4> = 0xFFFFFFFF_u4;
+const file_attribute_directory<u4> = 0x10_u4;
+const error_already_exists<u4> = 183_u4;
+
+# Check if a file exists at the given path.
+++ file_exists?(path<{c1, ()}>) -> atom
+{
+	let tmp<{c1}> = make_string(path);
+
+	defer
+	{
+		tmp.delete;
+	}
+
+	let attrs<u4> = kernel32.GetFileAttributesA(tmp.to_cstring);
+
+	if(attrs == invalid_file_attributes)
+	{
+		^ :false;
+	}
+
+	^ (attrs & file_attribute_directory) == 0_u4;
+}
+
+# Check if a directory exists at the given path.
+++ directory_exists?(path<{c1, ()}>) -> atom
+{
+	let tmp<{c1}> = make_string(path);
+
+	defer
+	{
+		tmp.delete;
+	}
+
+	let attrs<u4> = kernel32.GetFileAttributesA(tmp.to_cstring);
+
+	if(attrs == invalid_file_attributes)
+	{
+		^ :false;
+	}
+
+	^ (attrs & file_attribute_directory) != 0_u4;
+}
+
+# Create a single directory, returning :true if it was created or already exists.
+++ mkdir_exists_ok(path<{c1, ()}>) -> atom
+{
+	let tmp<{c1}> = make_string(path);
+
+	defer
+	{
+		tmp.delete;
+	}
+
+	if(kernel32.CreateDirectoryA(tmp.to_cstring, nil))
+	{
+		^ :true;
+	}
+
+	if(kernel32.GetLastError() == error_already_exists)
+	{
+		^ :true;
+	}
+
+	^ :false;
+}
+
+# Get the current working directory.
+++ current_dir -> (atom, {c1})
+{
+	let buf_size<u4> = 1024_u4;
+	let buf<{c1}> = make_string(buf_size ~> size);
+	let written<u4> = kernel32.GetCurrentDirectoryA(buf_size, buf.data());
+
+	if(written == 0_u4)
+	{
+		buf.delete;
+		^ (:false, make_empty_string());
+	}
+
+	buf.buf.length = written ~> size;
+
+	# Normalize to forward slashes.
+	buf.replace!('\\'_c1, '/'_c1);
+
+	# Ensure trailing slash.
+	if(!buf.ends_with?('/'_c1))
+	{
+		buf.append!('/'_c1);
+	}
+
+	^ (:true, buf);
+}
+
+# Get the temporary directory.
+++ temp_dir -> (atom, {c1})
+{
+	let buf_size<u4> = 1024_u4;
+	let buf<{c1}> = make_string(buf_size ~> size);
+	let written<u4> = kernel32.GetTempPathA(buf_size, buf.data());
+
+	if(written == 0_u4)
+	{
+		buf.delete;
+		^ (:false, make_empty_string());
+	}
+
+	buf.buf.length = written ~> size;
+
+	# Normalize to forward slashes.
+	buf.replace!('\\'_c1, '/'_c1);
+
+	# Ensure trailing slash.
+	if(!buf.ends_with?('/'_c1))
+	{
+		buf.append!('/'_c1);
+	}
+
+	^ (:true, buf);
+}
+
+# Get the user home directory.
+++ user_dir -> (atom, {c1})
+{
+	let (found<env.env_get_result_e>, value<{c1}>) = env.get_env("USERPROFILE");
+	let keep_value<atom> = :false;
+
+	defer
+	{
+		if(!keep_value)
+		{
+			value.delete;
+		}
+	}
+
+	if(found == :found)
+	{
+		if(value.length() > 0_sz)
+		{
+			# Normalize to forward slashes.
+			value.replace!('\\'_c1, '/'_c1);
+
+			if(!value.ends_with?('/'_c1))
+			{
+				value.append!('/'_c1);
+			}
+
+			keep_value = :true;
+			^ (:true, value);
+		}
+	}
+
+	^ (:false, make_empty_string());
+}
+
+# Convert a path to the platform-native format (backslashes, no duplicates).
+++ make_platform(path<{c1, ()}>) -> {c1}
+{
+	let result<{c1}> = make_string(path);
+
+	defer
+	{
+		result.delete;
+	}
+
+	result.replace!('/'_c1, '\\'_c1);
+
+	# Remove duplicate backslashes (but preserve leading \\ for UNC paths).
+	let n<size> = result.length();
+
+	if(n <= 2_sz)
+	{
+		^ result;
+	}
+
+	let cleaned<{c1}> = make_string(n);
+	let start<size> = 0_sz;
+
+	# Preserve leading \\ for UNC paths.
+	if((result.at(0_sz) == '\\'_c1) && (result.at(1_sz) == '\\'_c1))
+	{
+		cleaned.append!('\\'_c1);
+		cleaned.append!('\\'_c1);
+		start = 2_sz;
+	}
+
+	let prev_backslash<atom> = :false;
+
+	for(let i<size> = start; i < n; i += 1_sz)
+	{
+		let ch<c1> = result.at(i);
+
+		if(ch == '\\'_c1)
+		{
+			if(!prev_backslash)
+			{
+				cleaned.append!(ch);
+				prev_backslash = :true;
+			}
+		}
+		else
+		{
+			cleaned.append!(ch);
+			prev_backslash = :false;
+		}
+	}
+
+	^ cleaned;
+}

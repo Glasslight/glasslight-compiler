@@ -68,5 +68,6 @@ record array_view_r<$t<typeid>, $n<size> >
 {
 	let result<[t, (n,)]>;
 	result.data = ptr;
+
 	^ result;
 }

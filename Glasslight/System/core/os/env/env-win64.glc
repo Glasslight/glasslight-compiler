@@ -5,16 +5,18 @@ require core.string ~> .;
 require core.platform.win.kernel32 ~> kernel32;
 
 # Get an env var through the Win32 backend.
-+ get_env(ctx<context_r>, name<{u1, :c}>) -> (env_get_result_e, {u1})
+++ get_env(name<{u1, :c}>) -> (env_get_result_e, {u1})
 {
 	let required<u4> = kernel32.GetEnvironmentVariableA(name, nil, 0_u4);
+
 	if(required == 0_u4)
 	{
-		^ (:missing, make_string(ctx, 0_sz));
+		^ (:missing, make_empty_string());
 	}
 
-	let result<{u1}> = make_string(ctx, (required - 1_u4) ~> size);
-	let written<u4> = kernel32.GetEnvironmentVariableA(name, result.data() ~~> voidptr, required);
+	let result<{u1}> = make_string((required - 1_u4) ~> size);
+	let written<u4> = kernel32.GetEnvironmentVariableA(name, result.data(), required);
+
 	if(written + 1_u4 != required)
 	{
 		runtime_error("env.get_env: Windows GetEnvironmentVariableA failed");
@@ -31,12 +33,13 @@ require core.platform.win.kernel32 ~> kernel32;
 + set_env(name<{u1, :c}>, value<{u1, :c}>, overwrite<atom>) -> env_set_result_e
 {
 	let existed<atom> = has_env?(name);
+
 	if((!overwrite) && existed)
 	{
 		^ :unchanged;
 	}
 
-	if(!kernel32.SetEnvironmentVariableA(name, value ~~> voidptr))
+	if(!kernel32.SetEnvironmentVariableA(name, value))
 	{
 		runtime_error("env.set_env: Windows SetEnvironmentVariableA failed");
 	}

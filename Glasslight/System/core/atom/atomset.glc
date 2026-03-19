@@ -19,6 +19,7 @@ record atomset_r
 	+ round_capacity(requested<size>) -> size
 	{
 		let cap<size> = 8_sz;
+
 		while(cap < requested)
 		{
 			cap *= 2_sz;
@@ -37,12 +38,12 @@ record atomset_r
 	# Ensure the set has a valid allocator before allocating storage.
 	- ensure_allocator! -> ()
 	{
-		if(!self.alloc_initialized)
-		{
-			let ctx<context_r> = get_default_ctx;
-			self.alloc = ctx.allocator_main;
-			self.alloc_initialized = :true;
-		}
+	if(!self.alloc_initialized)
+	{
+		let ctx<context_r> = get_default_ctx;
+		self.alloc = ctx.allocator_main;
+		self.alloc_initialized = :true;
+	}
 
 		^ ();
 	}
@@ -139,6 +140,7 @@ record atomset_r
 		while(:true)
 		{
 			let state<u1> = *(self.states + idx);
+
 			if(state == 0_u1)
 			{
 				^ :false;
@@ -150,6 +152,7 @@ record atomset_r
 			}
 
 			idx += 1_sz;
+
 			if(idx == self.capacity)
 			{
 				idx = 0_sz;
@@ -166,6 +169,7 @@ record atomset_r
 		}
 
 		let used_after_insert<size> = self.length + self.deleted + 1_sz;
+
 		if(used_after_insert * 10_sz >= self.capacity * 7_sz)
 		{
 			let target<size> = self.capacity * 2_sz;
@@ -195,6 +199,7 @@ record atomset_r
 				*(self.keys + idx) = value;
 				*(self.states + idx) = 1_u1;
 				self.length += 1_sz;
+
 				^ :true;
 			}
 
@@ -225,6 +230,7 @@ record atomset_r
 		while(:true)
 		{
 			let state<u1> = *(self.states + idx);
+
 			if(state == 0_u1)
 			{
 				^ :false;
@@ -235,10 +241,12 @@ record atomset_r
 				*(self.states + idx) = 2_u1;
 				self.length -= 1_sz;
 				self.deleted += 1_sz;
+
 				^ :true;
 			}
 
 			idx += 1_sz;
+
 			if(idx == self.capacity)
 			{
 				idx = 0_sz;
@@ -257,6 +265,7 @@ record atomset_r
 
 		self.length = 0_sz;
 		self.deleted = 0_sz;
+
 		^ ();
 	}
 
@@ -347,8 +356,8 @@ record atomset_r
 	}
 }
 
-# Create a new atomset with an explicit context and optional reserved capacity.
-+ make_atomset(ctx<context_r>, cap<size>) -> atomset_r
+# Create a new atomset with optional reserved capacity.
+++ make_atomset(cap<size>) -> atomset_r
 {
 	let result<atomset_r>;
 	result.alloc = ctx.allocator_main;
@@ -362,25 +371,14 @@ record atomset_r
 	^ result;
 }
 
-# Create a new atomset with an explicit context and zero reserved capacity.
-+ make_atomset(ctx<context_r>) -> atomset_r { ^ make_atomset(0_sz); }
-
-# Create a new atomset with the default context and optional reserved capacity.
-+ make_atomset(cap<size>) -> atomset_r
+# Create a new atomset with zero reserved capacity.
+++ make_atomset() -> atomset_r
 {
-	let ctx<context_r> = get_default_ctx;
-	^ make_atomset(cap);
+	^ make_atomset(0_sz);
 }
 
-# Create a new atomset with the default context and zero reserved capacity.
-+ make_atomset() -> atomset_r
-{
-	let ctx<context_r> = get_default_ctx;
-	^ make_atomset();
-}
-
-# Create an atomset copy with explicit context.
-+ copy_atomset(ctx<context_r>, a<atomset*>) -> atomset_r
+# Create an atomset copy.
+++ copy_atomset(a<atomset*>) -> atomset_r
 {
 	let result<atomset_r> = make_atomset(a.length());
 
@@ -393,11 +391,4 @@ record atomset_r
 	}
 
 	^ result;
-}
-
-# Create an atomset copy with default context.
-+ copy_atomset(a<atomset*>) -> atomset_r
-{
-	let ctx<context_r> = get_default_ctx;
-	^ copy_atomset(a);
 }

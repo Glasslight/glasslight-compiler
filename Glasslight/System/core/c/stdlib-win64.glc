@@ -4,13 +4,13 @@ require core.basic ~> basic;
 [[:system, :dynamic]]
 foreign "ucrt" ~> .
 {
-	+ strlen(s<basic.cstring>) -> basic.size;
-	+ strnlen(s<basic.cstring>, n<basic.size>) -> basic.size;
+	+ strlen(s<{basic.c1, :c}>) -> basic.size;
+	+ strnlen(s<{basic.c1, :c}>, n<basic.size>) -> basic.size;
 	+ abs(x<basic.s4>) -> basic.s4;
-	+ atoi(s<basic.cstring>) -> basic.s4;
-	+ atoll(s<basic.cstring>) -> basic.s8;
-	+ strcmp(lhs<basic.cstring>, rhs<basic.cstring>) -> basic.s4;
-	+ getenv(name<basic.cstring>) -> basic.cstring ->> basic.voidptr;
+	+ atoi(s<{basic.c1, :c}>) -> basic.s4;
+	+ atoll(s<{basic.c1, :c}>) -> basic.s8;
+	+ strcmp(lhs<{basic.c1, :c}>, rhs<{basic.c1, :c}>) -> basic.s4;
+	+ getenv(name<{basic.c1, :c}>) -> {basic.c1, :c};
 	+ llabs(x<basic.s8>) -> basic.s8;
 	+ memcmp(lhs<basic.voidptr>, rhs<basic.voidptr>, n<basic.size>) -> basic.s4;
 	+ memcpy(dst<basic.voidptr>, src<basic.voidptr>, n<basic.size>) -> basic.voidptr;

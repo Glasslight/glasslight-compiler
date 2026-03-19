@@ -10,4 +10,4 @@ foreign "c" ~> .
 }
 
 # Do an alias rather than a foreigin import to avoid a duplicate symbol.
-const getenv<({basic.u1, :c}) -> basic.voidptr> = &core_c.getenv;
+const getenv<({basic.c1, :c}) -> {basic.c1, :c}> = &core_c.getenv;

@@ -58,6 +58,7 @@ record arena_allocator_header_r
 + arena_allocator_append_block(state<arena_allocator_state_r*>, min_payload<size>) -> arena_allocator_block_r*
 {
 	let payload_bytes<size> = state.default_block_size;
+
 	if(payload_bytes < min_payload)
 	{
 		payload_bytes = min_payload;
@@ -65,6 +66,7 @@ record arena_allocator_header_r
 
 	let raw_bytes<size> = sizeof arena_allocator_block_r + payload_bytes;
 	let raw<voidptr> = allocator_alloc(state.backing, raw_bytes);
+
 	if(nil?(raw))
 	{
 		^ nil;
@@ -138,6 +140,7 @@ record arena_allocator_header_r
 	while(:true)
 	{
 		let result<voidptr> = arena_allocator_alloc_in_block(current, bytes, align);
+
 		if(!nil?(result))
 		{
 			state.tail = current ~~> voidptr;

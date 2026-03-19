@@ -25,6 +25,7 @@ record allocator_r
 	}
 
 	let rem<size> = value % align;
+
 	if(rem == 0_sz)
 	{
 		^ value;

@@ -14,7 +14,6 @@ Expected usage:
 Example:
 	let buf<[u1, 1024_sz]>;
 	let state<scratch_allocator_state_r>;
-	let ctx<context_r> = get_default_ctx;
 
 	ctx.allocator_main = make_scratch_allocator(&state, buf.data(), 1024_sz);
 
@@ -128,12 +127,14 @@ record scratch_allocator_header_r
 			}
 
 			let result<voidptr> = scratch_allocator_alloc_impl(state, bytes, align);
+
 			if(nil?(result))
 			{
 				^ nil;
 			}
 
 			let copy_bytes<size> = old_size;
+
 			if(bytes < old_size)
 			{
 				copy_bytes = bytes;

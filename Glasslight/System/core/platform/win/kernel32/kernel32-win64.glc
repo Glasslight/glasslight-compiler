@@ -4,6 +4,21 @@ require core.basic ~> basic;
 [[:system, :dynamic]]
 foreign "Kernel32" ~> .
 {
-	+ GetEnvironmentVariableA(lpName<{basic.u1, :c}>, lpBuffer<basic.voidptr>, nSize<basic.u4>) -> basic.u4;
-	+ SetEnvironmentVariableA(lpName<{basic.u1, :c}>, lpValue<basic.voidptr>) -> basic.cbool ->> basic.atom;
+	+ GetEnvironmentVariableA(lpName<{basic.u1, :c}>, lpBuffer<basic.c1*>, nSize<basic.u4>) -> basic.u4;
+	+ SetEnvironmentVariableA(lpName<{basic.u1, :c}>, lpValue<basic.c1*>) -> basic.cbool ->> basic.atom;
+
+	# Get file or directory attributes.
+	+ GetFileAttributesA(lpFileName<{basic.u1, :c}>) -> basic.u4;
+
+	# Get the current working directory.
+	+ GetCurrentDirectoryA(nBufferLength<basic.u4>, lpBuffer<basic.c1*>) -> basic.u4;
+
+	# Get the temporary file path.
+	+ GetTempPathA(nBufferLength<basic.u4>, lpBuffer<basic.c1*>) -> basic.u4;
+
+	# Create a directory.
+	+ CreateDirectoryA(lpPathName<{basic.u1, :c}>, lpSecurityAttributes<basic.voidptr>) -> basic.cbool ->> basic.atom;
+
+	# Get the last Win32 error code.
+	+ GetLastError() -> basic.u4;
 }

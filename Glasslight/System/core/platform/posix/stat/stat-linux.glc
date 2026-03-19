@@ -1,0 +1,43 @@
+package stat;
+require core.basic ~> basic;
+
+# Linux x86_64 struct stat (144 bytes).
+# glc records use C-like natural alignment — no explicit padding needed.
+record stat_t
+{
+	let st_dev<basic.u8>;
+	let st_ino<basic.u8>;
+	let st_nlink<basic.u8>;
+	let st_mode<basic.u4>;
+	let st_uid<basic.u4>;
+	let st_gid<basic.u4>;
+	let _pad0<basic.u4>;
+	let st_rdev<basic.u8>;
+	let st_size<basic.s8>;
+	let st_blksize<basic.s8>;
+	let st_blocks<basic.s8>;
+	let st_atim_sec<basic.s8>;
+	let st_atim_nsec<basic.s8>;
+	let st_mtim_sec<basic.s8>;
+	let st_mtim_nsec<basic.s8>;
+	let st_ctim_sec<basic.s8>;
+	let st_ctim_nsec<basic.s8>;
+	let _reserved<[basic.u1, 24_sz]>;
+}
+
+const s_ifmt<basic.u4>  = 0xF000_u4;
+const s_ifreg<basic.u4> = 0x8000_u4;
+const s_ifdir<basic.u4> = 0x4000_u4;
+
++ s_isreg(mode<basic.u4>) -> basic.atom { ^ (mode & s_ifmt) == s_ifreg; }
++ s_isdir(mode<basic.u4>) -> basic.atom { ^ (mode & s_ifmt) == s_ifdir; }
+
+[[:system, :dynamic]]
+foreign "c" ~> .
+{
+	# Get file status (sys/stat.h).
+	+ stat(path<basic.cstring>, buf<stat_t*>) -> basic.s4;
+
+	# Create a directory with the given permissions (sys/stat.h).
+	+ mkdir(path<basic.cstring>, mode<basic.u2>) -> basic.s4;
+}

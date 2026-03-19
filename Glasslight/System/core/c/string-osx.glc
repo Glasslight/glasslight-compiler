@@ -4,13 +4,13 @@ require core.basic ~> basic;
 [[:system, :dynamic]]
 foreign "libSystem.B.tbd" ~> .
 {
-	+ strncmp(lhs<basic.cstring>, rhs<basic.cstring>, n<basic.size>) -> basic.s4;
-	+ strchr(s<basic.cstring>, ch<basic.s4>) -> basic.cstring;
-	+ strcspn(s<basic.cstring>, reject<basic.cstring>) -> basic.size;
-	+ strpbrk(s<basic.cstring>, accept<basic.cstring>) -> basic.cstring;
-	+ strrchr(s<basic.cstring>, ch<basic.s4>) -> basic.cstring;
-	+ strspn(s<basic.cstring>, accept<basic.cstring>) -> basic.size;
-	+ strstr(haystack<basic.cstring>, needle<basic.cstring>) -> basic.cstring;
+	+ strncmp(lhs<{basic.c1, :c}>, rhs<{basic.c1, :c}>, n<basic.size>) -> basic.s4;
+	+ strchr(s<{basic.c1, :c}>, ch<basic.s4>) -> {basic.c1, :c};
+	+ strcspn(s<{basic.c1, :c}>, reject<{basic.c1, :c}>) -> basic.size;
+	+ strpbrk(s<{basic.c1, :c}>, accept<{basic.c1, :c}>) -> {basic.c1, :c};
+	+ strrchr(s<{basic.c1, :c}>, ch<basic.s4>) -> {basic.c1, :c};
+	+ strspn(s<{basic.c1, :c}>, accept<{basic.c1, :c}>) -> basic.size;
+	+ strstr(haystack<{basic.c1, :c}>, needle<{basic.c1, :c}>) -> {basic.c1, :c};
 	+ memmove(dst<basic.voidptr>, src<basic.voidptr>, n<basic.size>) -> basic.voidptr;
 	+ memchr(ptr<basic.voidptr>, ch<basic.s4>, n<basic.size>) -> basic.voidptr;
 }

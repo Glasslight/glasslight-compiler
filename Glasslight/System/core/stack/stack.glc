@@ -68,24 +68,17 @@ record stack_r<$t<typeid> >
 	}
 }
 
-# Create a stack with explicit context and initial capacity.
-+ make_stack($t<typeid>, ctx<context_r>, cap<size>) -> stack_r<t>
+# Create a stack with initial capacity.
+++ make_stack($t<typeid>, cap<size>) -> stack_r<t>
 {
 	let result<stack_r<t> >;
 	result.buf = make_array(t, cap);
-	^ result;
-}
 
-# Create a stack with default context and initial capacity.
-+ make_stack($t<typeid>, cap<size>) -> stack_r<t>
-{
-	let ctx<context_r> = get_default_ctx;
-	^ make_stack(t, cap);
+	^ result;
 }
 
 # Create a stack with default context and zero capacity.
 + make_stack($t<typeid>) -> stack_r<t>
 {
-	let ctx<context_r> = get_default_ctx;
 	^ make_stack(t, 0_sz);
 }

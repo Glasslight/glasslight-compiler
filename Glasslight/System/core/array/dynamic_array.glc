@@ -148,6 +148,7 @@ record dynamic_array_r<$t<typeid> >
 	- append!(a<[t, ()]>) -> ()
 	{
 		let add_len<size> = a.length();
+
 		if(add_len == 0_sz)
 		{
 			^ ();
@@ -162,6 +163,7 @@ record dynamic_array_r<$t<typeid> >
 
 		let dst<voidptr> = (self.data + old_len) ~~> voidptr;
 		let bytes<size> = add_len * (sizeof t);
+
 		if(self_alias)
 		{
 			__glc_mem_move(dst, self.data ~~> voidptr, bytes);
@@ -217,12 +219,14 @@ record dynamic_array_r<$t<typeid> >
 		- remove_single!(e<t>) -> atom
 		{
 			let found<(atom, size)> = self.index_of(e);
+
 			if(!elem(found, 0_sz))
 			{
 				^ :false;
 			}
 
 			let idx<size> = elem(found, 1_sz);
+
 			for(let i<size> = idx; i + 1_sz < self.length; i += 1_sz)
 			{
 				*(self.data + i) = *(self.data + i + 1_sz);
@@ -240,6 +244,7 @@ record dynamic_array_r<$t<typeid> >
 		self.ensure_capacity(self.length + 1_sz);
 
 		let tail_count<size> = self.length - idx;
+
 		if(tail_count > 0_sz)
 		{
 			let src<voidptr> = (self.data + idx) ~~> voidptr;
@@ -250,6 +255,7 @@ record dynamic_array_r<$t<typeid> >
 
 		*(self.data + idx) = element;
 		self.length += 1_sz;
+
 		^ ();
 	}
 
@@ -367,6 +373,7 @@ record dynamic_array_r<$t<typeid> >
 		let bytes<size> = n * (sizeof t);
 		__glc_mem_set(self.data ~~> voidptr, 0_u1, bytes);
 		self.length = n;
+
 		^ ();
 	}
 
@@ -387,8 +394,8 @@ record dynamic_array_r<$t<typeid> >
 
 }
 
-# Create a dynamic array record with explicit context and initial capacity.
-+ make_array($t<typeid>, ctx<context_r>, cap<size>) -> [t, :dynamic]
+# Create a dynamic array record with initial capacity.
+++ make_array($t<typeid>, cap<size>) -> [t, :dynamic]
 {
 	let result<[t, :dynamic]>;
 	result.alloc = ctx.allocator_main;
@@ -410,16 +417,8 @@ record dynamic_array_r<$t<typeid> >
 	^ result;
 }
 
-# Create a dynamic array record with default context and initial capacity.
-+ make_array($t<typeid>, cap<size>) -> [t, :dynamic]
-{
-	let ctx<context_r> = get_default_ctx;
-	^ make_array(t, cap);
-}
-
-
-# Create a dynamic array from an unsized view, with explicit context.
-+ make_array($t<typeid>, ctx<context_r>, a<[t, ()]>) -> [t, :dynamic]
+# Create a dynamic array from an unsized view.
+++ make_array($t<typeid>, a<[t, ()]>) -> [t, :dynamic]
 {
 	let n<size> = a.length;
 	let result<[t, :dynamic]> = make_array(t, n);
@@ -436,57 +435,29 @@ record dynamic_array_r<$t<typeid> >
 	^ result;
 }
 
-# Create a dynamic array from an unsized view, with default context.
-+ make_array($t<typeid>, a<[t, ()]>) -> [t, :dynamic]
-{
-	let ctx<context_r> = get_default_ctx;
-	^ make_array(a);
-}
-
-# Create a dynamic array from a sized view, with explicit context.
-+ make_array($t<typeid>, $n<size>, ctx<context_r>, a<[t, (n,)]>) -> [t, :dynamic]
+# Create a dynamic array from a sized view.
+++ make_array($t<typeid>, $n<size>, a<[t, (n,)]>) -> [t, :dynamic]
 {
 	let v<[t, ()]> = a.view();
 	^ make_array(v);
 }
 
-# Create a dynamic array from a sized view, with default context.
-+ make_array($t<typeid>, $n<size>, a<[t, (n,)]>) -> [t, :dynamic]
-{
-	let ctx<context_r> = get_default_ctx;
-	^ make_array(a);
-}
-
-# Create a dynamic array by copying a static array with explicit context.
-+ make_array($t<typeid>, $n<size>, ctx<context_r>, a<[t, n]>) -> [t, :dynamic]
+# Create a dynamic array by copying a static array.
+++ make_array($t<typeid>, $n<size>, a<[t, n]>) -> [t, :dynamic]
 {
 	let v<[t, (n,)]> = a.view();
 	^ make_array(v);
 }
 
-# Create a dynamic array by copying a static array with default context.
-+ make_array($t<typeid>, $n<size>, a<[t, n]>) -> [t, :dynamic]
-{
-	let ctx<context_r> = get_default_ctx;
-	^ make_array(a);
-}
-
-# Create a dynamic array copy with explicit context.
-+ copy_array($t<typeid>, ctx<context_r>, a<[t, :dynamic]>) -> [t, :dynamic]
+# Create a dynamic array copy.
+++ copy_array($t<typeid>, a<[t, :dynamic]>) -> [t, :dynamic]
 {
 	let v<[t, ()]> = a.view();
 	^ make_array(v);
 }
 
-# Create a dynamic array copy with default context.
-+ copy_array($t<typeid>, a<[t, :dynamic]>) -> [t, :dynamic]
-{
-	let ctx<context_r> = get_default_ctx;
-	^ copy_array(t, a);
-}
-
-# Create a reversed copy with explicit context.
-+ copy_reverse($t<typeid>, ctx<context_r>, a<[t, :dynamic]>) -> [t, :dynamic]
+# Create a reversed copy.
+++ copy_reverse($t<typeid>, a<[t, :dynamic]>) -> [t, :dynamic]
 {
 	let n<size> = a.length;
 	let result<[t, :dynamic]> = make_array(t, n);
@@ -498,11 +469,4 @@ record dynamic_array_r<$t<typeid> >
 	}
 
 	^ result;
-}
-
-# Create a reversed copy with default context.
-+ copy_reverse($t<typeid>, a<[t, :dynamic]>) -> [t, :dynamic]
-{
-	let ctx<context_r> = get_default_ctx;
-	^ copy_reverse(t, a);
 }

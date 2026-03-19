@@ -29,11 +29,11 @@ foreign "libSystem.B.tbd" ~> .
 	+ mktime(tm<tm_r*>) -> time_t;
 
 	# Convert broken-down time to string.
-	+ asctime(tm<tm_r*>) -> basic.cstring;
+	+ asctime(tm<tm_r*>) -> {basic.c1, :c};
 
 	# Convert calendar time to local time string.
-	+ ctime(timer<time_t*>) -> basic.cstring;
+	+ ctime(timer<time_t*>) -> {basic.c1, :c};
 
 	# Format broken-down time according to format string.
-	+ strftime(buf<basic.c1*>, maxsize<basic.size>, format<basic.cstring>, tm<tm_r*>) -> basic.size;
+	+ strftime(buf<basic.c1*>, maxsize<basic.size>, format<{basic.c1, :c}>, tm<tm_r*>) -> basic.size;
 }

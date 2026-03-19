@@ -4,226 +4,226 @@ require core.basic ~> .;
 intrinsic
 {
 	# Square root intrinsic functions.
-	+sqrt(x<f2>) -> f2;
-	+sqrt(x<f4>) -> f4;
-	+sqrt(x<f8>) -> f8;
+	+ sqrt(x<f2>) -> f2;
+	+ sqrt(x<f4>) -> f4;
+	+ sqrt(x<f8>) -> f8;
 
 	# Absolute intrinsic functions.
-	+abs(x<f2>) -> f2;
-	+abs(x<f4>) -> f4;
-	+abs(x<f8>) -> f8;
-	+abs(x<s1>) -> s1;
-	+abs(x<s2>) -> s2;
-	+abs(x<s4>) -> s4;
-	+abs(x<s8>) -> s8;
+	+ abs(x<f2>) -> f2;
+	+ abs(x<f4>) -> f4;
+	+ abs(x<f8>) -> f8;
+	+ abs(x<s1>) -> s1;
+	+ abs(x<s2>) -> s2;
+	+ abs(x<s4>) -> s4;
+	+ abs(x<s8>) -> s8;
 
 	# Sign intrinsic functions.
-	+sign(x<f2>) -> f2;
-	+sign(x<f4>) -> f4;
-	+sign(x<f8>) -> f8;
-	+sign(x<s1>) -> s1;
-	+sign(x<s2>) -> s2;
-	+sign(x<s4>) -> s4;
-	+sign(x<s8>) -> s8;
+	+ sign(x<f2>) -> f2;
+	+ sign(x<f4>) -> f4;
+	+ sign(x<f8>) -> f8;
+	+ sign(x<s1>) -> s1;
+	+ sign(x<s2>) -> s2;
+	+ sign(x<s4>) -> s4;
+	+ sign(x<s8>) -> s8;
 
 	# NaN predicate intrinsic functions.
-	+nan?(x<f2>) -> atom;
-	+nan?(x<f4>) -> atom;
-	+nan?(x<f8>) -> atom;
+	+ nan?(x<f2>) -> atom;
+	+ nan?(x<f4>) -> atom;
+	+ nan?(x<f8>) -> atom;
 
 	# Infinity predicate intrinsic functions.
-	+inf?(x<f2>) -> atom;
-	+inf?(x<f4>) -> atom;
-	+inf?(x<f8>) -> atom;
+	+ inf?(x<f2>) -> atom;
+	+ inf?(x<f4>) -> atom;
+	+ inf?(x<f8>) -> atom;
 
 	# Finite predicate intrinsic functions.
-	+finite?(x<f2>) -> atom;
-	+finite?(x<f4>) -> atom;
-	+finite?(x<f8>) -> atom;
+	+ finite?(x<f2>) -> atom;
+	+ finite?(x<f4>) -> atom;
+	+ finite?(x<f8>) -> atom;
 
 	# Sine intrinsic functions.
-	+sin(x<f2>) -> f2;
-	+sin(x<f4>) -> f4;
-	+sin(x<f8>) -> f8;
+	+ sin(x<f2>) -> f2;
+	+ sin(x<f4>) -> f4;
+	+ sin(x<f8>) -> f8;
 
 	# Cosine intrinsic functions.
-	+cos(x<f2>) -> f2;
-	+cos(x<f4>) -> f4;
-	+cos(x<f8>) -> f8;
+	+ cos(x<f2>) -> f2;
+	+ cos(x<f4>) -> f4;
+	+ cos(x<f8>) -> f8;
 
 	# Sine/cosine intrinsic functions.
-	+sincos(x<f2>) -> (f2, f2);
-	+sincos(x<f4>) -> (f4, f4);
-	+sincos(x<f8>) -> (f8, f8);
+	+ sincos(x<f2>) -> (f2, f2);
+	+ sincos(x<f4>) -> (f4, f4);
+	+ sincos(x<f8>) -> (f8, f8);
 
 	# Power intrinsic functions.
-	+pow(x<f2>, y<f2>) -> f2;
-	+pow(x<f4>, y<f4>) -> f4;
-	+pow(x<f8>, y<f8>) -> f8;
-	+pow(x<f2>, y<s4>) -> f2;
-	+pow(x<f4>, y<s4>) -> f4;
-	+pow(x<f8>, y<s4>) -> f8;
+	+ pow(x<f2>, y<f2>) -> f2;
+	+ pow(x<f4>, y<f4>) -> f4;
+	+ pow(x<f8>, y<f8>) -> f8;
+	+ pow(x<f2>, y<s4>) -> f2;
+	+ pow(x<f4>, y<s4>) -> f4;
+	+ pow(x<f8>, y<s4>) -> f8;
 
 	# Natural logarithm intrinsic functions.
-	+log(x<f2>) -> f2;
-	+log(x<f4>) -> f4;
-	+log(x<f8>) -> f8;
+	+ log(x<f2>) -> f2;
+	+ log(x<f4>) -> f4;
+	+ log(x<f8>) -> f8;
 
 	# Base-10 logarithm intrinsic functions.
-	+log10(x<f2>) -> f2;
-	+log10(x<f4>) -> f4;
-	+log10(x<f8>) -> f8;
+	+ log10(x<f2>) -> f2;
+	+ log10(x<f4>) -> f4;
+	+ log10(x<f8>) -> f8;
 
 	# Base-2 logarithm intrinsic functions.
-	+log2(x<f2>) -> f2;
-	+log2(x<f4>) -> f4;
-	+log2(x<f8>) -> f8;
+	+ log2(x<f2>) -> f2;
+	+ log2(x<f4>) -> f4;
+	+ log2(x<f8>) -> f8;
 
 	# Exponential intrinsic functions.
-	+exp(x<f2>) -> f2;
-	+exp(x<f4>) -> f4;
-	+exp(x<f8>) -> f8;
+	+ exp(x<f2>) -> f2;
+	+ exp(x<f4>) -> f4;
+	+ exp(x<f8>) -> f8;
 
 	# Base-2 exponential intrinsic functions.
-	+exp2(x<f2>) -> f2;
-	+exp2(x<f4>) -> f4;
-	+exp2(x<f8>) -> f8;
+	+ exp2(x<f2>) -> f2;
+	+ exp2(x<f4>) -> f4;
+	+ exp2(x<f8>) -> f8;
 
 	# Base-10 exponential intrinsic functions.
-	+exp10(x<f2>) -> f2;
-	+exp10(x<f4>) -> f4;
-	+exp10(x<f8>) -> f8;
+	+ exp10(x<f2>) -> f2;
+	+ exp10(x<f4>) -> f4;
+	+ exp10(x<f8>) -> f8;
 
 	# Tangent intrinsic functions.
-	+tan(x<f2>) -> f2;
-	+tan(x<f4>) -> f4;
-	+tan(x<f8>) -> f8;
+	+ tan(x<f2>) -> f2;
+	+ tan(x<f4>) -> f4;
+	+ tan(x<f8>) -> f8;
 
 	# Arc cosine intrinsic functions.
-	+acos(x<f2>) -> f2;
-	+acos(x<f4>) -> f4;
-	+acos(x<f8>) -> f8;
+	+ acos(x<f2>) -> f2;
+	+ acos(x<f4>) -> f4;
+	+ acos(x<f8>) -> f8;
 
 	# Arc sine intrinsic functions.
-	+asin(x<f2>) -> f2;
-	+asin(x<f4>) -> f4;
-	+asin(x<f8>) -> f8;
+	+ asin(x<f2>) -> f2;
+	+ asin(x<f4>) -> f4;
+	+ asin(x<f8>) -> f8;
 
 	# Arc tangent intrinsic functions.
-	+atan(x<f2>) -> f2;
-	+atan(x<f4>) -> f4;
-	+atan(x<f8>) -> f8;
+	+ atan(x<f2>) -> f2;
+	+ atan(x<f4>) -> f4;
+	+ atan(x<f8>) -> f8;
 
 	# Two-argument arc tangent intrinsic functions.
-	+atan2(y<f2>, x<f2>) -> f2;
-	+atan2(y<f4>, x<f4>) -> f4;
-	+atan2(y<f8>, x<f8>) -> f8;
+	+ atan2(y<f2>, x<f2>) -> f2;
+	+ atan2(y<f4>, x<f4>) -> f4;
+	+ atan2(y<f8>, x<f8>) -> f8;
 
 	# Truncate intrinsic functions.
-	+trunc(x<f2>) -> f2;
-	+trunc(x<f4>) -> f4;
-	+trunc(x<f8>) -> f8;
+	+ trunc(x<f2>) -> f2;
+	+ trunc(x<f4>) -> f4;
+	+ trunc(x<f8>) -> f8;
 
 	# Ceiling intrinsic functions.
-	+ceil(x<f2>) -> f2;
-	+ceil(x<f4>) -> f4;
-	+ceil(x<f8>) -> f8;
+	+ ceil(x<f2>) -> f2;
+	+ ceil(x<f4>) -> f4;
+	+ ceil(x<f8>) -> f8;
 
 	# Floor intrinsic functions.
-	+floor(x<f2>) -> f2;
-	+floor(x<f4>) -> f4;
-	+floor(x<f8>) -> f8;
+	+ floor(x<f2>) -> f2;
+	+ floor(x<f4>) -> f4;
+	+ floor(x<f8>) -> f8;
 
 	# Round intrinsic functions.
-	+round(x<f2>) -> f2;
-	+round(x<f4>) -> f4;
-	+round(x<f8>) -> f8;
+	+ round(x<f2>) -> f2;
+	+ round(x<f4>) -> f4;
+	+ round(x<f8>) -> f8;
 
 	# Minimum intrinsic functions.
-	+min(x<f2>, y<f2>) -> f2;
-	+min(x<f4>, y<f4>) -> f4;
-	+min(x<f8>, y<f8>) -> f8;
-	+min(x<s1>, y<s1>) -> s1;
-	+min(x<s2>, y<s2>) -> s2;
-	+min(x<s4>, y<s4>) -> s4;
-	+min(x<s8>, y<s8>) -> s8;
-	+min(x<u1>, y<u1>) -> u1;
-	+min(x<u2>, y<u2>) -> u2;
-	+min(x<u4>, y<u4>) -> u4;
-	+min(x<u8>, y<u8>) -> u8;
-	+min(x<size>, y<size>) -> size;
+	+ min(x<f2>, y<f2>) -> f2;
+	+ min(x<f4>, y<f4>) -> f4;
+	+ min(x<f8>, y<f8>) -> f8;
+	+ min(x<s1>, y<s1>) -> s1;
+	+ min(x<s2>, y<s2>) -> s2;
+	+ min(x<s4>, y<s4>) -> s4;
+	+ min(x<s8>, y<s8>) -> s8;
+	+ min(x<u1>, y<u1>) -> u1;
+	+ min(x<u2>, y<u2>) -> u2;
+	+ min(x<u4>, y<u4>) -> u4;
+	+ min(x<u8>, y<u8>) -> u8;
+	+ min(x<size>, y<size>) -> size;
 
 	# Maximum intrinsic functions.
-	+max(x<f2>, y<f2>) -> f2;
-	+max(x<f4>, y<f4>) -> f4;
-	+max(x<f8>, y<f8>) -> f8;
-	+max(x<s1>, y<s1>) -> s1;
-	+max(x<s2>, y<s2>) -> s2;
-	+max(x<s4>, y<s4>) -> s4;
-	+max(x<s8>, y<s8>) -> s8;
-	+max(x<u1>, y<u1>) -> u1;
-	+max(x<u2>, y<u2>) -> u2;
-	+max(x<u4>, y<u4>) -> u4;
-	+max(x<u8>, y<u8>) -> u8;
-	+max(x<size>, y<size>) -> size;
+	+ max(x<f2>, y<f2>) -> f2;
+	+ max(x<f4>, y<f4>) -> f4;
+	+ max(x<f8>, y<f8>) -> f8;
+	+ max(x<s1>, y<s1>) -> s1;
+	+ max(x<s2>, y<s2>) -> s2;
+	+ max(x<s4>, y<s4>) -> s4;
+	+ max(x<s8>, y<s8>) -> s8;
+	+ max(x<u1>, y<u1>) -> u1;
+	+ max(x<u2>, y<u2>) -> u2;
+	+ max(x<u4>, y<u4>) -> u4;
+	+ max(x<u8>, y<u8>) -> u8;
+	+ max(x<size>, y<size>) -> size;
 
 	# Clamp intrinsic functions. Behavior is undefined if lo > hi.
-	+clamp(x<f2>, lo<f2>, hi<f2>) -> f2;
-	+clamp(x<f4>, lo<f4>, hi<f4>) -> f4;
-	+clamp(x<f8>, lo<f8>, hi<f8>) -> f8;
-	+clamp(x<s1>, lo<s1>, hi<s1>) -> s1;
-	+clamp(x<s2>, lo<s2>, hi<s2>) -> s2;
-	+clamp(x<s4>, lo<s4>, hi<s4>) -> s4;
-	+clamp(x<s8>, lo<s8>, hi<s8>) -> s8;
-	+clamp(x<u1>, lo<u1>, hi<u1>) -> u1;
-	+clamp(x<u2>, lo<u2>, hi<u2>) -> u2;
-	+clamp(x<u4>, lo<u4>, hi<u4>) -> u4;
-	+clamp(x<u8>, lo<u8>, hi<u8>) -> u8;
-	+clamp(x<size>, lo<size>, hi<size>) -> size;
+	+ clamp(x<f2>, lo<f2>, hi<f2>) -> f2;
+	+ clamp(x<f4>, lo<f4>, hi<f4>) -> f4;
+	+ clamp(x<f8>, lo<f8>, hi<f8>) -> f8;
+	+ clamp(x<s1>, lo<s1>, hi<s1>) -> s1;
+	+ clamp(x<s2>, lo<s2>, hi<s2>) -> s2;
+	+ clamp(x<s4>, lo<s4>, hi<s4>) -> s4;
+	+ clamp(x<s8>, lo<s8>, hi<s8>) -> s8;
+	+ clamp(x<u1>, lo<u1>, hi<u1>) -> u1;
+	+ clamp(x<u2>, lo<u2>, hi<u2>) -> u2;
+	+ clamp(x<u4>, lo<u4>, hi<u4>) -> u4;
+	+ clamp(x<u8>, lo<u8>, hi<u8>) -> u8;
+	+ clamp(x<size>, lo<size>, hi<size>) -> size;
 
 	# Saturate intrinsic functions (clamp to [0, 1]).
-	+saturate(x<f2>) -> f2;
-	+saturate(x<f4>) -> f4;
-	+saturate(x<f8>) -> f8;
+	+ saturate(x<f2>) -> f2;
+	+ saturate(x<f4>) -> f4;
+	+ saturate(x<f8>) -> f8;
 
 	# Bit reverse intrinsic functions.
-	+bitreverse(x<s1>) -> s1;
-	+bitreverse(x<s2>) -> s2;
-	+bitreverse(x<s4>) -> s4;
-	+bitreverse(x<s8>) -> s8;
+	+ bitreverse(x<s1>) -> s1;
+	+ bitreverse(x<s2>) -> s2;
+	+ bitreverse(x<s4>) -> s4;
+	+ bitreverse(x<s8>) -> s8;
 
 	# Byte swap intrinsic functions. Requires >= i16, no s1.
-	+bswap(x<s2>) -> s2;
-	+bswap(x<s4>) -> s4;
-	+bswap(x<s8>) -> s8;
+	+ bswap(x<s2>) -> s2;
+	+ bswap(x<s4>) -> s4;
+	+ bswap(x<s8>) -> s8;
 
 	# Population count intrinsic functions (count set bits).
-	+ctpop(x<s1>) -> s1;
-	+ctpop(x<s2>) -> s2;
-	+ctpop(x<s4>) -> s4;
-	+ctpop(x<s8>) -> s8;
+	+ ctpop(x<s1>) -> s1;
+	+ ctpop(x<s2>) -> s2;
+	+ ctpop(x<s4>) -> s4;
+	+ ctpop(x<s8>) -> s8;
 
 	# Count leading zeros intrinsic functions.
-	+ctlz(x<s1>) -> s1;
-	+ctlz(x<s2>) -> s2;
-	+ctlz(x<s4>) -> s4;
-	+ctlz(x<s8>) -> s8;
+	+ ctlz(x<s1>) -> s1;
+	+ ctlz(x<s2>) -> s2;
+	+ ctlz(x<s4>) -> s4;
+	+ ctlz(x<s8>) -> s8;
 
 	# Count trailing zeros intrinsic functions.
-	+cttz(x<s1>) -> s1;
-	+cttz(x<s2>) -> s2;
-	+cttz(x<s4>) -> s4;
-	+cttz(x<s8>) -> s8;
+	+ cttz(x<s1>) -> s1;
+	+ cttz(x<s2>) -> s2;
+	+ cttz(x<s4>) -> s4;
+	+ cttz(x<s8>) -> s8;
 
 	# Funnel shift left intrinsic functions.
-	+fshl(a<s1>, b<s1>, shift<s1>) -> s1;
-	+fshl(a<s2>, b<s2>, shift<s2>) -> s2;
-	+fshl(a<s4>, b<s4>, shift<s4>) -> s4;
-	+fshl(a<s8>, b<s8>, shift<s8>) -> s8;
+	+ fshl(a<s1>, b<s1>, shift<s1>) -> s1;
+	+ fshl(a<s2>, b<s2>, shift<s2>) -> s2;
+	+ fshl(a<s4>, b<s4>, shift<s4>) -> s4;
+	+ fshl(a<s8>, b<s8>, shift<s8>) -> s8;
 
 	# Funnel shift right intrinsic functions.
-	+fshr(a<s1>, b<s1>, shift<s1>) -> s1;
-	+fshr(a<s2>, b<s2>, shift<s2>) -> s2;
-	+fshr(a<s4>, b<s4>, shift<s4>) -> s4;
-	+fshr(a<s8>, b<s8>, shift<s8>) -> s8;
+	+ fshr(a<s1>, b<s1>, shift<s1>) -> s1;
+	+ fshr(a<s2>, b<s2>, shift<s2>) -> s2;
+	+ fshr(a<s4>, b<s4>, shift<s4>) -> s4;
+	+ fshr(a<s8>, b<s8>, shift<s8>) -> s8;
 }

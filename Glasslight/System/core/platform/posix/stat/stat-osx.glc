@@ -1,0 +1,48 @@
+package stat;
+require core.basic ~> basic;
+
+# macOS arm64 struct stat (144 bytes).
+# glc records use C-like natural alignment — no explicit padding needed.
+record stat_t
+{
+	let st_dev<basic.s4>;
+	let st_mode<basic.u2>;
+	let st_nlink<basic.u2>;
+	let st_ino<basic.u8>;
+	let st_uid<basic.u4>;
+	let st_gid<basic.u4>;
+	let st_rdev<basic.s4>;
+	# (4 bytes auto-padding for s8 alignment)
+	let st_atim_sec<basic.s8>;
+	let st_atim_nsec<basic.s8>;
+	let st_mtim_sec<basic.s8>;
+	let st_mtim_nsec<basic.s8>;
+	let st_ctim_sec<basic.s8>;
+	let st_ctim_nsec<basic.s8>;
+	let st_btim_sec<basic.s8>;
+	let st_btim_nsec<basic.s8>;
+	let st_size<basic.s8>;
+	let st_blocks<basic.s8>;
+	let st_blksize<basic.s4>;
+	let st_flags<basic.u4>;
+	let st_gen<basic.u4>;
+	let _reserved<basic.u4>;
+	let _reserved2<[basic.u1, 16_sz]>;
+}
+
+const s_ifmt<basic.u2>  = 0xF000_u2;
+const s_ifreg<basic.u2> = 0x8000_u2;
+const s_ifdir<basic.u2> = 0x4000_u2;
+
++ s_isreg(mode<basic.u2>) -> basic.atom { ^ (mode & s_ifmt) == s_ifreg; }
++ s_isdir(mode<basic.u2>) -> basic.atom { ^ (mode & s_ifmt) == s_ifdir; }
+
+[[:system, :dynamic]]
+foreign "libSystem.B.tbd" ~> .
+{
+	# Get file status (sys/stat.h).
+	+ stat(path<basic.cstring>, buf<stat_t*>) -> basic.s4;
+
+	# Create a directory with the given permissions (sys/stat.h).
+	+ mkdir(path<basic.cstring>, mode<basic.u2>) -> basic.s4;
+}

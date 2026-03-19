@@ -73,28 +73,21 @@ require core.c ~> c;
 }
 
 # Returns the directory portion of a path (up to and including the last separator).
-+ directory(ctx<context_r>, path<{c1, ()}>) -> {c1}
+++ directory(path<{c1, ()}>) -> {c1}
 {
 	let (found<atom>, last_sep<size>) = find_last_separator(path);
 
 	if(!found)
 	{
-		^ make_string(0_sz);
+		^ make_empty_string();
 	}
 
 	let (_, dir_view<{c1, ()}>) = path.left(last_sep + 1_sz);
 	^ make_string(dir_view);
 }
 
-# Returns the directory portion of a path (up to and including the last separator).
-+ directory(path<{c1, ()}>) -> {c1}
-{
-	let ctx<context_r> = get_default_ctx;
-	^ directory(path);
-}
-
 # Returns the filename with extension, without directory.
-+ clean_filename(ctx<context_r>, path<{c1, ()}>) -> {c1}
+++ clean_filename(path<{c1, ()}>) -> {c1}
 {
 	let (found<atom>, last_sep<size>) = find_last_separator(path);
 
@@ -107,21 +100,14 @@ require core.c ~> c;
 
 	if(!ok)
 	{
-		^ make_string(0_sz);
+		^ make_empty_string();
 	}
 
 	^ make_string(name_view);
 }
 
-# Returns the filename with extension, without directory.
-+ clean_filename(path<{c1, ()}>) -> {c1}
-{
-	let ctx<context_r> = get_default_ctx;
-	^ clean_filename(path);
-}
-
 # Returns the filename without extension.
-+ base_filename(ctx<context_r>, path<{c1, ()}>) -> {c1}
+++ base_filename(path<{c1, ()}>) -> {c1}
 {
 	let filename<{c1}> = clean_filename(path);
 	let fv<{c1, ()}> = filename.view;
@@ -138,35 +124,14 @@ require core.c ~> c;
 	^ filename;
 }
 
-# Returns the filename without extension.
-+ base_filename(path<{c1, ()}>) -> {c1}
-{
-	let ctx<context_r> = get_default_ctx;
-	^ base_filename(path);
-}
-
 # Returns the extension without dot.
-+ extension(ctx<context_r>, path<{c1, ()}>) -> {c1}
+++ extension(path<{c1, ()}>) -> {c1}
 {
 	^ extension(path, :false);
 }
 
-# Returns the extension without dot.
-+ extension(path<{c1, ()}>) -> {c1}
-{
-	let ctx<context_r> = get_default_ctx;
-	^ extension(path, :false);
-}
-
 # Returns the extension, optionally with dot.
-+ extension(path<{c1, ()}>, include_dot<atom>) -> {c1}
-{
-	let ctx<context_r> = get_default_ctx;
-	^ extension(path, include_dot);
-}
-
-# Returns the extension, optionally with dot.
-+ extension(ctx<context_r>, path<{c1, ()}>, include_dot<atom>) -> {c1}
+++ extension(path<{c1, ()}>, include_dot<atom>) -> {c1}
 {
 	let filename<{c1}> = clean_filename(path);
 	let fv<{c1, ()}> = filename.view;
@@ -192,32 +157,25 @@ require core.c ~> c;
 	}
 
 	filename.delete;
-	^ make_string(0_sz);
+	^ make_empty_string();
 }
 
 # Replace all backslashes with forward slashes, returning a new string.
-+ normalize(ctx<context_r>, path<{c1, ()}>) -> {c1}
+++ normalize(path<{c1, ()}>) -> {c1}
 {
 	let result<{c1}> = make_string(path);
 	result.replace!('\\'_c1, '/'_c1);
 	^ result;
 }
 
-# Replace all backslashes with forward slashes, returning a new string.
-+ normalize(path<{c1, ()}>) -> {c1}
-{
-	let ctx<context_r> = get_default_ctx;
-	^ normalize(path);
-}
-
 # Remove consecutive forward slashes, returning a new string.
-+ remove_duplicate_slashes(ctx<context_r>, path<{c1, ()}>) -> {c1}
+++ remove_duplicate_slashes(path<{c1, ()}>) -> {c1}
 {
 	let n<size> = path.length();
 
 	if(n == 0_sz)
 	{
-		^ make_string(0_sz);
+		^ make_empty_string();
 	}
 
 	let result<{c1}> = make_string(n);
@@ -245,21 +203,14 @@ require core.c ~> c;
 	^ result;
 }
 
-# Remove consecutive forward slashes, returning a new string.
-+ remove_duplicate_slashes(path<{c1, ()}>) -> {c1}
-{
-	let ctx<context_r> = get_default_ctx;
-	^ remove_duplicate_slashes(path);
-}
-
 # Resolve '.' and '..' components, returning a new string.
-+ collapse(ctx<context_r>, path<{c1, ()}>) -> {c1}
+++ collapse(path<{c1, ()}>) -> {c1}
 {
 	let n<size> = path.length();
 
 	if(n == 0_sz)
 	{
-		^ make_string(0_sz);
+		^ make_empty_string();
 	}
 
 	# Normalize backslashes into a working copy.
@@ -416,16 +367,9 @@ require core.c ~> c;
 	^ result;
 }
 
-# Resolve '.' and '..' components, returning a new string.
-+ collapse(path<{c1, ()}>) -> {c1}
-{
-	let ctx<context_r> = get_default_ctx;
-	^ collapse(path);
-}
-
 # Join two path segments with a separator.
 # If child is absolute, returns child. Otherwise appends child to base.
-+ join(ctx<context_r>, base<{c1, ()}>, child<{c1, ()}>) -> {c1}
+++ join(base<{c1, ()}>, child<{c1, ()}>) -> {c1}
 {
 	if(absolute?(child))
 	{
@@ -453,8 +397,133 @@ require core.c ~> c;
 	^ result;
 }
 
-+ join(base<{c1, ()}>, child<{c1, ()}>) -> {c1}
+# Convert a path to absolute. If already absolute, returns a normalized copy.
+# If relative, prepends current_dir and collapses.
+++ to_absolute(path<{c1, ()}>) -> (atom, {c1})
 {
-	let ctx<context_r> = get_default_ctx;
-	^ join(base, child);
+	if(absolute?(path))
+	{
+		^ (:true, collapse(path));
+	}
+
+	let (cwd_ok<atom>, cwd<{c1}>) = current_dir();
+
+	defer
+	{
+		cwd.delete;
+	}
+
+	if(!cwd_ok)
+	{
+		^ (:false, make_empty_string());
+	}
+
+	let joined<{c1}> = join(cwd.view, path);
+
+	defer
+	{
+		joined.delete;
+	}
+
+	let result<{c1}> = collapse(joined.view);
+	^ (:true, result);
+}
+
+# Create all directories in a path, returning :true if all were created or already exist.
+++ create_directories(path<{c1, ()}>) -> atom
+{
+	let (abs_ok<atom>, abs<{c1}>) = to_absolute(path);
+
+	defer
+	{
+		abs.delete;
+	}
+
+	if(!abs_ok)
+	{
+		^ :false;
+	}
+
+	let normalized<{c1}> = normalize(abs.view);
+
+	defer
+	{
+		normalized.delete;
+	}
+
+	let cleaned<{c1}> = remove_duplicate_slashes(normalized.view);
+
+	defer
+	{
+		cleaned.delete;
+	}
+
+	let n<size> = cleaned.length();
+
+	if(n == 0_sz)
+	{
+		^ :false;
+	}
+
+	# Walk the path and create each directory segment.
+	let pos<size> = 0_sz;
+
+	# Skip leading slash.
+	if(cleaned.at(0_sz) == '/'_c1)
+	{
+		pos = 1_sz;
+	}
+
+	while(pos < n)
+	{
+		let slash_pos<size> = pos;
+
+		# Find the next slash.
+		while((slash_pos < n) && (cleaned.at(slash_pos) != '/'_c1))
+		{
+			slash_pos += 1_sz;
+		}
+
+		let found_slash<atom> = slash_pos < n;
+
+		# Extract the prefix up to this point.
+		let end<size> = slash_pos;
+
+		if(end > 0_sz)
+		{
+			let (_, prefix<{c1, ()}>) = cleaned.left(end);
+			let prefix_str<{c1}> = make_string(prefix);
+
+			defer
+			{
+				prefix_str.delete;
+			}
+
+			if(!mkdir_exists_ok(prefix_str.view))
+			{
+				^ :false;
+			}
+		}
+
+		# Move past the slash.
+		if(found_slash)
+		{
+			pos = slash_pos + 1_sz;
+		}
+		else
+		{
+			pos = n;
+		}
+	}
+
+	# Also create the full path if it doesn't end with a slash.
+	if(!cleaned.ends_with?('/'_c1))
+	{
+		if(!mkdir_exists_ok(cleaned.view))
+		{
+			^ :false;
+		}
+	}
+
+	^ :true;
 }

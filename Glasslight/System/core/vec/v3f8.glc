@@ -113,7 +113,7 @@ intrinsic
 }
 
 # Converts a vector to a tuple of components.
-+ to_tuple(v<v3f8>) -> (f8, f8, f8) { ^ (v.x, v.y, v.z); }
+++ to_tuple(v<v3f8>) -> (f8, f8, f8) { ^ (v.x, v.y, v.z); }
 
 typemix v3f8
 {

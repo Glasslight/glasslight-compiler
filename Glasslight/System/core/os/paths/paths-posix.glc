@@ -1,5 +1,167 @@
 package paths;
 require core.basic ~> .;
+require core.context ~> .;
+require core.string ~> .;
+require core.c ~> c;
+require core.platform.posix.env ~> posix_env;
+require core.platform.posix.stat ~> posix_stat;
+require core.platform.posix.unistd ~> posix_unistd;
 
 # Posix specific file separator.
 + separator -> c1 { ^ '/'_c1; }
+
+# Check if a file exists at the given path.
+++ file_exists?(path<{c1, ()}>) -> atom
+{
+	let tmp<{c1}> = make_string(path);
+	let buf<posix_stat.stat_t>;
+
+	defer
+	{
+		tmp.delete;
+	}
+
+	if(posix_stat.stat(tmp, &buf) != 0_s4)
+	{
+		^ :false;
+	}
+
+	let is_file<atom> = posix_stat.s_isreg(buf.st_mode);
+	^ is_file;
+}
+
+# Check if a directory exists at the given path.
+++ directory_exists?(path<{c1, ()}>) -> atom
+{
+	let tmp<{c1}> = make_string(path);
+	let buf<posix_stat.stat_t>;
+
+	defer
+	{
+		tmp.delete;
+	}
+
+	if(posix_stat.stat(tmp, &buf) != 0_s4)
+	{
+		^ :false;
+	}
+
+	let is_dir<atom> = posix_stat.s_isdir(buf.st_mode);
+	^ is_dir;
+}
+
+# Create a single directory, returning :true if it was created or already exists.
+++ mkdir_exists_ok(path<{c1, ()}>) -> atom
+{
+	let tmp<{c1}> = make_string(path);
+
+	defer
+	{
+		tmp.delete;
+	}
+
+	let mkdir_result<s4> = posix_stat.mkdir(tmp, 0o755_u2);
+
+	if(mkdir_result == 0_s4)
+	{
+		^ :true;
+	}
+
+	# mkdir failed — check if the directory already exists (handles EEXIST).
+	let exists<atom> = directory_exists?(tmp.view);
+
+	^ exists;
+}
+
+# Get the current working directory.
+++ current_dir -> (atom, {c1})
+{
+	let buf_size<size> = 1024_sz;
+	let buf<{c1}> = make_string(buf_size);
+	let cwd_result<{c1, :c}> = posix_unistd.getcwd(buf.data(), buf_size);
+
+	if(cwd_result == nil)
+	{
+		buf.delete;
+		^ (:false, make_empty_string());
+	}
+
+	# Calculate length from the C string written into the buffer.
+	let raw_len<size> = cwd_result.length();
+	buf.buf.length = raw_len;
+
+	# Ensure trailing slash.
+	if(raw_len > 0_sz)
+	{
+		if(!buf.ends_with?('/'_c1))
+		{
+			buf.append!('/'_c1);
+		}
+	}
+
+	^ (:true, buf);
+}
+
+# Get the temporary directory.
+++ temp_dir -> (atom, {c1})
+{
+	let raw<{c1, :c}> = posix_env.getenv("TMPDIR");
+
+	if(raw != nil)
+	{
+		let raw_len<size> = raw.length();
+
+		if(raw_len > 0_sz)
+		{
+			let value<{c1}> = make_string(raw_len + 1_sz);
+			c.memcpy(value.data() ~~> voidptr, raw ~~> voidptr, raw_len);
+			value.buf.length = raw_len;
+
+			if(!value.ends_with?('/'_c1))
+			{
+				value.append!('/'_c1);
+			}
+
+			^ (:true, value);
+		}
+	}
+
+	^ (:true, make_string("/tmp/"));
+}
+
+# Get the user home directory.
+++ user_dir -> (atom, {c1})
+{
+	let raw<{c1, :c}> = posix_env.getenv("HOME");
+
+	if(raw != nil)
+	{
+		let raw_len<size> = raw.length();
+
+		if(raw_len > 0_sz)
+		{
+			let value<{c1}> = make_string(raw_len + 1_sz);
+			c.memcpy(value.data() ~~> voidptr, raw ~~> voidptr, raw_len);
+			value.buf.length = raw_len;
+
+			if(!value.ends_with?('/'_c1))
+			{
+				value.append!('/'_c1);
+			}
+
+			^ (:true, value);
+		}
+	}
+
+	^ (:false, make_empty_string());
+}
+
+# Convert a path to the platform-native format (forward slashes, no duplicates).
+++ make_platform(path<{c1, ()}>) -> {c1}
+{
+	let mp_result<{c1}> = normalize(path);
+	let cleaned<{c1}> = remove_duplicate_slashes(mp_result.view);
+	mp_result.delete;
+
+	^ cleaned;
+}
