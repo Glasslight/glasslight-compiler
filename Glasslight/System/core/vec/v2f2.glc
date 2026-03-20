@@ -107,7 +107,7 @@ intrinsic
 }
 
 # Converts a vector to a tuple of components.
-++ to_tuple(v<v2f2>) -> (f2, f2) { ^ (v.x, v.y); }
++ to_tuple(v<v2f2>) -> (f2, f2) { ^ (v.x, v.y); }
 
 typemix v2f2
 {

@@ -78,7 +78,7 @@ record stack_r<$t<typeid> >
 }
 
 # Create a stack with default context and zero capacity.
-+ make_stack($t<typeid>) -> stack_r<t>
+++ make_stack($t<typeid>) -> stack_r<t>
 {
 	^ make_stack(t, 0_sz);
 }

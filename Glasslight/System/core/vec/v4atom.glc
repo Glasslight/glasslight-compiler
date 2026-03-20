@@ -32,7 +32,7 @@ intrinsic
 }
 
 # Converts a vector to a tuple of components.
-++ to_tuple(v<v4atom>) -> (atom, atom, atom, atom) { ^ (v.x, v.y, v.z, v.w); }
++ to_tuple(v<v4atom>) -> (atom, atom, atom, atom) { ^ (v.x, v.y, v.z, v.w); }
 
 typemix v4atom
 {

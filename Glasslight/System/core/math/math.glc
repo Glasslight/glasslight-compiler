@@ -109,86 +109,106 @@ require core.basic.limits;
 # Round up to next power of two functions.
 + pow2_ceil(val<u1>) when val <= 1_u1 -> (overflow_e, u1) { ^ (:ok, 1_u1); }
 + pow2_ceil(val<u1>) when val > (1_u1 << 7_sz) -> (overflow_e, u1) { ^ (:overflow, val); }
-+ pow2_ceil(val<u1>) -> (overflow_e, u1) {
++ pow2_ceil(val<u1>) -> (overflow_e, u1)
+{
 	let val_s<s1> = (val - 1_u1) ~~> s1;
 	let zeros<s1> = ctlz(val_s);
 	let shift<size> = 8_sz - ((zeros ~> s8) ~~> size);
+
 	^ (:ok, 1_u1 << shift);
 }
 
 + pow2_ceil(val<u2>) when val <= 1_u2 -> (overflow_e, u2) { ^ (:ok, 1_u2); }
 + pow2_ceil(val<u2>) when val > (1_u2 << 15_sz) -> (overflow_e, u2) { ^ (:overflow, val); }
-+ pow2_ceil(val<u2>) -> (overflow_e, u2) {
++ pow2_ceil(val<u2>) -> (overflow_e, u2)
+{
 	let val_s<s2> = (val - 1_u2) ~~> s2;
 	let zeros<s2> = ctlz(val_s);
 	let shift<size> = 16_sz - ((zeros ~> s8) ~~> size);
+
 	^ (:ok, 1_u2 << shift);
 }
 
 + pow2_ceil(val<u4>) when val <= 1_u4 -> (overflow_e, u4) { ^ (:ok, 1_u4); }
 + pow2_ceil(val<u4>) when val > (1_u4 << 31_sz) -> (overflow_e, u4) { ^ (:overflow, val); }
-+ pow2_ceil(val<u4>) -> (overflow_e, u4) {
++ pow2_ceil(val<u4>) -> (overflow_e, u4)
+{
 	let val_s<s4> = (val - 1_u4) ~~> s4;
 	let zeros<s4> = ctlz(val_s);
 	let shift<size> = 32_sz - ((zeros ~> s8) ~~> size);
+
 	^ (:ok, 1_u4 << shift);
 }
 
 + pow2_ceil(val<u8>) when val <= 1_u8 -> (overflow_e, u8) { ^ (:ok, 1_u8); }
 + pow2_ceil(val<u8>) when val > (1_u8 << 63_sz) -> (overflow_e, u8) { ^ (:overflow, val); }
-+ pow2_ceil(val<u8>) -> (overflow_e, u8) {
++ pow2_ceil(val<u8>) -> (overflow_e, u8)
+{
 	let val_s<s8> = (val - 1_u8) ~~> s8;
 	let zeros<s8> = ctlz(val_s);
 	let shift<size> = 64_sz - (zeros ~~> size);
+
 	^ (:ok, 1_u8 << shift);
 }
 
 + pow2_ceil(val<size>) when val <= 1_sz -> (overflow_e, size) { ^ (:ok, 1_sz); }
 + pow2_ceil(val<size>) when val > (1_sz << 63_sz) -> (overflow_e, size) { ^ (:overflow, val); }
-+ pow2_ceil(val<size>) -> (overflow_e, size) {
++ pow2_ceil(val<size>) -> (overflow_e, size)
+{
 	let val_s<s8> = (val - 1_sz) ~~> s8;
 	let zeros<s8> = ctlz(val_s);
 	let shift<size> = 64_sz - (zeros ~~> size);
+
 	^ (:ok, 1_sz << shift);
 }
 
 # Round down to previous power of two functions.
 + pow2_floor(val<u1>) when val <= 1_u1 -> u1 { ^ val; }
-+ pow2_floor(val<u1>) -> u1 {
++ pow2_floor(val<u1>) -> u1
+{
 	let val_s<s1> = val ~~> s1;
 	let zeros<s1> = ctlz(val_s);
 	let shift<size> = 7_sz - ((zeros ~> s8) ~~> size);
+
 	^ 1_u1 << shift;
 }
 
 + pow2_floor(val<u2>) when val <= 1_u2 -> u2 { ^ val; }
-+ pow2_floor(val<u2>) -> u2 {
++ pow2_floor(val<u2>) -> u2
+{
 	let val_s<s2> = val ~~> s2;
 	let zeros<s2> = ctlz(val_s);
 	let shift<size> = 15_sz - ((zeros ~> s8) ~~> size);
+
 	^ 1_u2 << shift;
 }
 
 + pow2_floor(val<u4>) when val <= 1_u4 -> u4 { ^ val; }
-+ pow2_floor(val<u4>) -> u4 {
++ pow2_floor(val<u4>) -> u4
+{
 	let val_s<s4> = val ~~> s4;
 	let zeros<s4> = ctlz(val_s);
 	let shift<size> = 31_sz - ((zeros ~> s8) ~~> size);
+
 	^ 1_u4 << shift;
 }
 
 + pow2_floor(val<u8>) when val <= 1_u8 -> u8 { ^ val; }
-+ pow2_floor(val<u8>) -> u8 {
++ pow2_floor(val<u8>) -> u8
+{
 	let val_s<s8> = val ~~> s8;
 	let zeros<s8> = ctlz(val_s);
 	let shift<size> = 63_sz - (zeros ~~> size);
+
 	^ 1_u8 << shift;
 }
 
 + pow2_floor(val<size>) when val <= 1_sz -> size { ^ val; }
-+ pow2_floor(val<size>) -> size {
++ pow2_floor(val<size>) -> size
+{
 	let val_s<s8> = val ~~> s8;
 	let zeros<s8> = ctlz(val_s);
 	let shift<size> = 63_sz - (zeros ~~> size);
+
 	^ 1_sz << shift;
 }
