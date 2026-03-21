@@ -1,7 +1,5 @@
 package string;
-require core.basic ~> .;
-require core.context ~> .;
-require core.allocator ~> .;
+require core.common ~> .;
 require core.array ~> .;
 require core.mem ~> .;
 require core.c ~> c;

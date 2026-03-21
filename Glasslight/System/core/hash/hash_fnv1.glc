@@ -1,5 +1,5 @@
 package hash;
-require core.basic ~> .;
+require core.common ~> .;
 require core.atom ~> .;
 
 + hash_fnv_offset_basis -> hash { ^ 0xcbf29ce484222325_hs; }

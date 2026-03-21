@@ -1,6 +1,6 @@
 package paths;
-require core.basic ~> .;
-require core.context ~> .;
+require core.common ~> .;
+require core.basic.limits ~> .;
 require core.string ~> .;
 require core.array ~> .;
 require core.c ~> c;

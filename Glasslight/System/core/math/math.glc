@@ -1,5 +1,5 @@
 package math;
-require core.basic ~> .;
+require core.common ~> .;
 require core.basic.limits;
 
 # Linear interpolation functions.

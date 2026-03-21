@@ -1,5 +1,5 @@
 package string;
-require core.basic ~> .;
+require core.common ~> .;
 
 # Search case comparison atomenum.
 atomenum search_case_e

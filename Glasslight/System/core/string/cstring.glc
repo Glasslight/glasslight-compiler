@@ -1,5 +1,5 @@
 package string;
-require core.basic ~> .;
+require core.common ~> .;
 require core.c ~> c;
 
 typemix cstring

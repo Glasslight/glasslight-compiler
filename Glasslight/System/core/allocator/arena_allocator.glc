@@ -282,12 +282,14 @@ record arena_allocator_header_r
 			}
 
 			let result<voidptr> = arena_allocator_alloc_impl(state, bytes, align);
+
 			if(nil?(result))
 			{
 				^ nil;
 			}
 
 			let copy_bytes<size> = old_size;
+
 			if(bytes < old_size)
 			{
 				copy_bytes = bytes;
@@ -315,6 +317,7 @@ record arena_allocator_header_r
 	{
 		state.default_block_size = alignof voidptr;
 	}
+
 	state.last_ptr = nil;
 	state.last_size = 0_sz;
 	state.last_block = nil;

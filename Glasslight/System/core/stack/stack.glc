@@ -1,7 +1,5 @@
 package stack;
-require core.basic ~> .;
-require core.context ~> .;
-require core.allocator ~> .;
+require core.common ~> .;
 require core.array ~> .;
 
 record stack_r<$t<typeid> >

@@ -1,5 +1,5 @@
 package array;
-require core.basic ~> .;
+require core.common ~> .;
 
 intrinsic
 {

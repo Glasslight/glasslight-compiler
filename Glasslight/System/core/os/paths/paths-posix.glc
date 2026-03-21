@@ -1,6 +1,5 @@
 package paths;
-require core.basic ~> .;
-require core.context ~> .;
+require core.common ~> .;
 require core.string ~> .;
 require core.c ~> c;
 require core.platform.posix.env ~> posix_env;

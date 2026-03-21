@@ -1,5 +1,5 @@
 package hash;
-require core.basic ~> .;
+require core.common ~> .;
 require core.atom ~> .;
 require core.math ~> math;
 

@@ -1,5 +1,5 @@
 package array;
-require core.basic ~> .;
+require core.common ~> .;
 require core.context ~> .;
 require core.allocator ~> .;
 require core.mem ~> .;

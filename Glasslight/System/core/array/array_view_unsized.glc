@@ -1,5 +1,5 @@
 package array;
-require core.basic ~> .;
+require core.common ~> .;
 require core.basic.limits ~> .;
 
 record array_view_r<$t<typeid> >

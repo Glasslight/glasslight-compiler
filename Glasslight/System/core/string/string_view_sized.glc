@@ -1,5 +1,5 @@
 package string;
-require core.basic ~> .;
+require core.common ~> .;
 require core.array ~> .;
 
 record string_view_sized_r<$n<size> >

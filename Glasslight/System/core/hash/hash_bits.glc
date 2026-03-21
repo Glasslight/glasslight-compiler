@@ -1,5 +1,5 @@
 package hash;
-require core.basic ~> .;
+require core.common ~> .;
 
 + hash_bits(bits<hash>) -> hash { ^ bits; }
 

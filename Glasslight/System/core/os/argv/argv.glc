@@ -1,6 +1,5 @@
 package argv;
-require core.basic ~> .;
-require core.context ~> .;
+require core.common ~> .;
 require core.string ~> .;
 require core.array ~> .;
 require core.ffi.argv ~> ffi_argv;

@@ -1,0 +1,4 @@
+package common;
+require core.context ~> .;
+
+let ctx<context_r> = get_default_ctx;

@@ -1,6 +1,5 @@
 package env;
-require core.basic ~> .;
-require core.context ~> .;
+require core.common ~> .;
 require core.string ~> .;
 require core.platform.win.kernel32 ~> kernel32;
 

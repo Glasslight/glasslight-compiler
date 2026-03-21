@@ -22,3 +22,36 @@ atomenum endian_e
 	:little,
 	:big
 }
+
+intrinsic
+{
+	# Current target operating system.
+	+ __glc_os -> os_e;
+
+	# Current target CPU architecture.
+	+ __glc_arch -> arch_e;
+
+	# Current target byte order.
+	+ __glc_endianness -> endian_e;
+
+	# :true when building a debug configuration.
+	+ __glc_debug -> atom;
+
+	# :true when compiling in test mode.
+	+ __glc_test -> atom;
+
+	# :true when the current target platform is POSIX.
+	+ __glc_posix -> atom;
+
+	# Compiler version string.
+	+ __glc_version -> {c1, :const};
+
+	# Root path of the configured system package directory.
+	+ __glc_system_path -> {c1, :const};
+
+	# Root path of the configured package search directory.
+	+ __glc_package_path -> {c1, :const};
+
+	# Directory path of the current test package.
+	+ __glc_test_path -> {c1, :const};
+}

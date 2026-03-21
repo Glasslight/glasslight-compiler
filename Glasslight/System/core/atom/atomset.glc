@@ -1,7 +1,5 @@
 package atom;
-require core.basic ~> .;
-require core.context ~> .;
-require core.allocator ~> .;
+require core.common ~> .;
 require core.mem ~> .;
 
 record atomset_r
@@ -38,12 +36,12 @@ record atomset_r
 	# Ensure the set has a valid allocator before allocating storage.
 	- ensure_allocator! -> ()
 	{
-	if(!self.alloc_initialized)
-	{
-		let ctx<context_r> = get_default_ctx;
-		self.alloc = ctx.allocator_main;
-		self.alloc_initialized = :true;
-	}
+		if(!self.alloc_initialized)
+		{
+			let ctx<context_r> = get_default_ctx;
+			self.alloc = ctx.allocator_main;
+			self.alloc_initialized = :true;
+		}
 
 		^ ();
 	}
@@ -122,6 +120,7 @@ record atomset_r
 	- reserve(new_cap<size>) -> ()
 	{
 		let target<size> = atomset_r.round_capacity(new_cap);
+
 		if(target <= self.capacity)
 		{
 			^ ();
@@ -173,6 +172,7 @@ record atomset_r
 		if(used_after_insert * 10_sz >= self.capacity * 7_sz)
 		{
 			let target<size> = self.capacity * 2_sz;
+
 			if(self.deleted > self.length)
 			{
 				target = self.capacity;
