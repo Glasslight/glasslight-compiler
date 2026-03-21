@@ -4,7 +4,7 @@ require core.string ~> .;
 require core.platform.win.kernel32 ~> kernel32;
 
 # Get an env var through the Win32 backend.
-++ get_env(name<{u1, :c}>) -> (env_get_result_e, {u1})
+++ get_env(name<{c1, :c}>) -> (env_get_result_e, {c1})
 {
 	let required<u4> = kernel32.GetEnvironmentVariableA(name, nil, 0_u4);
 
@@ -13,7 +13,7 @@ require core.platform.win.kernel32 ~> kernel32;
 		^ (:missing, make_empty_string());
 	}
 
-	let result<{u1}> = make_string((required - 1_u4) ~> size);
+	let result<{c1}> = make_string((required - 1_u4) ~> size);
 	let written<u4> = kernel32.GetEnvironmentVariableA(name, result.data(), required);
 
 	if(written + 1_u4 != required)
@@ -26,10 +26,10 @@ require core.platform.win.kernel32 ~> kernel32;
 }
 
 # Check whether an env var exists through the Win32 backend.
-+ has_env?(name<{u1, :c}>) -> atom { ^ kernel32.GetEnvironmentVariableA(name, nil, 0_u4) > 0_u4; }
++ has_env?(name<{c1, :c}>) -> atom { ^ kernel32.GetEnvironmentVariableA(name, nil, 0_u4) > 0_u4; }
 
 # Set an env var through the Win32 backend.
-+ set_env(name<{u1, :c}>, value<{u1, :c}>, overwrite<atom>) -> env_set_result_e
++ set_env(name<{c1, :c}>, value<{c1, :c}>, overwrite<atom>) -> env_set_result_e
 {
 	let existed<atom> = has_env?(name);
 
@@ -52,7 +52,7 @@ require core.platform.win.kernel32 ~> kernel32;
 }
 
 # Unset an env var through the Win32 backend.
-+ unset_env(name<{u1, :c}>) -> env_unset_result_e
++ unset_env(name<{c1, :c}>) -> env_unset_result_e
 {
 	if(!has_env?(name))
 	{
