@@ -1,7 +1,8 @@
 package kernel32;
 require core.basic ~> .;
 
-enum win32_error_code_e : u4 {
+enum win32_error_code_e : u4
+{
 	error_none                = 0_u4,
 	error_file_not_found      = 2_u4,
 	error_path_not_found      = 3_u4,
