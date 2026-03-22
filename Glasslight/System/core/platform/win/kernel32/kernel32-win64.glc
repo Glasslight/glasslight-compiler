@@ -21,4 +21,10 @@ foreign "Kernel32" ~> .
 
 	# Get the last Win32 error code.
 	+ GetLastError() -> win32_error_code_e;
+
+	# Get a handle to a standard device (stdin, stdout, stderr).
+	+ GetStdHandle(nStdHandle<u4>) -> handle_t;
+
+	# Write a string to the console.
+	+ WriteConsoleA(hConsoleOutput<handle_t>, lpBuffer<voidptr>, nNumberOfCharsToWrite<u4>, lpNumberOfCharsWritten<u4*>, lpReserved<voidptr>) -> cbool ->> atom;
 }

@@ -1,0 +1,7 @@
+package unistd;
+require core.basic ~> basic;
+
+# Standard file descriptor numbers.
+const STDIN_FILENO<basic.s4>  = 0_s4;
+const STDOUT_FILENO<basic.s4> = 1_s4;
+const STDERR_FILENO<basic.s4> = 2_s4;

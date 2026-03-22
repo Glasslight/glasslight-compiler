@@ -1,6 +1,14 @@
 package kernel32;
 require core.basic ~> .;
 
+# Win32 HANDLE type.
+[[(:kind, :alias), (:alias, :weak)]] typecreate handle_t ~> voidptr;
+
+# Standard device handles for GetStdHandle.
+const STD_INPUT_HANDLE<u4>  = 0xFFFFFFF6_u4;
+const STD_OUTPUT_HANDLE<u4> = 0xFFFFFFF5_u4;
+const STD_ERROR_HANDLE<u4>  = 0xFFFFFFF4_u4;
+
 enum win32_error_code_e : u4
 {
 	error_none                = 0_u4,

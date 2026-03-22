@@ -6,4 +6,7 @@ foreign "c" ~> .
 {
 	# Get current working directory (unistd.h).
 	+ getcwd(buf<basic.c1*>, sz<basic.size>) -> {basic.c1, :c};
+
+	# Write to a file descriptor (unistd.h).
+	+ write(fd<basic.s4>, buf<basic.voidptr>, count<basic.size>) -> basic.s8;
 }
