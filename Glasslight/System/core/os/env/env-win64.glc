@@ -13,7 +13,7 @@ require core.platform.win.kernel32 ~> kernel32;
 		^ (:missing, make_empty_string());
 	}
 
-	let result<{c1}> = make_string((required - 1_u4) ~> size);
+	let result<{c1}> = make_string((required - 1_u4) ~> u8 ~~> size);
 	let written<u4> = kernel32.GetEnvironmentVariableA(name, result.data(), required);
 
 	if(written + 1_u4 != required)
@@ -21,7 +21,7 @@ require core.platform.win.kernel32 ~> kernel32;
 		runtime_error("env.get_env: Windows GetEnvironmentVariableA failed");
 	}
 
-	result.buf.length = written ~> size;
+	result.buf.length = written ~> u8 ~~> size;
 	^ (:found, result);
 }
 

@@ -1,0 +1,29 @@
+package kernel32;
+require core.basic ~> .;
+
+enum win32_error_code_e : u4 {
+	error_none                = 0_u4,
+	error_file_not_found      = 2_u4,
+	error_path_not_found      = 3_u4,
+	error_access_denied       = 5_u4,
+	error_invalid_handle      = 6_u4,
+	error_not_enough_memory   = 8_u4,
+	error_no_more_files       = 18_u4,
+	error_handle_eof          = 38_u4,
+	error_netname_deleted     = 64_u4,
+	error_file_exists         = 80_u4,
+	error_invalid_parameter   = 87_u4,
+	error_broken_pipe         = 109_u4,
+	error_buffer_overflow     = 111_u4,
+	error_insufficient_buffer = 122_u4,
+	error_mod_not_found       = 126_u4,
+	error_proc_not_found      = 127_u4,
+	error_dir_not_empty       = 145_u4,
+	error_already_exists      = 183_u4,
+	error_envvar_not_found    = 203_u4,
+	error_more_data           = 234_u4,
+	error_operation_aborted   = 995_u4,
+	error_io_pending          = 997_u4,
+	error_not_found           = 1168_u4,
+	error_privilege_not_held  = 1314_u4
+}

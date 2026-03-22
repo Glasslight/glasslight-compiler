@@ -10,7 +10,6 @@ require core.platform.win.kernel32 ~> kernel32;
 
 const invalid_file_attributes<u4> = 0xFFFFFFFF_u4;
 const file_attribute_directory<u4> = 0x10_u4;
-const error_already_exists<u4> = 183_u4;
 
 # Check if a file exists at the given path.
 ++ file_exists?(path<{c1, ()}>) -> atom
@@ -67,7 +66,7 @@ const error_already_exists<u4> = 183_u4;
 		^ :true;
 	}
 
-	if(kernel32.GetLastError() == error_already_exists)
+	if(kernel32.GetLastError() == kernel32.error_already_exists)
 	{
 		^ :true;
 	}
@@ -79,7 +78,7 @@ const error_already_exists<u4> = 183_u4;
 ++ current_dir -> (atom, {c1})
 {
 	let buf_size<u4> = 1024_u4;
-	let buf<{c1}> = make_string(buf_size ~> size);
+	let buf<{c1}> = make_string(buf_size ~> u8 ~~> size);
 	let written<u4> = kernel32.GetCurrentDirectoryA(buf_size, buf.data());
 
 	if(written == 0_u4)
@@ -88,7 +87,7 @@ const error_already_exists<u4> = 183_u4;
 		^ (:false, make_empty_string());
 	}
 
-	buf.buf.length = written ~> size;
+	buf.buf.length = written ~> u8 ~~> size;
 
 	# Normalize to forward slashes.
 	buf.replace!('\\'_c1, '/'_c1);
@@ -106,7 +105,7 @@ const error_already_exists<u4> = 183_u4;
 ++ temp_dir -> (atom, {c1})
 {
 	let buf_size<u4> = 1024_u4;
-	let buf<{c1}> = make_string(buf_size ~> size);
+	let buf<{c1}> = make_string(buf_size ~> u8 ~~> size);
 	let written<u4> = kernel32.GetTempPathA(buf_size, buf.data());
 
 	if(written == 0_u4)
@@ -115,7 +114,7 @@ const error_already_exists<u4> = 183_u4;
 		^ (:false, make_empty_string());
 	}
 
-	buf.buf.length = written ~> size;
+	buf.buf.length = written ~> u8 ~~> size;
 
 	# Normalize to forward slashes.
 	buf.replace!('\\'_c1, '/'_c1);

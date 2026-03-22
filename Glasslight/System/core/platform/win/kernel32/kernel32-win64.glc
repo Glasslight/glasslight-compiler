@@ -1,24 +1,24 @@
 package kernel32;
-require core.basic ~> basic;
+require core.basic ~> .;
 
 [[:system, :dynamic]]
 foreign "Kernel32" ~> .
 {
-	+ GetEnvironmentVariableA(lpName<{basic.u1, :c}>, lpBuffer<basic.c1*>, nSize<basic.u4>) -> basic.u4;
-	+ SetEnvironmentVariableA(lpName<{basic.u1, :c}>, lpValue<basic.c1*>) -> basic.cbool ->> basic.atom;
+	+ GetEnvironmentVariableA(lpName<{c1, :c}>, lpBuffer<c1*>, nSize<u4>) -> u4;
+	+ SetEnvironmentVariableA(lpName<{c1, :c}>, lpValue<{c1, :c}>) -> cbool ->> atom;
 
 	# Get file or directory attributes.
-	+ GetFileAttributesA(lpFileName<{basic.u1, :c}>) -> basic.u4;
+	+ GetFileAttributesA(lpFileName<{c1, :c}>) -> u4;
 
 	# Get the current working directory.
-	+ GetCurrentDirectoryA(nBufferLength<basic.u4>, lpBuffer<basic.c1*>) -> basic.u4;
+	+ GetCurrentDirectoryA(nBufferLength<u4>, lpBuffer<c1*>) -> u4;
 
 	# Get the temporary file path.
-	+ GetTempPathA(nBufferLength<basic.u4>, lpBuffer<basic.c1*>) -> basic.u4;
+	+ GetTempPathA(nBufferLength<u4>, lpBuffer<c1*>) -> u4;
 
 	# Create a directory.
-	+ CreateDirectoryA(lpPathName<{basic.u1, :c}>, lpSecurityAttributes<basic.voidptr>) -> basic.cbool ->> basic.atom;
+	+ CreateDirectoryA(lpPathName<{c1, :c}>, lpSecurityAttributes<voidptr>) -> cbool ->> atom;
 
 	# Get the last Win32 error code.
-	+ GetLastError() -> basic.u4;
+	+ GetLastError() -> win32_error_code_e;
 }

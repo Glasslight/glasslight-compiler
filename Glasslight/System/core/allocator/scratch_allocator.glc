@@ -53,7 +53,9 @@ record scratch_allocator_header_r
 	let resolved_align<size> = effective_align(align);
 	let header_bytes<size> = sizeof scratch_allocator_header_r;
 	let block_start<size> = state.offset;
-	let payload_offset<size> = align_up(block_start + header_bytes, resolved_align);
+	let base_addr<size> = state.base ~~> size;
+	let payload_addr<size> = align_up(base_addr + block_start + header_bytes, resolved_align);
+	let payload_offset<size> = payload_addr - base_addr;
 	let end_offset<size> = payload_offset + bytes;
 
 	if(end_offset > state.capacity)
@@ -112,7 +114,9 @@ record scratch_allocator_header_r
 			{
 				let resolved_align<size> = effective_align(align);
 				let header_bytes<size> = sizeof scratch_allocator_header_r;
-				let payload_offset<size> = align_up(header.block_start + header_bytes, resolved_align);
+				let base_addr<size> = state.base ~~> size;
+				let payload_addr<size> = align_up(base_addr + header.block_start + header_bytes, resolved_align);
+				let payload_offset<size> = payload_addr - base_addr;
 				let end_offset<size> = payload_offset + bytes;
 
 				if(end_offset > state.capacity)
