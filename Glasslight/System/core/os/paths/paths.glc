@@ -4,6 +4,7 @@ require core.basic.limits ~> .;
 require core.string ~> .;
 require core.array ~> .;
 require core.c ~> c;
+require core.builtin ~> .;
 
 # Find the position of the last path separator (/ or \).
 + find_last_separator(path<{c1, ()}>) -> (atom, size)
@@ -472,6 +473,15 @@ require core.c ~> c;
 	if(cleaned.at(0_sz) == '/'_c1)
 	{
 		pos = 1_sz;
+	}
+
+	# Skip drive letter prefix on Windows (e.g. "C:/").
+	constif(__glc_os == :windows)
+	{
+		if((n >= 3_sz) && (cleaned.at(1_sz) == ':'_c1) && (cleaned.at(2_sz) == '/'_c1))
+		{
+			pos = 3_sz;
+		}
 	}
 
 	while(pos < n)
