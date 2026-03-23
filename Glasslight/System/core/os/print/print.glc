@@ -1,0 +1,23 @@
+package print;
+require core.basic ~> .;
+require core.string ~> .;
+
++ println(text<{c1, :c}>) -> atom
+{
+	if(!print(text))
+	{
+		^ :false;
+	}
+
+	^ print("\n");
+}
+
++ eprintln(text<{c1, :c}>) -> atom
+{
+	if(!eprint(text))
+	{
+		^ :false;
+	}
+
+	^ eprint("\n");
+}

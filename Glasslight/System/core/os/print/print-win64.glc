@@ -1,0 +1,51 @@
+package print;
+require core.common ~> .;
+require core.string ~> .;
+require core.platform.win.kernel32 ~> kernel32;
+
++ write_console(std_handle<u4>, text<{c1, :c}>) -> atom
+{
+	let handle<kernel32.handle_t> = kernel32.GetStdHandle(std_handle);
+	let remaining<size> = text.length();
+	let ptr<c1*> = text ~~> c1*;
+	let max_count_size<size> = (max(u4) ~> u8) ~~> size;
+
+	while(remaining > 0_sz)
+	{
+		let written<u4> = 0_u4;
+		let chunk<size> = remaining;
+
+		if(chunk > max_count_size)
+		{
+			chunk = max_count_size;
+		}
+
+		let count<u4> = (chunk ~~> u8) ~> u4;
+
+		if(!kernel32.WriteConsoleA(handle, ptr ~~> voidptr, count, &written, nil))
+		{
+			^ :false;
+		}
+
+		if(written == 0_u4)
+		{
+			^ :false;
+		}
+
+		let advance<size> = (written ~> u8) ~~> size;
+		ptr = ptr + advance;
+		remaining -= advance;
+	}
+
+	^ :true;
+}
+
++ print(text<{c1, :c}>) -> atom
+{
+	^ write_console(kernel32.STD_OUTPUT_HANDLE, text);
+}
+
++ eprint(text<{c1, :c}>) -> atom
+{
+	^ write_console(kernel32.STD_ERROR_HANDLE, text);
+}
