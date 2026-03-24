@@ -61,6 +61,16 @@ record array_view_r<$t<typeid> >
 
 	# Return top/last element.
 	- top -> t { ^ *(self.data + self.length - 1_sz); }
+
+	# Advance the view position by s elements. Returns empty view if s exceeds length.
+	- advance(s<size>) when s < self.length -> [t, ()]
+	{
+		^ make_array_view(t, self.data + s, self.length - s);
+	}
+	- advance(s<size>) -> [t, ()]
+	{
+		^ make_array_view(t, self.data, 0_sz);
+	}
 }
 
 # Creates an unsized array view from a pointer and length.

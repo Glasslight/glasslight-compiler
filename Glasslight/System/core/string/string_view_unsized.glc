@@ -262,6 +262,16 @@ record string_view_unsized_r
 		^ :true;
 	}
 
+	# Advance the view position by s bytes. Returns empty view if s exceeds length.
+	- advance(s<size>) when s < self.av.length() -> {c1, ()}
+	{
+		^ make_string_view(self.av.data() + s, self.av.length() - s);
+	}
+	- advance(s<size>) -> {c1, ()}
+	{
+		^ make_string_view(self.av.data(), 0_sz);
+	}
+
 	# Check if view equals another view byte-by-byte.
 	- equals?(other<{c1, ()}>) -> atom
 	{
