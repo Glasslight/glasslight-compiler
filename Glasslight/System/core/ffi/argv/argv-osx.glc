@@ -5,5 +5,5 @@ require core.basic;
 foreign "core/ffi/argv" ~> .
 {
 	+ glc_argv_count() -> basic.u8;
-	+ glc_argv_get(index<basic.u8>) -> basic.cstring;
+	+ glc_argv_get(index<basic.u8>) -> {basic.c1, :c};
 }

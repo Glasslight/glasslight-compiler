@@ -36,8 +36,8 @@ const s_ifdir<basic.u4> = 0x4000_u4;
 foreign "c" ~> .
 {
 	# Get file status (sys/stat.h).
-	+ stat(path<basic.cstring>, buf<stat_t*>) -> basic.s4;
+	+ stat(path<{basic.c1, :c}>, buf<stat_t*>) -> basic.s4;
 
 	# Create a directory with the given permissions (sys/stat.h).
-	+ mkdir(path<basic.cstring>, mode<basic.u2>) -> basic.s4;
+	+ mkdir(path<{basic.c1, :c}>, mode<basic.u2>) -> basic.s4;
 }

@@ -10,7 +10,7 @@ require core.ffi.argv ~> ffi_argv;
 # Copy a single command-line argument into an owned string.
 ++ argv_get(index<size>) -> {c1}
 {
-	let raw<cstring> = ffi_argv.glc_argv_get(index ~~> u8);
+	let raw<{c1, :c}> = ffi_argv.glc_argv_get(index ~~> u8);
 	^ make_string(raw.view());
 }
 
