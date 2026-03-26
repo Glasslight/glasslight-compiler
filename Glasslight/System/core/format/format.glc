@@ -10,6 +10,7 @@ require core.ffi.format ~> ffi;
 	let buf<[c1, 32_sz]>;
 	let n<size> = ffi.glc_format_s1(&buf[0_sz], 32_sz, val);
 	out.append!(str.make_string_view(&buf[0_sz], n));
+
 	^ ();
 }
 
@@ -18,6 +19,7 @@ require core.ffi.format ~> ffi;
 	let buf<[c1, 32_sz]>;
 	let n<size> = ffi.glc_format_s2(&buf[0_sz], 32_sz, val);
 	out.append!(str.make_string_view(&buf[0_sz], n));
+
 	^ ();
 }
 
@@ -26,6 +28,7 @@ require core.ffi.format ~> ffi;
 	let buf<[c1, 32_sz]>;
 	let n<size> = ffi.glc_format_s4(&buf[0_sz], 32_sz, val);
 	out.append!(str.make_string_view(&buf[0_sz], n));
+
 	^ ();
 }
 
@@ -34,6 +37,7 @@ require core.ffi.format ~> ffi;
 	let buf<[c1, 32_sz]>;
 	let n<size> = ffi.glc_format_s8(&buf[0_sz], 32_sz, val);
 	out.append!(str.make_string_view(&buf[0_sz], n));
+
 	^ ();
 }
 
@@ -42,6 +46,7 @@ require core.ffi.format ~> ffi;
 	let buf<[c1, 32_sz]>;
 	let n<size> = ffi.glc_format_u1(&buf[0_sz], 32_sz, val);
 	out.append!(str.make_string_view(&buf[0_sz], n));
+
 	^ ();
 }
 
@@ -50,6 +55,7 @@ require core.ffi.format ~> ffi;
 	let buf<[c1, 32_sz]>;
 	let n<size> = ffi.glc_format_u2(&buf[0_sz], 32_sz, val);
 	out.append!(str.make_string_view(&buf[0_sz], n));
+
 	^ ();
 }
 
@@ -58,6 +64,7 @@ require core.ffi.format ~> ffi;
 	let buf<[c1, 32_sz]>;
 	let n<size> = ffi.glc_format_u4(&buf[0_sz], 32_sz, val);
 	out.append!(str.make_string_view(&buf[0_sz], n));
+
 	^ ();
 }
 
@@ -66,6 +73,7 @@ require core.ffi.format ~> ffi;
 	let buf<[c1, 32_sz]>;
 	let n<size> = ffi.glc_format_u8(&buf[0_sz], 32_sz, val);
 	out.append!(str.make_string_view(&buf[0_sz], n));
+
 	^ ();
 }
 
@@ -74,6 +82,7 @@ require core.ffi.format ~> ffi;
 	let buf<[c1, 32_sz]>;
 	let n<size> = ffi.glc_format_sz(&buf[0_sz], 32_sz, val);
 	out.append!(str.make_string_view(&buf[0_sz], n));
+
 	^ ();
 }
 
@@ -82,6 +91,7 @@ require core.ffi.format ~> ffi;
 	let buf<[c1, 64_sz]>;
 	let n<size> = ffi.glc_format_f4(&buf[0_sz], 64_sz, val);
 	out.append!(str.make_string_view(&buf[0_sz], n));
+
 	^ ();
 }
 
@@ -90,6 +100,7 @@ require core.ffi.format ~> ffi;
 	let buf<[c1, 64_sz]>;
 	let n<size> = ffi.glc_format_f8(&buf[0_sz], 64_sz, val);
 	out.append!(str.make_string_view(&buf[0_sz], n));
+
 	^ ();
 }
 
@@ -104,6 +115,7 @@ require core.ffi.format ~> ffi;
 	let buf<[c1, 32_sz]>;
 	let n<size> = ffi.glc_format_u2(&buf[0_sz], 32_sz, val ~~> u2);
 	out.append!(str.make_string_view(&buf[0_sz], n));
+
 	^ ();
 }
 
@@ -112,6 +124,7 @@ require core.ffi.format ~> ffi;
 	let buf<[c1, 32_sz]>;
 	let n<size> = ffi.glc_format_u4(&buf[0_sz], 32_sz, val ~~> u4);
 	out.append!(str.make_string_view(&buf[0_sz], n));
+
 	^ ();
 }
 
@@ -139,7 +152,7 @@ require core.ffi.format ~> ffi;
 	^ ();
 }
 
-+ format_args($t<typeid>, fmt<{c1, ()}>, args<t>, out<{c1}*>) when (t == typeof ()) -> ()
++ format_args($t<typeid>, fmt<{c1, ()}>, args<t>, out<{c1}*>) when empty_tuple?(t) -> ()
 {
 	if(fmt.length() > 0_sz)
 	{
@@ -149,7 +162,7 @@ require core.ffi.format ~> ffi;
 	^ ();
 }
 
-+ format_args($t<typeid>, fmt<{c1, ()}>, args<t>, out<{c1}*>) when kindof t == :tuple -> ()
++ format_args($t<typeid>, fmt<{c1, ()}>, args<t>, out<{c1}*>) when tuple?(t) -> ()
 {
 	let (found<atom>, idx<size>) = fmt.index_of("{}");
 

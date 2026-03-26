@@ -36,6 +36,10 @@ package basic;
 + numeric?($t<typeid>) when float?(t) || integer?(t) -> atom { ^ :true; }
 + numeric?($t<typeid>) -> atom { ^ :false; }
 
+# Return true if type is an empty tuple.
++ empty_tuple?($t<typeid>) when typeof () == t -> atom { ^ :true; }
++ empty_tuple?($t<typeid>) -> atom { ^ :false; }
+
 # Return true if type is a tuple.
 + tuple?($t<typeid>) when kindof t == :tuple -> atom { ^ :true; }
 + tuple?($t<typeid>) -> atom { ^ :false; }
