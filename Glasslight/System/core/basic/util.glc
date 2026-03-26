@@ -8,6 +8,9 @@ package basic;
 + nil?($t<typeid>, x<t*>) when nil?(x ~~> voidptr) -> atom { ^ :true; }
 + nil?($t<typeid>, x<t*>) -> atom { ^ :false; }
 
+# Return true if value length is zero.
++ empty?($t<typeid>, x<t>) -> atom { ^ len(x) == 0_sz; }
+
 # Return the byte difference between two typed pointers (a - b) as a signed value.
 + byte_diff($t<typeid>, a<t*>, b<t*>) -> s8 { ^ (a ~~> s8) - (b ~~> s8); }
 

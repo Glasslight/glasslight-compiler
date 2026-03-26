@@ -1,0 +1,192 @@
+package format;
+require core.basic ~> .;
+require core.string ~> str;
+require core.atom ~> atoms;
+require core.ffi.format ~> ffi;
+
+
++ format_element(val<s1>, out<{c1}*>) -> ()
+{
+	let buf<[c1, 32_sz]>;
+	let n<size> = ffi.glc_format_s1(&buf[0_sz], 32_sz, val);
+	out.append!(str.make_string_view(&buf[0_sz], n));
+	^ ();
+}
+
++ format_element(val<s2>, out<{c1}*>) -> ()
+{
+	let buf<[c1, 32_sz]>;
+	let n<size> = ffi.glc_format_s2(&buf[0_sz], 32_sz, val);
+	out.append!(str.make_string_view(&buf[0_sz], n));
+	^ ();
+}
+
++ format_element(val<s4>, out<{c1}*>) -> ()
+{
+	let buf<[c1, 32_sz]>;
+	let n<size> = ffi.glc_format_s4(&buf[0_sz], 32_sz, val);
+	out.append!(str.make_string_view(&buf[0_sz], n));
+	^ ();
+}
+
++ format_element(val<s8>, out<{c1}*>) -> ()
+{
+	let buf<[c1, 32_sz]>;
+	let n<size> = ffi.glc_format_s8(&buf[0_sz], 32_sz, val);
+	out.append!(str.make_string_view(&buf[0_sz], n));
+	^ ();
+}
+
++ format_element(val<u1>, out<{c1}*>) -> ()
+{
+	let buf<[c1, 32_sz]>;
+	let n<size> = ffi.glc_format_u1(&buf[0_sz], 32_sz, val);
+	out.append!(str.make_string_view(&buf[0_sz], n));
+	^ ();
+}
+
++ format_element(val<u2>, out<{c1}*>) -> ()
+{
+	let buf<[c1, 32_sz]>;
+	let n<size> = ffi.glc_format_u2(&buf[0_sz], 32_sz, val);
+	out.append!(str.make_string_view(&buf[0_sz], n));
+	^ ();
+}
+
++ format_element(val<u4>, out<{c1}*>) -> ()
+{
+	let buf<[c1, 32_sz]>;
+	let n<size> = ffi.glc_format_u4(&buf[0_sz], 32_sz, val);
+	out.append!(str.make_string_view(&buf[0_sz], n));
+	^ ();
+}
+
++ format_element(val<u8>, out<{c1}*>) -> ()
+{
+	let buf<[c1, 32_sz]>;
+	let n<size> = ffi.glc_format_u8(&buf[0_sz], 32_sz, val);
+	out.append!(str.make_string_view(&buf[0_sz], n));
+	^ ();
+}
+
++ format_element(val<size>, out<{c1}*>) -> ()
+{
+	let buf<[c1, 32_sz]>;
+	let n<size> = ffi.glc_format_sz(&buf[0_sz], 32_sz, val);
+	out.append!(str.make_string_view(&buf[0_sz], n));
+	^ ();
+}
+
++ format_element(val<f4>, out<{c1}*>) -> ()
+{
+	let buf<[c1, 64_sz]>;
+	let n<size> = ffi.glc_format_f4(&buf[0_sz], 64_sz, val);
+	out.append!(str.make_string_view(&buf[0_sz], n));
+	^ ();
+}
+
++ format_element(val<f8>, out<{c1}*>) -> ()
+{
+	let buf<[c1, 64_sz]>;
+	let n<size> = ffi.glc_format_f8(&buf[0_sz], 64_sz, val);
+	out.append!(str.make_string_view(&buf[0_sz], n));
+	^ ();
+}
+
++ format_element(val<c1>, out<{c1}*>) -> ()
+{
+	out.append!(val);
+	^ ();
+}
+
++ format_element(val<c2>, out<{c1}*>) -> ()
+{
+	let buf<[c1, 32_sz]>;
+	let n<size> = ffi.glc_format_u2(&buf[0_sz], 32_sz, val ~~> u2);
+	out.append!(str.make_string_view(&buf[0_sz], n));
+	^ ();
+}
+
++ format_element(val<c4>, out<{c1}*>) -> ()
+{
+	let buf<[c1, 32_sz]>;
+	let n<size> = ffi.glc_format_u4(&buf[0_sz], 32_sz, val ~~> u4);
+	out.append!(str.make_string_view(&buf[0_sz], n));
+	^ ();
+}
+
++ format_element(val<atom>, out<{c1}*>) -> ()
+{
+	out.append!(atoms.__glc_atom_to_string_view(val));
+	^ ();
+}
+
++ format_element(val<{c1, ()}>, out<{c1}*>) -> ()
+{
+	out.append!(val);
+	^ ();
+}
+
++ format_element(val<{c1}>, out<{c1}*>) -> ()
+{
+	out.append!(val.view());
+	^ ();
+}
+
++ format_element(val<{c1, :c}>, out<{c1}*>) -> ()
+{
+	out.append!(val.view);
+	^ ();
+}
+
++ format_args($t<typeid>, fmt<{c1, ()}>, args<t>, out<{c1}*>) when (t == typeof ()) -> ()
+{
+	if(fmt.length() > 0_sz)
+	{
+		out.append!(fmt);
+	}
+
+	^ ();
+}
+
++ format_args($t<typeid>, fmt<{c1, ()}>, args<t>, out<{c1}*>) when kindof t == :tuple -> ()
+{
+	let (found<atom>, idx<size>) = fmt.index_of("{}");
+
+	if(found == :true)
+	{
+		if(idx > 0_sz)
+		{
+			let (ok<atom>, prefix<{c1, ()}>) = fmt.left(idx);
+			out.append!(prefix);
+		}
+
+		format_element(car(args), out);
+		let rest<{c1, ()}> = fmt.advance(idx + 2_sz);
+		format_args(rest, cdr(args), out);
+	}
+	else
+	{
+		if(fmt.length() > 0_sz)
+		{
+			out.append!(fmt);
+		}
+	}
+
+	^ ();
+}
+
+# format(fmt_view, args_tuple) -> allocated string
+++ format($t<typeid>, fmt<{c1, ()}>, args<t>) -> {c1}
+{
+	let out<{c1}> = str.make_string(64_sz);
+	format_args(fmt, args, &out);
+
+	^ out;
+}
+
+# format(fmt_view) -> allocated string (no args, just copy)
+++ format(fmt<{c1, ()}>) -> {c1}
+{
+	^ str.make_string(fmt);
+}

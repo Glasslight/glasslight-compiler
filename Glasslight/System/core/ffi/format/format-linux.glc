@@ -1,0 +1,19 @@
+package ffi_format;
+require core.basic;
+
+[[:builtin, :static]]
+foreign "core/ffi/format" ~> .
+{
+	+ glc_format_s1(buf<basic.c1*>, n<basic.size>, val<basic.s1>) -> basic.size;
+	+ glc_format_s2(buf<basic.c1*>, n<basic.size>, val<basic.s2>) -> basic.size;
+	+ glc_format_s4(buf<basic.c1*>, n<basic.size>, val<basic.s4>) -> basic.size;
+	+ glc_format_s8(buf<basic.c1*>, n<basic.size>, val<basic.s8>) -> basic.size;
+	+ glc_format_u1(buf<basic.c1*>, n<basic.size>, val<basic.u1>) -> basic.size;
+	+ glc_format_u2(buf<basic.c1*>, n<basic.size>, val<basic.u2>) -> basic.size;
+	+ glc_format_u4(buf<basic.c1*>, n<basic.size>, val<basic.u4>) -> basic.size;
+	+ glc_format_u8(buf<basic.c1*>, n<basic.size>, val<basic.u8>) -> basic.size;
+	+ glc_format_sz(buf<basic.c1*>, n<basic.size>, val<basic.size>) -> basic.size;
+	+ glc_format_f2(buf<basic.c1*>, n<basic.size>, val<basic.u2>) -> basic.size;
+	+ glc_format_f4(buf<basic.c1*>, n<basic.size>, val<basic.f4>) -> basic.size;
+	+ glc_format_f8(buf<basic.c1*>, n<basic.size>, val<basic.f8>) -> basic.size;
+}

@@ -76,14 +76,17 @@ require core.basic.limits;
 
 # Near-equality functions.
 + nearly_equal?(x<f2>, y<f2>) -> atom { ^ nearly_equal?(x, y, limits.epsilon(f2)); }
++ nearly_equal?(x<f2>, y<f2>, eps<f2>) when x ~~> u2 == y ~~> u2 && !nan?(x) -> atom { ^ :true; }
 + nearly_equal?(x<f2>, y<f2>, eps<f2>) when x == y -> atom { ^ :true; }
 + nearly_equal?(x<f2>, y<f2>, eps<f2>) -> atom { ^ abs(x - y) <= eps; }
 
 + nearly_equal?(x<f4>, y<f4>) -> atom { ^ nearly_equal?(x, y, limits.epsilon(f4)); }
++ nearly_equal?(x<f4>, y<f4>, eps<f4>) when x ~~> u4 == y ~~> u4 && !nan?(x) -> atom { ^ :true; }
 + nearly_equal?(x<f4>, y<f4>, eps<f4>) when x == y -> atom { ^ :true; }
 + nearly_equal?(x<f4>, y<f4>, eps<f4>) -> atom { ^ abs(x - y) <= eps; }
 
 + nearly_equal?(x<f8>, y<f8>) -> atom { ^ nearly_equal?(x, y, limits.epsilon(f8)); }
++ nearly_equal?(x<f8>, y<f8>, eps<f8>) when x ~~> u8 == y ~~> u8 && !nan?(x) -> atom { ^ :true; }
 + nearly_equal?(x<f8>, y<f8>, eps<f8>) when x == y -> atom { ^ :true; }
 + nearly_equal?(x<f8>, y<f8>, eps<f8>) -> atom { ^ abs(x - y) <= eps; }
 
