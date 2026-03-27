@@ -1,0 +1,9 @@
+package error;
+require core.basic ~> .;
+require core.ffi.error ~> ffi_error;
+
+++ runtime_error(msg<{c1, :c}>) -> ()
+{
+	ffi_error.__glc_runtime_error(msg ~~> c1*);
+	^ ();
+}

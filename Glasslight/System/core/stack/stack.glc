@@ -1,6 +1,7 @@
 package stack;
 require core.common ~> .;
 require core.array ~> .;
+require core.error ~> error;
 
 record stack_r<$t<typeid> >
 {
@@ -33,7 +34,7 @@ record stack_r<$t<typeid> >
 	}
 
 	# Returns the top element. Errors on empty stack.
-	- top when self.empty? -> t { runtime_error("stack_r.top: empty stack"); }
+	- top when self.empty? -> t { error.runtime_error("stack_r.top: empty stack"); }
 	- top -> t { ^ self.buf.top; }
 
 	# Removes all elements but keeps allocation.

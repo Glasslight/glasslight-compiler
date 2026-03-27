@@ -2,6 +2,7 @@ package env;
 require core.common ~> .;
 require core.string ~> .;
 require core.platform.win.kernel32 ~> kernel32;
+require core.error ~> error;
 
 # Get an env var through the Win32 backend.
 ++ get_env(name<{c1, :c}>) -> (env_get_result_e, {c1})
@@ -18,7 +19,7 @@ require core.platform.win.kernel32 ~> kernel32;
 
 	if(written + 1_u4 != required)
 	{
-		runtime_error("env.get_env: Windows GetEnvironmentVariableA failed");
+		error.runtime_error("env.get_env: Windows GetEnvironmentVariableA failed");
 	}
 
 	result.buf.length = written ~> u8 ~~> size;
@@ -40,7 +41,7 @@ require core.platform.win.kernel32 ~> kernel32;
 
 	if(!kernel32.SetEnvironmentVariableA(name, value))
 	{
-		runtime_error("env.set_env: Windows SetEnvironmentVariableA failed");
+		error.runtime_error("env.set_env: Windows SetEnvironmentVariableA failed");
 	}
 
 	if(existed)
@@ -61,7 +62,7 @@ require core.platform.win.kernel32 ~> kernel32;
 
 	if(!kernel32.SetEnvironmentVariableA(name, nil))
 	{
-		runtime_error("env.unset_env: Windows SetEnvironmentVariableA failed");
+		error.runtime_error("env.unset_env: Windows SetEnvironmentVariableA failed");
 	}
 
 	^ :removed;

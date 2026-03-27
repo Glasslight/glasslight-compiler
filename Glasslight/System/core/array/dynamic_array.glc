@@ -3,6 +3,7 @@ require core.common ~> .;
 require core.context ~> .;
 require core.allocator ~> .;
 require core.mem ~> .;
+require core.error ~> error;
 
 record dynamic_array_r<$t<typeid> >
 {
@@ -124,7 +125,7 @@ record dynamic_array_r<$t<typeid> >
 
 		if(nil?(new_raw))
 		{
-			runtime_error("dynamic_array_r.reserve: out of memory");
+			error.runtime_error("dynamic_array_r.reserve: out of memory");
 		}
 
 		self.data = new_raw ~~> t*;
@@ -334,7 +335,7 @@ record dynamic_array_r<$t<typeid> >
 
 		if(nil?(resized))
 		{
-			runtime_error("dynamic_array_r.shrink: out of memory");
+			error.runtime_error("dynamic_array_r.shrink: out of memory");
 		}
 
 		self.data = resized ~~> t*;
@@ -408,7 +409,7 @@ record dynamic_array_r<$t<typeid> >
 
 		if(nil?(raw))
 		{
-			runtime_error("make: out of memory");
+			error.runtime_error("make: out of memory");
 		}
 
 		result.data = raw ~~> t*;

@@ -1,0 +1,8 @@
+package ffi_error;
+require core.basic;
+
+[[:builtin, :static]]
+foreign "core/ffi/error" ~> .
+{
+	+ __glc_runtime_error(msg<basic.c1*>) -> basic.cvoid ->> ();
+}

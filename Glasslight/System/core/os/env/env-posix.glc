@@ -3,6 +3,7 @@ require core.common ~> .;
 require core.c ~> c;
 require core.string ~> .;
 require core.platform.posix.env ~> posix_env;
+require core.error ~> error;
 
 # Copy a native env string into an owned string.
 ++ copy_env_value(value<{c1, :c}>) -> {c1}
@@ -49,7 +50,7 @@ require core.platform.posix.env ~> posix_env;
 
 		if(posix_env.setenv(name, value, 0_s4) != 0_s4)
 		{
-			runtime_error("env.set_env: POSIX setenv failed");
+			error.runtime_error("env.set_env: POSIX setenv failed");
 		}
 
 		^ :set;
@@ -57,7 +58,7 @@ require core.platform.posix.env ~> posix_env;
 
 	if(posix_env.setenv(name, value, 1_s4) != 0_s4)
 	{
-		runtime_error("env.set_env: POSIX setenv failed");
+		error.runtime_error("env.set_env: POSIX setenv failed");
 	}
 
 	if(existed)
@@ -78,7 +79,7 @@ require core.platform.posix.env ~> posix_env;
 
 	if(posix_env.unsetenv(name) != 0_s4)
 	{
-		runtime_error("env.unset_env: POSIX unsetenv failed");
+		error.runtime_error("env.unset_env: POSIX unsetenv failed");
 	}
 
 	^ :removed;

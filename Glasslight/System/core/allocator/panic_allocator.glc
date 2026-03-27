@@ -1,5 +1,6 @@
 package allocator;
 require core.basic ~> .;
+require core.error ~> error;
 
 # Allocator function that raises a runtime error on allocation attempts.
 # Free is a no-op, and zero-size realloc is treated as a no-op.
@@ -9,7 +10,7 @@ require core.basic ~> .;
 	{
 		case :alloc =>
 		{
-			runtime_error("panic allocator: allocation attempted");
+			error.runtime_error("panic allocator: allocation attempted");
 			^ nil;
 		}
 
@@ -25,7 +26,7 @@ require core.basic ~> .;
 				^ nil;
 			}
 
-			runtime_error("panic allocator: reallocation attempted");
+			error.runtime_error("panic allocator: reallocation attempted");
 			^ nil;
 		}
 	}

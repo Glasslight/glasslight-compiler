@@ -3,6 +3,7 @@ require core.common ~> .;
 require core.array ~> .;
 require core.mem ~> .;
 require core.c ~> c;
+require core.error ~> error;
 
 record string_r
 {
@@ -415,7 +416,7 @@ record string_r
 
 		if(nil?(resized))
 		{
-			runtime_error("string_r.shrink: out of memory");
+			error.runtime_error("string_r.shrink: out of memory");
 		}
 
 		self.buf.data = resized ~~> c1*;
@@ -515,4 +516,43 @@ record string_r
 ++ make_empty_string -> {c1}
 {
 	^ make_string(0_sz);
+}
+
+# Join an array of strings with a separator.
+++ make_joined_string(strs<[{c1}, :dynamic]>, sep<{c1, ()}>) -> {c1}
+{
+	let count<size> = strs.length;
+
+	if(count == 0_sz)
+	{
+		^ make_empty_string;
+	}
+
+	# Calculate total length for pre-allocation.
+	let total<size> = 0_sz;
+	let sep_len<size> = sep.length();
+
+	for(let i<size> = 0_sz; i < count; i += 1_sz)
+	{
+		total += strs[i].length();
+
+		if(i > 0_sz)
+		{
+			total += sep_len;
+		}
+	}
+
+	let result<{c1}> = make_string(total);
+
+	for(let i<size> = 0_sz; i < count; i += 1_sz)
+	{
+		if(i > 0_sz)
+		{
+			result.append!(sep);
+		}
+
+		result.append!(strs[i].view);
+	}
+
+	^ result;
 }

@@ -1,6 +1,7 @@
 package atom;
 require core.common ~> .;
 require core.mem ~> .;
+require core.error ~> error;
 
 record atomset_r
 {
@@ -71,7 +72,7 @@ record atomset_r
 		{
 			allocator_free(self.alloc, new_keys);
 			allocator_free(self.alloc, new_states);
-			runtime_error("atomset_r.rehash!: out of memory");
+			error.runtime_error("atomset_r.rehash!: out of memory");
 		}
 
 		__glc_mem_set(new_states, 0_u1, state_bytes);
