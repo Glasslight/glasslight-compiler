@@ -5,16 +5,16 @@ require core.allocator ~> .;
 # Context record declaration.
 record context_r
 {
-	let allocator_main<allocator_r>;
-	let allocator_temp<allocator_r>;
+	let main<allocator_r>;
+	let transient<allocator_r>;
 	let user_data<voidptr> = nil;
 }
 
 # Initialize context.
 + __glc_init_ctx(ctx<context_r*>) -> ()
 {
-	ctx.allocator_main = make_default_allocator();
-	ctx.allocator_temp = make_default_allocator();
+	ctx.main = make_default_allocator;
+	ctx.transient = make_arena_allocator(&arena_allocator_global_state, make_default_allocator, 4096_sz);
 	^ ();
 }
 

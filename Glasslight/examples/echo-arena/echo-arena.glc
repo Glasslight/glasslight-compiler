@@ -1,0 +1,21 @@
+package main;
+require core.common ~> .;
+require core.string ~> .;
+require core.os.print ~> os;
+require core.os.argv ~> argv;
+
+++ echo -> ()
+{
+	let ctx<context_r> = ctx;
+	ctx.main = ctx.transient;
+
+	let args<[{c1}, :dynamic]> = argv.argv_args;
+	let result<{c1}> = make_joined_string(args, " ");
+
+	os.println(result.to_cstring);
+	arena_allocator_release!(&arena_allocator_global_state);
+
+	^ ();
+}
+
+echo;

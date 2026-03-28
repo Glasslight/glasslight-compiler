@@ -23,6 +23,9 @@ record arena_allocator_state_r
 	let last_block<voidptr> = nil;
 }
 
+# Global state for the default transient arena allocator (initialized by __glc_init_ctx).
+let arena_allocator_global_state<arena_allocator_state_r>;
+
 # Per-allocation header stored immediately before each arena payload.
 record arena_allocator_header_r
 {

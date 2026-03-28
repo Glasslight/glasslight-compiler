@@ -15,7 +15,7 @@ Example:
 	let buf<[u1, 1024_sz]>;
 	let state<scratch_allocator_state_r>;
 
-	ctx.allocator_main = make_scratch_allocator(&state, buf.data(), 1024_sz);
+	ctx.main = make_scratch_allocator(&state, buf.data(), 1024_sz);
 
 This allocator uses bump allocation, rewinds only when freeing the most recent block,
 and may move older allocations during realloc by reserving a new block and copying data.

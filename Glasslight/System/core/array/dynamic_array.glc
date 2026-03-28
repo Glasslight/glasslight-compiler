@@ -399,7 +399,7 @@ record dynamic_array_r<$t<typeid> >
 ++ make_array($t<typeid>, cap<size>) -> [t, :dynamic]
 {
 	let result<[t, :dynamic]>;
-	result.alloc = ctx.allocator_main;
+	result.alloc = ctx.main;
 	result.capacity = cap;
 
 	if(cap > 0_sz)

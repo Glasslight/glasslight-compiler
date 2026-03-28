@@ -40,7 +40,7 @@ record atomset_r
 		if(!self.alloc_initialized)
 		{
 			let ctx<context_r> = get_default_ctx;
-			self.alloc = ctx.allocator_main;
+			self.alloc = ctx.main;
 			self.alloc_initialized = :true;
 		}
 
@@ -361,7 +361,7 @@ record atomset_r
 ++ make_atomset(cap<size>) -> atomset_r
 {
 	let result<atomset_r>;
-	result.alloc = ctx.allocator_main;
+	result.alloc = ctx.main;
 	result.alloc_initialized = :true;
 
 	if(cap > 0_sz)
