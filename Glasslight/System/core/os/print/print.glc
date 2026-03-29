@@ -12,6 +12,11 @@ require core.string ~> .;
 	^ print("\n");
 }
 
++ println(text<{c1}>) -> atom
+{
+	println(text.to_cstring);
+}
+
 + eprintln(text<{c1, :c}>) -> atom
 {
 	if(!eprint(text))
@@ -20,4 +25,9 @@ require core.string ~> .;
 	}
 
 	^ eprint("\n");
+}
+
++ eprintln(text<{c1}>) -> atom
+{
+	eprintln(text.to_cstring);
 }
