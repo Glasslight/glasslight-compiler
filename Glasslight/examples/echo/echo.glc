@@ -4,21 +4,14 @@ require core.string ~> .;
 require core.os.print ~> os;
 require core.os.argv ~> argv;
 
-++ echo -> ()
+let args<[{c1}, :dynamic]> = argv.argv_args;
+let result<{c1}> = make_joined_string(args, " ");
+
+os.println(result.to_cstring);
+result.delete;
+
+for(let i<size> = 0_sz; i < args.length; i += 1_sz)
 {
-	let args<[{c1}, :dynamic]> = argv.argv_args;
-	let result<{c1}> = make_joined_string(args, " ");
-
-	os.println(result.to_cstring);
-	result.delete;
-
-	for(let i<size> = 0_sz; i < args.length; i += 1_sz)
-	{
-		args[i].delete;
-	}
-	args.delete;
-
-	^ ();
+	args[i].delete;
 }
-
-echo;
+args.delete;

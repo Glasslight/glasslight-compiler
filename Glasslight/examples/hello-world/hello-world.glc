@@ -1,10 +1,4 @@
 package main;
 require core.os.print ~> os;
 
-+ hello_world -> ()
-{
-	os.println("Hello, World!");
-	^ ();
-}
-
-hello_world;
+os.println("Hello, World!");
