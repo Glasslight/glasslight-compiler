@@ -13,7 +13,7 @@ require core.os.argv ~> argv;
 	let result<{c1}> = make_joined_string(args, " ");
 
 	os.println(result.to_cstring);
-	arena_allocator_release!(&arena_allocator_global_state);
+	arena_allocator_release!(ctx.transient.user_data ~~> arena_allocator_state_r*);
 
 	^ ();
 }
