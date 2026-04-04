@@ -152,6 +152,8 @@ record scratch_allocator_header_r
 			^ result;
 		}
 	}
+
+	^ nil;
 }
 
 # Initializes scratch allocator state around caller-supplied storage.

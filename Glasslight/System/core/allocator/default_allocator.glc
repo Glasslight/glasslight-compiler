@@ -23,6 +23,8 @@ require core.mem ~> mem;
 			^ mem.realloc(ptr, bytes);
 		}
 	}
+
+	^ nil;
 }
 
 # Creates the default allocator backed by core.mem.

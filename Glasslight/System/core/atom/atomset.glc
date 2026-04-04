@@ -158,6 +158,8 @@ record atomset_r
 				idx = 0_sz;
 			}
 		}
+
+		^ :false;
 	}
 
 	# Insert a new atom and return :true, or :false if it already exists.
@@ -220,6 +222,8 @@ record atomset_r
 				idx = 0_sz;
 			}
 		}
+
+		^ :false;
 	}
 
 	# Remove an atom and return :true, or :false if it is absent.
@@ -253,6 +257,8 @@ record atomset_r
 				idx = 0_sz;
 			}
 		}
+
+		^ :false;
 	}
 
 	# Remove all live elements while preserving allocated storage.

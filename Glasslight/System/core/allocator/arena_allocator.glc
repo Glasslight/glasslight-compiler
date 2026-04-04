@@ -168,6 +168,8 @@ record arena_allocator_header_r
 			state.tail = current ~~> voidptr;
 		}
 	}
+
+	^ nil;
 }
 
 # Reset the arena for bulk reuse while keeping owned blocks.
@@ -313,6 +315,8 @@ record arena_allocator_header_r
 			^ result;
 		}
 	}
+
+	^ nil;
 }
 
 # Create a growing arena allocator that owns its internal block chain.
@@ -338,4 +342,3 @@ record arena_allocator_header_r
 
 	^ a;
 }
-

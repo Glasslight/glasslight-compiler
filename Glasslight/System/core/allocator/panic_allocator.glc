@@ -30,6 +30,8 @@ require core.error ~> error;
 			^ nil;
 		}
 	}
+
+	^ nil;
 }
 
 # Create a panic allocator that traps on alloc and non-zero realloc.
