@@ -9,5 +9,5 @@ ctx.main = ctx.transient;
 let args<[{c1}, :dynamic]> = argv.argv_args;
 let result<{c1}> = make_joined_string(args, " ");
 
-os.println(result.to_cstring);
+os.println(result);
 arena_allocator_release!(ctx.transient.user_data);
