@@ -31,3 +31,13 @@ require core.string ~> .;
 {
 	^ eprintln(text.to_cstring);
 }
+
++ print(text<{c1}>) -> atom
+{
+	^ print(text.to_cstring);
+}
+
++ eprint(text<{c1}>) -> atom
+{
+	^ eprint(text.to_cstring);
+}
