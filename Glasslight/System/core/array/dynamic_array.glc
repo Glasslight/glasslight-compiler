@@ -110,7 +110,7 @@ record dynamic_array_r<$t<typeid> >
 	- reserve(new_cap<size>) when new_cap <= self.capacity -> () { ^ (); }
 	- reserve(new_cap<size>) -> ()
 	{
-		let bytes<size> = new_cap * (sizeof t);
+		let bytes<size> = new_cap * (typeinfo(t, :bytes));
 		let old_raw<voidptr> = self.data ~~> voidptr;
 		let new_raw<voidptr> = nil;
 
@@ -163,7 +163,7 @@ record dynamic_array_r<$t<typeid> >
 		self.ensure_capacity(new_len);
 
 		let dst<voidptr> = (self.data + old_len) ~~> voidptr;
-		let bytes<size> = add_len * (sizeof t);
+		let bytes<size> = add_len * (typeinfo(t, :bytes));
 
 		if(self_alias)
 		{
@@ -250,7 +250,7 @@ record dynamic_array_r<$t<typeid> >
 		{
 			let src<voidptr> = (self.data + idx) ~~> voidptr;
 			let dst<voidptr> = (self.data + idx + 1_sz) ~~> voidptr;
-			let bytes<size> = tail_count * (sizeof t);
+			let bytes<size> = tail_count * (typeinfo(t, :bytes));
 			__glc_mem_move(dst, src, bytes);
 		}
 
@@ -330,7 +330,7 @@ record dynamic_array_r<$t<typeid> >
 			^ ();
 		}
 
-		let bytes<size> = self.length * (sizeof t);
+		let bytes<size> = self.length * (typeinfo(t, :bytes));
 		let resized<voidptr> = allocator_realloc(self.alloc, self.data ~~> voidptr, bytes);
 
 		if(nil?(resized))
@@ -371,7 +371,7 @@ record dynamic_array_r<$t<typeid> >
 	{
 		self.ensure_capacity(n);
 
-		let bytes<size> = n * (sizeof t);
+		let bytes<size> = n * (typeinfo(t, :bytes));
 		__glc_mem_set(self.data ~~> voidptr, 0_u1, bytes);
 		self.length = n;
 
@@ -404,7 +404,7 @@ record dynamic_array_r<$t<typeid> >
 
 	if(cap > 0_sz)
 	{
-		let bytes<size> = cap * (sizeof t);
+		let bytes<size> = cap * (typeinfo(t, :bytes));
 		let raw<voidptr> = allocator_alloc(result.alloc, bytes);
 
 		if(nil?(raw))
@@ -429,7 +429,7 @@ record dynamic_array_r<$t<typeid> >
 	{
 		let dst<voidptr> = result.data ~~> voidptr;
 		let src<t*> = a.data();
-		let bytes<size> = n * (sizeof t);
+		let bytes<size> = n * (typeinfo(t, :bytes));
 		__glc_mem_copy(dst, src ~~> voidptr, bytes);
 	}
 

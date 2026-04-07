@@ -42,7 +42,7 @@ record arena_allocator_header_r
 # Return the allocation header for an arena payload pointer.
 + arena_allocator_get_header(ptr<voidptr>) -> arena_allocator_header_r*
 {
-	let header_bytes<size> = sizeof arena_allocator_header_r;
+	let header_bytes<size> = typeinfo(arena_allocator_header_r, :bytes);
 	let payload<u1*> = ptr ~~> u1*;
 
 	^ (payload - header_bytes) ~~> arena_allocator_header_r*;
@@ -52,7 +52,7 @@ record arena_allocator_header_r
 + arena_allocator_min_payload(bytes<size>, align<size>) -> size
 {
 	let resolved_align<size> = effective_align(align);
-	let header_bytes<size> = sizeof arena_allocator_header_r;
+	let header_bytes<size> = typeinfo(arena_allocator_header_r, :bytes);
 
 	^ header_bytes + bytes + (resolved_align - 1_sz);
 }
@@ -67,7 +67,7 @@ record arena_allocator_header_r
 		payload_bytes = min_payload;
 	}
 
-	let raw_bytes<size> = sizeof arena_allocator_block_r + payload_bytes;
+	let raw_bytes<size> = typeinfo(arena_allocator_block_r, :bytes) + payload_bytes;
 	let raw<voidptr> = allocator_alloc(state.backing, raw_bytes);
 
 	if(nil?(raw))
@@ -77,7 +77,7 @@ record arena_allocator_header_r
 
 	let block<arena_allocator_block_r*> = raw ~~> arena_allocator_block_r*;
 	block.next_block = nil;
-	block.base = (raw ~~> u1*) + (sizeof arena_allocator_block_r);
+	block.base = (raw ~~> u1*) + (typeinfo(arena_allocator_block_r, :bytes));
 	block.capacity = payload_bytes;
 	block.offset = 0_sz;
 
@@ -100,7 +100,7 @@ record arena_allocator_header_r
 + arena_allocator_alloc_in_block(block<arena_allocator_block_r*>, bytes<size>, align<size>) -> voidptr
 {
 	let resolved_align<size> = effective_align(align);
-	let header_bytes<size> = sizeof arena_allocator_header_r;
+	let header_bytes<size> = typeinfo(arena_allocator_header_r, :bytes);
 	let block_start<size> = block.offset;
 	let block_base<u1*> = block.base;
 	let block_base_addr<size> = block_base ~~> size;
@@ -277,7 +277,7 @@ record arena_allocator_header_r
 			{
 				let block<arena_allocator_block_r*> = arena_allocator_as_block(state.last_block);
 				let resolved_align<size> = effective_align(align);
-				let header_bytes<size> = sizeof arena_allocator_header_r;
+				let header_bytes<size> = typeinfo(arena_allocator_header_r, :bytes);
 				let block_base<u1*> = block.base;
 				let block_base_addr<size> = block_base ~~> size;
 				let payload_addr<size> = align_up(block_base_addr + header.block_start + header_bytes, resolved_align);
@@ -329,7 +329,7 @@ record arena_allocator_header_r
 
 	if(state.default_block_size == 0_sz)
 	{
-		state.default_block_size = alignof voidptr;
+		state.default_block_size = typeinfo(voidptr, :alignment);
 	}
 
 	state.last_ptr = nil;

@@ -60,8 +60,8 @@ record atomset_r
 	- rehash!(requested<size>) -> ()
 	{
 		let target<size> = atomset_r.round_capacity(requested);
-		let key_bytes<size> = target * (sizeof atom);
-		let state_bytes<size> = target * (sizeof u1);
+		let key_bytes<size> = target * (typeinfo(atom, :bytes));
+		let state_bytes<size> = target * (typeinfo(u1, :bytes));
 
 		self.ensure_allocator!;
 
@@ -266,7 +266,7 @@ record atomset_r
 	{
 		if(self.capacity > 0_sz)
 		{
-			let state_bytes<size> = self.capacity * (sizeof u1);
+			let state_bytes<size> = self.capacity * (typeinfo(u1, :bytes));
 			__glc_mem_set(self.states ~~> voidptr, 0_u1, state_bytes);
 		}
 

@@ -35,7 +35,7 @@ record allocator_r
 }
 
 # Resolve allocator alignment, defaulting zero to pointer alignment.
-+ effective_align(0_sz) -> size { ^ alignof voidptr; }
++ effective_align(0_sz) -> size { ^ typeinfo(voidptr, :alignment); }
 + effective_align(align<size>) -> size { ^ align; }
 
 # Allocate memory using an allocator.

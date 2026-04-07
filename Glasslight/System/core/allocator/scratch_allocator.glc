@@ -41,7 +41,7 @@ record scratch_allocator_header_r
 # Returns the allocation header associated with a payload pointer.
 + scratch_allocator_get_header(ptr<voidptr>) -> scratch_allocator_header_r*
 {
-	let header_bytes<size> = sizeof scratch_allocator_header_r;
+	let header_bytes<size> = typeinfo(scratch_allocator_header_r, :bytes);
 	let payload<u1*> = ptr ~~> u1*;
 
 	^ (payload - header_bytes) ~~> scratch_allocator_header_r*;
@@ -51,7 +51,7 @@ record scratch_allocator_header_r
 + scratch_allocator_alloc_impl(state<scratch_allocator_state_r*>, bytes<size>, align<size>) -> voidptr
 {
 	let resolved_align<size> = effective_align(align);
-	let header_bytes<size> = sizeof scratch_allocator_header_r;
+	let header_bytes<size> = typeinfo(scratch_allocator_header_r, :bytes);
 	let block_start<size> = state.offset;
 	let base_addr<size> = state.base ~~> size;
 	let payload_addr<size> = align_up(base_addr + block_start + header_bytes, resolved_align);
@@ -113,7 +113,7 @@ record scratch_allocator_header_r
 			if(ptr == state.last_ptr)
 			{
 				let resolved_align<size> = effective_align(align);
-				let header_bytes<size> = sizeof scratch_allocator_header_r;
+				let header_bytes<size> = typeinfo(scratch_allocator_header_r, :bytes);
 				let base_addr<size> = state.base ~~> size;
 				let payload_addr<size> = align_up(base_addr + header.block_start + header_bytes, resolved_align);
 				let payload_offset<size> = payload_addr - base_addr;

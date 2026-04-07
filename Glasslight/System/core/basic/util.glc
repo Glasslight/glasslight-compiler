@@ -15,7 +15,7 @@ package basic;
 + byte_diff($t<typeid>, a<t*>, b<t*>) -> s8 { ^ (a ~~> s8) - (b ~~> s8); }
 
 # Return the element difference between two typed pointers (a - b) as a signed value.
-+ ptr_diff($t<typeid>, a<t*>, b<t*>) -> s8 { ^ ((a ~~> s8) - (b ~~> s8)) / (sizeof t ~~> s8); }
++ ptr_diff($t<typeid>, a<t*>, b<t*>) -> s8 { ^ ((a ~~> s8) - (b ~~> s8)) / (typeinfo(t, :bytes) ~~> s8); }
 
 # Return the stride-based element difference between two typed pointers.
-+ stride_diff($t<typeid>, a<t*>, b<t*>) -> s8 { ^ ((a ~~> s8) - (b ~~> s8)) / (strideof t ~~> s8); }
++ stride_diff($t<typeid>, a<t*>, b<t*>) -> s8 { ^ ((a ~~> s8) - (b ~~> s8)) / (typeinfo(t, :stride) ~~> s8); }

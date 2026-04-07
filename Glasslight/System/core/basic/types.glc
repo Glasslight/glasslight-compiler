@@ -120,7 +120,7 @@ atomenum compare_result_e
 	:greater
 }
 
-# Type kind atomenum for the kindof operator.
+# Type kind atomenum for `typeinfo(..., :kind)`.
 atomenum typekind_e
 {
 	:signed,

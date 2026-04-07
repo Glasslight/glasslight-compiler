@@ -1,0 +1,25 @@
+package builtin;
+require core.basic;
+
+# Boolean atomenum.
+atomenum bool_e
+{
+	:true,
+	:false
+}
+
+# Optional boolean atomenum.
+atomenum optional_bool_e
+{
+	:true,
+	:false,
+	:none
+}
+
+# Maybe boolean atomenum.
+atomenum maybe_bool_e
+{
+	:true,
+	:false,
+	:maybe
+}
