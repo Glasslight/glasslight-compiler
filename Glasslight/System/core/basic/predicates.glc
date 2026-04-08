@@ -68,6 +68,10 @@ package basic;
 + atomset?($t<typeid>) when typeinfo(t, :kind) == :atomset -> atom { ^ :true; }
 + atomset?($t<typeid>) -> atom { ^ :false; }
 
+# Return true if type is a stack.
++ stack?($t<typeid>) when typeinfo(t, :kind) == :stack -> atom { ^ :true; }
++ stack?($t<typeid>) -> atom { ^ :false; }
+
 # Return true if type supports equality comparison.
 + comparable?($t<typeid>) when typeinfo(t, :compare) != :none -> atom { ^ :true; }
 + comparable?($t<typeid>) -> atom { ^ :false; }

@@ -18,14 +18,16 @@ intrinsic
 {
 	let bytes<size> = typeinfo(t, :bytes);
 	let raw<voidptr> = alloc(bytes);
+
 	^ raw ~~> t*;
 }
 
 # Allocate memory for a given type (number of instances).
 + alloc($t<typeid>, $count<size>) -> t*
 {
-	const bytes<size> = (typeinfo(t, :bytes)) * count;
+	const bytes<size> = typeinfo(t, :bytes) * count;
 	let raw<voidptr> = alloc(bytes);
+
 	^ raw ~~> t*;
 }
 
@@ -34,15 +36,17 @@ intrinsic
 {
 	let bytes<size> = typeinfo(t, :bytes);
 	let raw<voidptr> = calloc(count, bytes);
+
 	^ raw ~~> t*;
 }
 
 # Reallocate memory for a given type (number of instances).
 + realloc($t<typeid>, ptr<t*>, count<size>) -> t*
 {
-	let bytes<size> = (typeinfo(t, :bytes)) * count;
+	let bytes<size> = typeinfo(t, :bytes) * count;
 	let old_ptr<voidptr> = ptr ~~> voidptr;
 	let raw<voidptr> = realloc(old_ptr, bytes);
+
 	^ raw ~~> t*;
 }
 
@@ -51,5 +55,6 @@ intrinsic
 {
 	let raw<voidptr> = ptr ~~> voidptr;
 	free(raw);
+
 	^ ();
 }

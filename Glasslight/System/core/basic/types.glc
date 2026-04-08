@@ -85,6 +85,9 @@ package basic;
 # Base type for dynamic arrays — [T, :dynamic] resolves to dynamic_array_r<T>.
 [[(:kind, :dynamic_array), (:record, :dynamic_array_r)]] typecreate _;
 
+# Base type for stacks — [T, :stack] resolves to stack_r<T>.
+[[(:kind, :stack), (:record, :stack_r)]] typecreate _;
+
 # Base type for static arrays — enables typemix methods on all [T, N] types.
 [[(:kind, :static_array), :mixable, (:compare, :fields), (:order, :fields)]] typecreate static_array;
 
@@ -142,6 +145,7 @@ atomenum typekind_e
 	:typeid,
 	:static_array,
 	:dynamic_array,
+	:stack,
 	:array_view_unsized,
 	:array_view_sized,
 	:cstring,
