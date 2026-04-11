@@ -63,6 +63,13 @@ record stack_r<$t<typeid> >
 		self.buf.shrink;
 		^ ();
 	}
+
+	# Return a view.
+	- view -> [t, ()]
+	{
+		let v<[t, ()]> = self.buf.view;
+		^ v;
+	}
 }
 
 # Create a stack with initial capacity.

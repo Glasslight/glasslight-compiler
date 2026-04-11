@@ -1,0 +1,125 @@
+package enums;
+require core.common ~> .;
+require core.basic.limits ~> .;
+require core.array ~> arr;
+
+# Calls f for each element in input order.
+++ each($t<typeid>, input<[t, ()]>, f<(t) -> ()>) -> ()
+{
+	for(let i<size> = 0_sz; i < input.length; i += 1_sz)
+	{
+		f(input[i]);
+	}
+
+	^ ();
+}
+
+# Builds a new dynamic array by transforming each input element.
+++ map($in_t<typeid>, $out_t<typeid>, input<[in_t, ()]>, f<(in_t) -> out_t>) -> [out_t, :dynamic]
+{
+	let result<[out_t, :dynamic]> = arr.make_array(out_t, input.length);
+
+	for(let i<size> = 0_sz; i < input.length; i += 1_sz)
+	{
+		result.append!(f(input[i]));
+	}
+
+	^ result;
+}
+
+# Folds input from left to right using an explicit accumulator value.
+++ reduce($in_t<typeid>, $acc_t<typeid>, input<[in_t, ()]>, init<acc_t>, f<(acc_t, in_t) -> acc_t>) -> acc_t
+{
+	let acc<acc_t> = init;
+
+	for(let i<size> = 0_sz; i < input.length; i += 1_sz)
+	{
+		acc = f(acc, input[i]);
+	}
+
+	^ acc;
+}
+
+# Builds a new dynamic array containing the left input followed by the right input.
+++ concat($t<typeid>, left<[t, ()]>, right<[t, ()]>) -> [t, :dynamic]
+{
+	let result<[t, :dynamic]> = arr.make_array(t, left.length + right.length);
+	result.append!(left);
+	result.append!(right);
+
+	^ result;
+}
+
+# Builds a new dynamic array containing only elements that satisfy pred.
+++ filter($t<typeid>, input<[t, ()]>, pred<(t) -> atom>) -> [t, :dynamic]
+{
+	let result<[t, :dynamic]> = arr.make_array(t, input.length);
+
+	for(let i<size> = 0_sz; i < input.length; i += 1_sz)
+	{
+		let value<t> = input[i];
+
+		if(pred(value))
+		{
+			result.append!(value);
+		}
+	}
+
+	^ result;
+}
+
+# Returns (:true, idx) for the first matching element, or (:false, max(size)).
+++ find($t<typeid>, input<[t, ()]>, pred<(t) -> atom>) -> (atom, size)
+{
+	for(let i<size> = 0_sz; i < input.length; i += 1_sz)
+	{
+		if(pred(input[i]))
+		{
+			^ (:true, i);
+		}
+	}
+
+	^ (:false, max(size));
+}
+
+# Returns :true when any element satisfies pred.
+++ any?($t<typeid>, input<[t, ()]>, pred<(t) -> atom>) -> atom
+{
+	let (ok<atom>, _) = find(input, pred);
+	^ ok;
+}
+
+# Returns :true when every element satisfies pred.
+++ all?($t<typeid>, input<[t, ()]>, pred<(t) -> atom>) -> atom
+{
+	for(let i<size> = 0_sz; i < input.length; i += 1_sz)
+	{
+		if(!pred(input[i]))
+		{
+			^ :false;
+		}
+	}
+
+	^ :true;
+}
+
+# Returns :true when no element satisfies pred.
+++ none?($t<typeid>, input<[t, ()]>, pred<(t) -> atom>) -> atom
+{
+	let any_match<atom> = any?(input, pred);
+	^ !any_match;
+}
+
+# Returns :true when input contains value.
++ contains?($t<typeid>, input<[t, ()]>, value<t>) when comparable?(t) -> atom
+{
+	for(let i<size> = 0_sz; i < input.length; i += 1_sz)
+	{
+		if(input[i] == value)
+		{
+			^ :true;
+		}
+	}
+
+	^ :false;
+}

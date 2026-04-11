@@ -1,5 +1,6 @@
 package main;
 require core.common ~> .;
+require core.enums;
 require core.string ~> .;
 require core.os.print ~> os;
 require core.os.argv ~> argv;
@@ -7,11 +8,13 @@ require core.os.argv ~> argv;
 let args<[{c1}, :dynamic]> = argv.argv_args;
 let result<{c1}> = make_joined_string(args, " ");
 
-os.println(result.to_cstring);
+os.println(result);
 result.delete;
 
-for(let i<size> = 0_sz; i < args.length; i += 1_sz)
+enums.each(args.view, \ (arg<{c1}>) -> ()
 {
-	args[i].delete;
-}
+	arg.delete;
+	^ ();
+});
+
 args.delete;
