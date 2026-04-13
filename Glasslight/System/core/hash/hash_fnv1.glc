@@ -33,8 +33,5 @@ require core.atom ~> .;
 	^ result;
 }
 
-+ hash_fnv1(bytes<{c1, ()}>) -> hash { ^ hash_fnv1(bytes.view); }
-+ hash_fnv1a(bytes<{c1, ()}>) -> hash { ^ hash_fnv1a(bytes.view); }
-
-+ hash_fnv1(a<atom>) -> hash { ^ hash_fnv1(__glc_atom_to_string_view(a)); }
-+ hash_fnv1a(a<atom>) -> hash { ^ hash_fnv1a(__glc_atom_to_string_view(a)); }
++ hash_fnv1(a<atom>) -> hash { ^ hash_fnv1(__glc_atom_to_view(a)); }
++ hash_fnv1a(a<atom>) -> hash { ^ hash_fnv1a(__glc_atom_to_view(a)); }

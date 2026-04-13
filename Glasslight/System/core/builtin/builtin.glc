@@ -44,14 +44,14 @@ intrinsic
 	+ __glc_posix -> atom;
 
 	# Compiler version string.
-	+ __glc_version -> {c1, :const};
+	+ __glc_version -> [c1, :const];
 
 	# Root path of the configured system package directory.
-	+ __glc_system_path -> {c1, :const};
+	+ __glc_system_path -> [c1, :const];
 
 	# Root path of the configured package search directory.
-	+ __glc_package_path -> {c1, :const};
+	+ __glc_package_path -> [c1, :const];
 
 	# Directory path of the current test package.
-	+ __glc_test_path -> {c1, :const};
+	+ __glc_test_path -> [c1, :const];
 }

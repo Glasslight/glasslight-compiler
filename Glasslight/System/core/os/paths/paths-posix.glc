@@ -10,9 +10,9 @@ require core.platform.posix.unistd ~> posix_unistd;
 + separator -> c1 { ^ '/'_c1; }
 
 # Check if a file exists at the given path.
-++ file_exists?(path<{c1, ()}>) -> atom
+++ file_exists?(path<[c1, ()]>) -> atom
 {
-	let tmp<{c1}> = make_string(path);
+	let tmp<[c1]> = make_string(path);
 	let buf<posix_stat.stat_t>;
 
 	defer
@@ -30,9 +30,9 @@ require core.platform.posix.unistd ~> posix_unistd;
 }
 
 # Check if a directory exists at the given path.
-++ directory_exists?(path<{c1, ()}>) -> atom
+++ directory_exists?(path<[c1, ()]>) -> atom
 {
-	let tmp<{c1}> = make_string(path);
+	let tmp<[c1]> = make_string(path);
 	let buf<posix_stat.stat_t>;
 
 	defer
@@ -50,9 +50,9 @@ require core.platform.posix.unistd ~> posix_unistd;
 }
 
 # Create a single directory, returning :true if it was created or already exists.
-++ mkdir_exists_ok(path<{c1, ()}>) -> atom
+++ mkdir_exists_ok(path<[c1, ()]>) -> atom
 {
-	let tmp<{c1}> = make_string(path);
+	let tmp<[c1]> = make_string(path);
 
 	defer
 	{
@@ -73,11 +73,11 @@ require core.platform.posix.unistd ~> posix_unistd;
 }
 
 # Get the current working directory.
-++ current_dir -> (atom, {c1})
+++ current_dir -> (atom, [c1])
 {
 	let buf_size<size> = 1024_sz;
-	let buf<{c1}> = make_string(buf_size);
-	let cwd_result<{c1, :c}> = posix_unistd.getcwd(buf.data(), buf_size);
+	let buf<[c1]> = make_string(buf_size);
+	let cwd_result<[c1, :c]> = posix_unistd.getcwd(buf.data(), buf_size);
 
 	if(cwd_result == nil)
 	{
@@ -102,9 +102,9 @@ require core.platform.posix.unistd ~> posix_unistd;
 }
 
 # Get the temporary directory.
-++ temp_dir -> (atom, {c1})
+++ temp_dir -> (atom, [c1])
 {
-	let raw<{c1, :c}> = posix_env.getenv("TMPDIR");
+	let raw<[c1, :c]> = posix_env.getenv("TMPDIR");
 
 	if(raw != nil)
 	{
@@ -112,7 +112,7 @@ require core.platform.posix.unistd ~> posix_unistd;
 
 		if(raw_len > 0_sz)
 		{
-			let value<{c1}> = make_string(raw_len + 1_sz);
+			let value<[c1]> = make_string(raw_len + 1_sz);
 			c.memcpy(value.data() ~~> voidptr, raw ~~> voidptr, raw_len);
 			value.buf.length = raw_len;
 
@@ -129,9 +129,9 @@ require core.platform.posix.unistd ~> posix_unistd;
 }
 
 # Get the user home directory.
-++ user_dir -> (atom, {c1})
+++ user_dir -> (atom, [c1])
 {
-	let raw<{c1, :c}> = posix_env.getenv("HOME");
+	let raw<[c1, :c]> = posix_env.getenv("HOME");
 
 	if(raw != nil)
 	{
@@ -139,7 +139,7 @@ require core.platform.posix.unistd ~> posix_unistd;
 
 		if(raw_len > 0_sz)
 		{
-			let value<{c1}> = make_string(raw_len + 1_sz);
+			let value<[c1]> = make_string(raw_len + 1_sz);
 			c.memcpy(value.data() ~~> voidptr, raw ~~> voidptr, raw_len);
 			value.buf.length = raw_len;
 
@@ -156,10 +156,10 @@ require core.platform.posix.unistd ~> posix_unistd;
 }
 
 # Convert a path to the platform-native format (forward slashes, no duplicates).
-++ make_platform(path<{c1, ()}>) -> {c1}
+++ make_platform(path<[c1, ()]>) -> [c1]
 {
-	let mp_result<{c1}> = normalize(path);
-	let cleaned<{c1}> = remove_duplicate_slashes(mp_result.view);
+	let mp_result<[c1]> = normalize(path);
+	let cleaned<[c1]> = remove_duplicate_slashes(mp_result.view);
 	mp_result.delete;
 
 	^ cleaned;

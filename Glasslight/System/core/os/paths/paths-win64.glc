@@ -12,9 +12,9 @@ const invalid_file_attributes<u4> = 0xFFFFFFFF_u4;
 const file_attribute_directory<u4> = 0x10_u4;
 
 # Check if a file exists at the given path.
-++ file_exists?(path<{c1, ()}>) -> atom
+++ file_exists?(path<[c1, ()]>) -> atom
 {
-	let tmp<{c1}> = make_string(path);
+	let tmp<[c1]> = make_string(path);
 
 	defer
 	{
@@ -32,9 +32,9 @@ const file_attribute_directory<u4> = 0x10_u4;
 }
 
 # Check if a directory exists at the given path.
-++ directory_exists?(path<{c1, ()}>) -> atom
+++ directory_exists?(path<[c1, ()]>) -> atom
 {
-	let tmp<{c1}> = make_string(path);
+	let tmp<[c1]> = make_string(path);
 
 	defer
 	{
@@ -52,9 +52,9 @@ const file_attribute_directory<u4> = 0x10_u4;
 }
 
 # Create a single directory, returning :true if it was created or already exists.
-++ mkdir_exists_ok(path<{c1, ()}>) -> atom
+++ mkdir_exists_ok(path<[c1, ()]>) -> atom
 {
-	let tmp<{c1}> = make_string(path);
+	let tmp<[c1]> = make_string(path);
 
 	defer
 	{
@@ -75,10 +75,10 @@ const file_attribute_directory<u4> = 0x10_u4;
 }
 
 # Get the current working directory.
-++ current_dir -> (atom, {c1})
+++ current_dir -> (atom, [c1])
 {
 	let buf_size<u4> = 1024_u4;
-	let buf<{c1}> = make_string(buf_size ~> u8 ~~> size);
+	let buf<[c1]> = make_string(buf_size ~> u8 ~~> size);
 	let written<u4> = kernel32.GetCurrentDirectoryA(buf_size, buf.data());
 
 	if(written == 0_u4)
@@ -102,10 +102,10 @@ const file_attribute_directory<u4> = 0x10_u4;
 }
 
 # Get the temporary directory.
-++ temp_dir -> (atom, {c1})
+++ temp_dir -> (atom, [c1])
 {
 	let buf_size<u4> = 1024_u4;
-	let buf<{c1}> = make_string(buf_size ~> u8 ~~> size);
+	let buf<[c1]> = make_string(buf_size ~> u8 ~~> size);
 	let written<u4> = kernel32.GetTempPathA(buf_size, buf.data());
 
 	if(written == 0_u4)
@@ -129,9 +129,9 @@ const file_attribute_directory<u4> = 0x10_u4;
 }
 
 # Get the user home directory.
-++ user_dir -> (atom, {c1})
+++ user_dir -> (atom, [c1])
 {
-	let (found<env.env_get_result_e>, value<{c1}>) = env.get_env("USERPROFILE");
+	let (found<env.env_get_result_e>, value<[c1]>) = env.get_env("USERPROFILE");
 	let keep_value<atom> = :false;
 
 	defer
@@ -163,9 +163,9 @@ const file_attribute_directory<u4> = 0x10_u4;
 }
 
 # Convert a path to the platform-native format (backslashes, no duplicates).
-++ make_platform(path<{c1, ()}>) -> {c1}
+++ make_platform(path<[c1, ()]>) -> [c1]
 {
-	let result<{c1}> = make_string(path);
+	let result<[c1]> = make_string(path);
 
 	defer
 	{
@@ -182,7 +182,7 @@ const file_attribute_directory<u4> = 0x10_u4;
 		^ result;
 	}
 
-	let cleaned<{c1}> = make_string(n);
+	let cleaned<[c1]> = make_string(n);
 	let start<size> = 0_sz;
 
 	# Preserve leading \\ for UNC paths.

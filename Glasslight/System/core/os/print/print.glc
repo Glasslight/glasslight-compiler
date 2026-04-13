@@ -2,7 +2,7 @@ package print;
 require core.basic ~> .;
 require core.string ~> .;
 
-+ println(text<{c1, :c}>) -> atom
++ println(text<[c1, :c]>) -> atom
 {
 	if(!print(text))
 	{
@@ -12,12 +12,12 @@ require core.string ~> .;
 	^ print("\n");
 }
 
-+ println(text<{c1}>) -> atom
++ println(text<[c1]>) -> atom
 {
 	^ println(text.to_cstring);
 }
 
-+ eprintln(text<{c1, :c}>) -> atom
++ eprintln(text<[c1, :c]>) -> atom
 {
 	if(!eprint(text))
 	{
@@ -27,17 +27,17 @@ require core.string ~> .;
 	^ eprint("\n");
 }
 
-+ eprintln(text<{c1}>) -> atom
++ eprintln(text<[c1]>) -> atom
 {
 	^ eprintln(text.to_cstring);
 }
 
-+ print(text<{c1}>) -> atom
++ print(text<[c1]>) -> atom
 {
 	^ print(text.to_cstring);
 }
 
-+ eprint(text<{c1}>) -> atom
++ eprint(text<[c1]>) -> atom
 {
 	^ eprint(text.to_cstring);
 }

@@ -66,12 +66,12 @@ typemix static_array
 	# Create an unsized array view from a static array.
 	- view($t<typeid>, $n<size>) -> [t, ()]
 	{
-		^ make_array_view(t, self.data(), n);
+		^ make_view(t, self.data(), n);
 	}
 
 	# Create a sized array view from a static array.
 	- view($t<typeid>, $n<size>) -> [t, (n,)]
 	{
-		^ make_array_view(t, n, self.data());
+		^ make_view(t, n, self.data());
 	}
 }

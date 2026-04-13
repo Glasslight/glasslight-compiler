@@ -3,7 +3,7 @@ require core.common ~> .;
 require core.string ~> .;
 require core.platform.win.kernel32 ~> kernel32;
 
-+ write_console(std_handle<u4>, text<{c1, :c}>) -> atom
++ write_console(std_handle<u4>, text<[c1, :c]>) -> atom
 {
 	let handle<kernel32.handle_t> = kernel32.GetStdHandle(std_handle);
 	let remaining<size> = text.length();
@@ -40,12 +40,12 @@ require core.platform.win.kernel32 ~> kernel32;
 	^ :true;
 }
 
-+ print(text<{c1, :c}>) -> atom
++ print(text<[c1, :c]>) -> atom
 {
 	^ write_console(kernel32.STD_OUTPUT_HANDLE, text);
 }
 
-+ eprint(text<{c1, :c}>) -> atom
++ eprint(text<[c1, :c]>) -> atom
 {
 	^ write_console(kernel32.STD_ERROR_HANDLE, text);
 }

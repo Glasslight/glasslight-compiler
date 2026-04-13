@@ -14,5 +14,5 @@ typemix cstring
 	- empty? -> atom { ^ c.strlen(*self) == 0_sz; }
 
 	# Return an unsized string view over the cstring bytes.
-	- view -> {c1, ()} { ^ make_string_view(*self ~~> c1*, self.length()); }
+	- view -> [c1, ()] { ^ make_view(c1, *self ~~> c1*, self.length()); }
 }

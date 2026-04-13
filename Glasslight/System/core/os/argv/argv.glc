@@ -8,17 +8,17 @@ require core.ffi.argv ~> ffi_argv;
 + argv_count -> size { ^ ffi_argv.glc_argv_count() ~~> size; }
 
 # Copy a single command-line argument into an owned string.
-++ argv_get(index<size>) -> {c1}
+++ argv_get(index<size>) -> [c1]
 {
-	let raw<{c1, :c}> = ffi_argv.glc_argv_get(index ~~> u8);
+	let raw<[c1, :c]> = ffi_argv.glc_argv_get(index ~~> u8);
 	^ make_string(raw.view());
 }
 
 # Return all command-line arguments as a dynamic array of owned strings.
-++ argv_all -> [{c1}, :dynamic]
+++ argv_all -> [[c1], :dynamic]
 {
 	let count<size> = argv_count();
-	let result<[{c1}, :dynamic]> = make_array({c1}, count);
+	let result<[[c1], :dynamic]> = make_array([c1], count);
 	let i<size> = 0_sz;
 
 	while(i < count)
@@ -31,17 +31,17 @@ require core.ffi.argv ~> ffi_argv;
 }
 
 # Return command-line arguments (excluding the binary name) as a dynamic array of owned strings.
-++ argv_args -> [{c1}, :dynamic]
+++ argv_args -> [[c1], :dynamic]
 {
 	let count<size> = argv_count();
 	let start<size> = 1_sz;
 
 	if(count == 0_sz)
 	{
-		^ make_array({c1}, 0_sz);
+		^ make_array([c1], 0_sz);
 	}
 
-	let result<[{c1}, :dynamic]> = make_array({c1}, count - start);
+	let result<[[c1], :dynamic]> = make_array([c1], count - start);
 	let i<size> = start;
 
 	while(i < count)

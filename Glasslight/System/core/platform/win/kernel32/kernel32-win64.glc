@@ -4,11 +4,11 @@ require core.basic ~> .;
 [[:system, :dynamic]]
 foreign "Kernel32" ~> .
 {
-	+ GetEnvironmentVariableA(lpName<{c1, :c}>, lpBuffer<c1*>, nSize<u4>) -> u4;
-	+ SetEnvironmentVariableA(lpName<{c1, :c}>, lpValue<{c1, :c}>) -> cbool ->> atom;
+	+ GetEnvironmentVariableA(lpName<[c1, :c]>, lpBuffer<c1*>, nSize<u4>) -> u4;
+	+ SetEnvironmentVariableA(lpName<[c1, :c]>, lpValue<[c1, :c]>) -> cbool ->> atom;
 
 	# Get file or directory attributes.
-	+ GetFileAttributesA(lpFileName<{c1, :c}>) -> u4;
+	+ GetFileAttributesA(lpFileName<[c1, :c]>) -> u4;
 
 	# Get the current working directory.
 	+ GetCurrentDirectoryA(nBufferLength<u4>, lpBuffer<c1*>) -> u4;
@@ -17,7 +17,7 @@ foreign "Kernel32" ~> .
 	+ GetTempPathA(nBufferLength<u4>, lpBuffer<c1*>) -> u4;
 
 	# Create a directory.
-	+ CreateDirectoryA(lpPathName<{c1, :c}>, lpSecurityAttributes<voidptr>) -> cbool ->> atom;
+	+ CreateDirectoryA(lpPathName<[c1, :c]>, lpSecurityAttributes<voidptr>) -> cbool ->> atom;
 
 	# Get the last Win32 error code.
 	+ GetLastError() -> win32_error_code_e;

@@ -58,10 +58,10 @@ package basic;
 [[(:kind, :vector), (:dim, 3_sz), (:element, :atom), :mixable, (:compare, :value)]] typecreate v3atom;
 [[(:kind, :vector), (:dim, 4_sz), (:element, :atom), :mixable, (:compare, :value)]] typecreate v4atom;
 
-# C string literals - {u1, :c} resolves to cstring.
+# C string literals - [c1, :c] resolves to cstring.
 [[(:kind, :cstring), :mixable, (:compare, :value)]] typecreate cstring;
 
-# Compile-time only/const string literal - {u1, :const} resolves to strlit.
+# Compile-time only/const string literal - [c1, :const] resolves to strlit.
 [[(:kind, :strlit), :const_only]] typecreate strlit;
 
 # Opaque (void*) type.
@@ -91,20 +91,14 @@ package basic;
 # Base type for static arrays — enables typemix methods on all [T, N] types.
 [[(:kind, :static_array), :mixable, (:compare, :fields), (:order, :fields)]] typecreate static_array;
 
-# Base type for unsized array views — [T, ()] resolves to array_view_r<T>.
-[[(:kind, :array_view_unsized), (:record, :array_view_r)]] typecreate _;
+# Base type for unsized array views — [T, ()] resolves to view_r<T>.
+[[(:kind, :view_unsized), (:record, :view_r)]] typecreate _;
 
-# Base type for sized array views — [T, (N_sz,)] resolves to array_view_r<T, N>.
-[[(:kind, :array_view_sized), (:record, :array_view_r)]] typecreate _;
+# Base type for sized array views — [T, (N_sz,)] resolves to view_r<T, N>.
+[[(:kind, :view_sized), (:record, :view_r)]] typecreate _;
 
-# Base type for strings — {u1} resolves to string_r.
+# Base type for strings — [c1] resolves to string_r.
 [[(:kind, :string), (:record, :string_r)]] typecreate _;
-
-# Base type for unsized string views — {u1, ()} resolves to string_view_unsized_r.
-[[(:kind, :string_view_unsized), (:record, :string_view_unsized_r)]] typecreate _;
-
-# Base type for sized string views — {u1, (N_sz,)} resolves to string_view_sized_r<N>.
-[[(:kind, :string_view_sized), (:record, :string_view_sized_r)]] typecreate _;
 
 # Comparison mode for compare/order attributes.
 atomenum type_compare_mode_e
@@ -146,11 +140,9 @@ atomenum typekind_e
 	:static_array,
 	:dynamic_array,
 	:stack,
-	:array_view_unsized,
-	:array_view_sized,
+	:view_unsized,
+	:view_sized,
 	:cstring,
 	:strlit,
-	:string,
-	:string_view_unsized,
-	:string_view_sized
+	:string
 }

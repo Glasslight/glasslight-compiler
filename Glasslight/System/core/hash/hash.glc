@@ -29,10 +29,9 @@ require core.math ~> math;
 + hash_value(v<voidptr>) -> hash { ^ hash_bits(v); }
 + hash_value(v<atom>) -> hash { ^ v ~> hash; }
 
-+ hash_value(v<{c1, ()}>) -> hash { ^ hash_bits(v); }
 + hash_value(v<[c1, ()]>) -> hash { ^ hash_bits(v); }
 
-+ hash_value(v<{c1}>) -> hash { ^ hash_bits(v); }
++ hash_value(v<[c1]>) -> hash { ^ hash_bits(v); }
 
 + hash_value(v<f2>) when math.nan?(v) -> hash { ^ hash_bits(0x7e00_u2); }
 + hash_value(v<f2>) when v == 0.0_f2 -> hash { ^ hash_zero; }

@@ -1,5 +1,6 @@
 package common;
 require core.basic ~>> .;
+require core.view ~>> .;
 require core.builtin ~>> builtin ~>> .;
 require core.allocator ~>> allocator ~>> .;
 require core.context ~>> context ~>> .;

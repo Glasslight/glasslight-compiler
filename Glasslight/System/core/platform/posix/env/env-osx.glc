@@ -5,9 +5,9 @@ require core.c ~> core_c;
 [[:system, :dynamic]]
 foreign "libSystem.B.tbd" ~> .
 {
-	+ setenv(name<{basic.u1, :c}>, value<{basic.u1, :c}>, overwrite<basic.s4>) -> basic.s4;
-	+ unsetenv(name<{basic.u1, :c}>) -> basic.s4;
+	+ setenv(name<[basic.u1, :c]>, value<[basic.u1, :c]>, overwrite<basic.s4>) -> basic.s4;
+	+ unsetenv(name<[basic.u1, :c]>) -> basic.s4;
 }
 
 # Do an alias rather than a foreigin import to avoid a duplicate symbol.
-const getenv<({basic.c1, :c}) -> {basic.c1, :c}> = &core_c.getenv;
+const getenv<([basic.c1, :c]) -> [basic.c1, :c]> = &core_c.getenv;

@@ -4,5 +4,5 @@ require core.string ~> .;
 
 intrinsic
 {
-	+ __glc_atom_to_string_view(a<atom>) -> {c1, ()};
+	+ __glc_atom_to_view(a<atom>) -> [c1, ()];
 }
