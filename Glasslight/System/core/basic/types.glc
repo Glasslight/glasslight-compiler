@@ -67,6 +67,9 @@ package basic;
 # Opaque (void*) type.
 [[(:kind, :voidptr), (:compare, :value)]] typecreate voidptr;
 
+# Opaque function pointer type.
+[[(:kind, :fptr), (:compare, :value)]] typecreate fptr;
+
 # Type id handle.
 [[(:kind, :typeid), (:compare, :value)]] typecreate typeid;
 
@@ -117,6 +120,15 @@ atomenum compare_result_e
 	:greater
 }
 
+# ABI kind atomenum for `typeinfo(..., :abi)`.
+atomenum abi_e
+{
+	:c,
+	:glc,
+	:stdcall,
+	:vectorcall
+}
+
 # Type kind atomenum for `typeinfo(..., :kind)`.
 atomenum typekind_e
 {
@@ -136,6 +148,7 @@ atomenum typekind_e
 	:atomenum,
 	:atomset,
 	:voidptr,
+	:fptr,
 	:typeid,
 	:static_array,
 	:dynamic_array,

@@ -1,0 +1,39 @@
+package objc;
+require core.basic ~> basic;
+
+[[:system, :dynamic]]
+foreign "libobjc.A.tbd" ~> .
+{
+	# Get a class by name.
+	+ objc_getClass(name<[basic.c1, :c]>) -> basic.voidptr;
+
+	# Allocate a new class pair (subclass of superclass).
+	+ objc_allocateClassPair(superclass<basic.voidptr>, name<[basic.c1, :c]>, extra_bytes<basic.size>) -> basic.voidptr;
+
+	# Register a class pair created with objc_allocateClassPair.
+	+ objc_registerClassPair(cls<basic.voidptr>) -> ();
+
+	# Register a selector name and return the selector.
+	+ sel_registerName(name<[basic.c1, :c]>) -> basic.voidptr;
+
+	# Send a message to an object. Bitcast to typed fptr per call site via ~~>.
+	+ objc_msgSend(target<basic.voidptr>, sel<basic.voidptr>) -> basic.voidptr;
+
+	# Send a message that returns a floating-point value.
+	+ objc_msgSend_fpret(target<basic.voidptr>, sel<basic.voidptr>) -> basic.f8;
+
+	# Add a method to a class. imp is a + function address widened to fptr.
+	+ class_addMethod(cls<basic.voidptr>, sel<basic.voidptr>, imp<basic.fptr>, types<[basic.c1, :c]>) -> basic.cbool ->> atom;
+
+	# Add an instance variable to a class (before registration).
+	+ class_addIvar(cls<basic.voidptr>, name<[basic.c1, :c]>, size<basic.size>, alignment<basic.u1>, types<[basic.c1, :c]>) -> basic.cbool ->> atom;
+
+	# Get a class's instance variable by name.
+	+ class_getInstanceVariable(cls<basic.voidptr>, name<[basic.c1, :c]>) -> basic.voidptr;
+
+	# Get the value of an instance variable.
+	+ object_getIvar(obj<basic.voidptr>, ivar<basic.voidptr>) -> basic.voidptr;
+
+	# Set the value of an instance variable.
+	+ object_setIvar(obj<basic.voidptr>, ivar<basic.voidptr>, value<basic.voidptr>) -> ();
+}
