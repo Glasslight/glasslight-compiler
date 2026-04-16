@@ -1,0 +1,57 @@
+package cocoa;
+require core.basic ~> .;
+
+[[(:kind, :alias), (:alias, :weak)]] typecreate nsinteger_t ~> s8;
+[[(:kind, :alias), (:alias, :weak)]] typecreate nsuinteger_t ~> u8;
+[[(:kind, :alias), (:alias, :weak)]] typecreate cgfloat_t ~> f8;
+
+# NSPoint-compatible coordinate pair.
+[[(:alignment, 8_sz)]]
+record ns_point_r
+{
+	let x<cgfloat_t>;
+	let y<cgfloat_t>;
+}
+
+# NSSize-compatible width/height pair.
+[[(:alignment, 8_sz)]]
+record ns_size_r
+{
+	let width<cgfloat_t>;
+	let height<cgfloat_t>;
+}
+
+# NSRect-compatible rectangle composed of origin and size.
+[[(:alignment, 8_sz)]]
+record ns_rect_r
+{
+	let origin<ns_point_r>;
+	let size<ns_size_r>;
+}
+
+# Build an NSPoint-compatible record.
++ make_ns_point(x<cgfloat_t>, y<cgfloat_t>) -> ns_point_r
+{
+	let result<ns_point_r>;
+	result.x = x;
+	result.y = y;
+	^ result;
+}
+
+# Build an NSSize-compatible record.
++ make_ns_size(width<cgfloat_t>, height<cgfloat_t>) -> ns_size_r
+{
+	let result<ns_size_r>;
+	result.width = width;
+	result.height = height;
+	^ result;
+}
+
+# Build an NSRect-compatible record.
++ make_ns_rect(x<cgfloat_t>, y<cgfloat_t>, width<cgfloat_t>, height<cgfloat_t>) -> ns_rect_r
+{
+	let result<ns_rect_r>;
+	result.origin = make_ns_point(x, y);
+	result.size = make_ns_size(width, height);
+	^ result;
+}

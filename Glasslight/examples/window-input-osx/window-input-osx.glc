@@ -1,0 +1,14 @@
+package main;
+require core.basic ~> .;
+require platform.cocoa ~> cocoa;
+require platform.window;
+
+let application<cocoa.ns_application_t> = cocoa.shared_application();
+let content_rect<window.rect_t> = window.make_rect(100.0_f8, 100.0_f8, 800.0_f8, 600.0_f8);
+let main_window<window.window_t> = window.make_default_window(content_rect, "Glasslight Platform Window");
+
+cocoa.set_activation_policy?(application, cocoa.ns_application_activation_policy_e.regular);
+window.show(main_window);
+cocoa.finish_launching(application);
+cocoa.activate_ignoring_other_apps(application, :true);
+cocoa.run(application);

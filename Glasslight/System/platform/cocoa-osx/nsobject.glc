@@ -1,0 +1,53 @@
+package cocoa;
+require core.basic ~> .;
+require core.platform.osx.objc ~> objc;
+
+# Look up an Objective-C class by name.
++ get_class(name<[c1, :c]>) -> objc.objc_class_t
+{
+	^ objc.objc_getClass(name);
+}
+
+# Look up an Objective-C selector by name.
++ get_selector(name<[c1, :c]>) -> objc.objc_selector_t
+{
+	^ objc.sel_registerName(name);
+}
+
+# Allocate a new Objective-C class pair.
++ alloc_class_pair(superclass<objc.objc_class_t>, name<[c1, :c]>) -> objc.objc_class_t
+{
+	^ objc.objc_allocateClassPair(superclass, name, 0_sz);
+}
+
+# Register a previously allocated Objective-C class pair.
++ register_class_pair(cls<objc.objc_class_t>) -> ()
+{
+	objc.objc_registerClassPair(cls);
+	^ ();
+}
+
+# Add a method implementation to an Objective-C class.
++ add_method?(cls<objc.objc_class_t>, selector<objc.objc_selector_t>, implementation<fptr>, encoding<[c1, :c]>) -> atom
+{
+	^ objc.class_addMethod(cls, selector, implementation, encoding);
+}
+
+# Retain an Objective-C object.
++ retain(obj<ns_object_t>) -> ns_object_t
+{
+	^ objc.send_id(obj, get_selector("retain"));
+}
+
+# Release an Objective-C object.
++ release(obj<ns_object_t>) -> ()
+{
+	objc.send_void(obj, get_selector("release"));
+	^ ();
+}
+
+# Autorelease an Objective-C object.
++ autorelease(obj<ns_object_t>) -> ns_object_t
+{
+	^ objc.send_id(obj, get_selector("autorelease"));
+}

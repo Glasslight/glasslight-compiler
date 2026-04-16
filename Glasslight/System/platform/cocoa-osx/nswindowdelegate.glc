@@ -1,0 +1,117 @@
+package cocoa;
+require core.basic ~> .;
+require core.platform.osx.objc ~> objc;
+
+let stop_on_close_window_delegate_class<objc.objc_class_t> = nil;
+let stop_on_close_window_delegate_did_close<atom> = :false;
+let resize_tracking_window_delegate_did_resize<atom> = :false;
+let resize_tracking_window_delegate_latest_size_value<ns_size_r>;
+
+# Stop the shared application when a window delegate receives windowWillClose:.
++ stop_application_on_window_close(this<ns_object_t>, cmd<objc.objc_selector_t>, notification<ns_notification_t>) -> ()
+{
+	stop_on_close_window_delegate_did_close = :true;
+	stop(shared_application(), nil);
+	^ ();
+}
+
+# Record the latest content size when a window delegate receives windowDidResize:.
++ track_window_resize(this<ns_object_t>, cmd<objc.objc_selector_t>, notification<ns_notification_t>) -> ()
+{
+	let window<ns_window_t> = objc.send_id(notification, get_selector("object"));
+	resize_tracking_window_delegate_latest_size_value = content_size(window);
+	resize_tracking_window_delegate_did_resize = :true;
+	^ ();
+}
+
+# Clear the recorded resize state for the reusable window delegate.
++ reset_resize_tracking_window_delegate_state() -> ()
+{
+	resize_tracking_window_delegate_did_resize = :false;
+	resize_tracking_window_delegate_latest_size_value = make_ns_size(0.0_f8, 0.0_f8);
+	^ ();
+}
+
+# Clear the recorded close state for the reusable window delegate.
++ reset_stop_on_close_window_delegate_state() -> ()
+{
+	stop_on_close_window_delegate_did_close = :false;
+	^ ();
+}
+
+# Return the reusable NSWindow delegate class that stops the app on close.
++ get_stop_on_close_window_delegate_class() -> objc.objc_class_t
+{
+	if(stop_on_close_window_delegate_class != nil)
+	{
+		^ stop_on_close_window_delegate_class;
+	}
+
+	let delegate_class<objc.objc_class_t> = get_class("GlcStopOnCloseWindowDelegate");
+
+	if(delegate_class != nil)
+	{
+		stop_on_close_window_delegate_class = delegate_class;
+		^ delegate_class;
+	}
+
+	delegate_class = alloc_class_pair(get_class("NSObject"), "GlcStopOnCloseWindowDelegate");
+
+	if(delegate_class == nil)
+	{
+		^ nil;
+	}
+
+	if(!add_method?(delegate_class, get_selector("windowWillClose:"), &stop_application_on_window_close, "v@:@"))
+	{
+		^ nil;
+	}
+
+	if(!add_method?(delegate_class, get_selector("windowDidResize:"), &track_window_resize, "v@:@"))
+	{
+		^ nil;
+	}
+
+	register_class_pair(delegate_class);
+	stop_on_close_window_delegate_class = delegate_class;
+	^ delegate_class;
+}
+
+# Create an NSWindow delegate that stops the shared application on close.
++ make_stop_on_close_window_delegate() -> ns_object_t
+{
+	let delegate_class<objc.objc_class_t> = get_stop_on_close_window_delegate_class();
+
+	if(delegate_class == nil)
+	{
+		^ nil;
+	}
+
+	reset_stop_on_close_window_delegate_state();
+	reset_resize_tracking_window_delegate_state();
+	^ objc.send_id(delegate_class, get_selector("new"));
+}
+
+# Create an NSWindow delegate that records whether a resize happened.
++ make_resize_tracking_window_delegate() -> ns_object_t
+{
+	^ make_stop_on_close_window_delegate();
+}
+
+# Return whether the resize-tracking delegate observed a resize.
++ resize_tracking_window_delegate_did_resize?() -> atom
+{
+	^ resize_tracking_window_delegate_did_resize;
+}
+
+# Return the latest size observed by the resize-tracking delegate.
++ resize_tracking_window_delegate_latest_size() -> ns_size_r
+{
+	^ resize_tracking_window_delegate_latest_size_value;
+}
+
+# Return whether the reusable window delegate observed a close.
++ stop_on_close_window_delegate_did_close?() -> atom
+{
+	^ stop_on_close_window_delegate_did_close;
+}

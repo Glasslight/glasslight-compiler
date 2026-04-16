@@ -1,0 +1,88 @@
+package objc;
+require core.basic ~> basic;
+
+[[(:kind, :alias), (:alias, :weak)]] typecreate objc_bool_t ~> basic.s1;
+[[(:kind, :alias), (:alias, :weak)]] typecreate objc_selector_t ~> basic.voidptr;
+[[(:kind, :alias), (:alias, :weak)]] typecreate objc_class_t ~> basic.voidptr;
+[[(:kind, :alias), (:alias, :weak)]] typecreate objc_object_t ~> basic.voidptr;
+
+# Call objc_msgSend with an id return and no extra arguments.
++ send_id(target<objc_object_t>, selector<objc_selector_t>) -> objc_object_t
+{
+	let send<basic.fptr> = &objc_msgSend;
+	^ (send ~> (objc_object_t, objc_selector_t) -> objc_object_t)(target, selector);
+}
+
+# Call objc_msgSend with an id return and one object argument.
++ send_id(target<objc_object_t>, selector<objc_selector_t>, arg0<objc_object_t>) -> objc_object_t
+{
+	let send<basic.fptr> = &objc_msgSend;
+	^ (send ~> (objc_object_t, objc_selector_t, objc_object_t) -> objc_object_t)(target, selector, arg0);
+}
+
+# Call objc_msgSend with an id return and two object arguments.
++ send_id(target<objc_object_t>, selector<objc_selector_t>, arg0<objc_object_t>, arg1<objc_object_t>) -> objc_object_t
+{
+	let send<basic.fptr> = &objc_msgSend;
+	^ (send ~> (objc_object_t, objc_selector_t, objc_object_t, objc_object_t) -> objc_object_t)(target, selector, arg0, arg1);
+}
+
+# Call objc_msgSend returning objc_bool_t and convert it to atom.
++ send_bool?(target<objc_object_t>, selector<objc_selector_t>) -> basic.atom
+{
+	let send<basic.fptr> = &objc_msgSend;
+	let result<objc_bool_t> = (send ~> (objc_object_t, objc_selector_t) -> objc_bool_t)(target, selector);
+
+	if(result != 0_s1)
+	{
+		^ :true;
+	}
+
+	^ :false;
+}
+
+# Call objc_msgSend returning objc_bool_t with one object argument and convert it to atom.
++ send_bool?(target<objc_object_t>, selector<objc_selector_t>, arg0<objc_object_t>) -> basic.atom
+{
+	let send<basic.fptr> = &objc_msgSend;
+	let result<objc_bool_t> = (send ~> (objc_object_t, objc_selector_t, objc_object_t) -> objc_bool_t)(target, selector, arg0);
+
+	if(result != 0_s1)
+	{
+		^ :true;
+	}
+
+	^ :false;
+}
+
+# Call objc_msgSend with no return value and no extra arguments.
++ send_void(target<objc_object_t>, selector<objc_selector_t>) -> ()
+{
+	let send<basic.fptr> = &objc_msgSend;
+	(send ~> (objc_object_t, objc_selector_t) -> ())(target, selector);
+	^ ();
+}
+
+# Call objc_msgSend with no return value and one object argument.
++ send_void(target<objc_object_t>, selector<objc_selector_t>, arg0<objc_object_t>) -> ()
+{
+	let send<basic.fptr> = &objc_msgSend;
+	(send ~> (objc_object_t, objc_selector_t, objc_object_t) -> ())(target, selector, arg0);
+	^ ();
+}
+
+# Call objc_msgSend with no return value and two object arguments.
++ send_void(target<objc_object_t>, selector<objc_selector_t>, arg0<objc_object_t>, arg1<objc_object_t>) -> ()
+{
+	let send<basic.fptr> = &objc_msgSend;
+	(send ~> (objc_object_t, objc_selector_t, objc_object_t, objc_object_t) -> ())(target, selector, arg0, arg1);
+	^ ();
+}
+
+# Call objc_msgSend with no return value and three object arguments.
++ send_void(target<objc_object_t>, selector<objc_selector_t>, arg0<objc_object_t>, arg1<objc_object_t>, arg2<objc_object_t>) -> ()
+{
+	let send<basic.fptr> = &objc_msgSend;
+	(send ~> (objc_object_t, objc_selector_t, objc_object_t, objc_object_t, objc_object_t) -> ())(target, selector, arg0, arg1, arg2);
+	^ ();
+}

@@ -1,0 +1,57 @@
+package cocoa;
+require core.basic ~> .;
+require core.platform.osx.objc ~> objc;
+
+# NSEvent type values used by Cocoa input handling.
+enum ns_event_type_e : nsuinteger_t
+{
+	left_mouse_down      = 1_u8,
+	left_mouse_up        = 2_u8,
+	right_mouse_down     = 3_u8,
+	right_mouse_up       = 4_u8,
+	mouse_moved          = 5_u8,
+	left_mouse_dragged   = 6_u8,
+	right_mouse_dragged  = 7_u8,
+	mouse_entered        = 8_u8,
+	mouse_exited         = 9_u8,
+	key_down             = 10_u8,
+	key_up               = 11_u8,
+	flags_changed        = 12_u8,
+	appkit_defined       = 13_u8,
+	system_defined       = 14_u8,
+	application_defined  = 15_u8,
+	periodic             = 16_u8,
+	cursor_update        = 17_u8,
+	rotate               = 18_u8,
+	begin_gesture        = 19_u8,
+	end_gesture          = 20_u8,
+	scroll_wheel         = 22_u8,
+	tablet_point         = 23_u8,
+	tablet_proximity     = 24_u8,
+	other_mouse_down     = 25_u8,
+	other_mouse_up       = 26_u8,
+	other_mouse_dragged  = 27_u8,
+	gesture              = 29_u8,
+	magnify              = 30_u8,
+	swipe                = 31_u8,
+	smart_magnify        = 32_u8,
+	quick_look           = 33_u8,
+	pressure             = 34_u8,
+	direct_touch         = 37_u8
+}
+
+const ns_event_mask_any<nsuinteger_t> = 0xFFFFFFFFFFFFFFFF_u8;
+
+# Return the NSEvent type.
++ event_type(event<ns_event_t>) -> ns_event_type_e
+{
+	let send<fptr> = &objc.objc_msgSend;
+	^ (send ~> (voidptr, voidptr) -> ns_event_type_e)(event, get_selector("type"));
+}
+
+# Return the NSEvent location in window coordinates.
++ location_in_window(event<ns_event_t>) -> ns_point_r
+{
+	let send<fptr> = &objc.objc_msgSend;
+	^ (send ~> (voidptr, voidptr) -> ns_point_r)(event, get_selector("locationInWindow"));
+}

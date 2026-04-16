@@ -1,0 +1,10 @@
+package cocoa;
+
+# Create an NSString from a UTF-8 C string.
++ make_string_utf8(text<[c1, :c]>) -> ns_object_t
+{
+	let send<fptr> = &objc.objc_msgSend;
+	let ns_string_class<objc.objc_class_t> = get_class("NSString");
+	let string_with_utf8_selector<objc.objc_selector_t> = get_selector("stringWithUTF8String:");
+	^ (send ~> (objc.objc_object_t, objc.objc_selector_t, [c1, :c]) -> ns_object_t)(ns_string_class, string_with_utf8_selector, text);
+}

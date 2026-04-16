@@ -1,0 +1,95 @@
+package cocoa;
+require core.basic ~> .;
+require core.platform.osx.objc ~> objc;
+
+# NSApplication activation policy values.
+enum ns_application_activation_policy_e : nsinteger_t
+{
+	regular    = 0_s8,
+	accessory  = 1_s8,
+	prohibited = 2_s8
+}
+
+# Return the shared NSApplication instance.
++ shared_application -> ns_application_t
+{
+	^ objc.send_id(get_class("NSApplication"), get_selector("sharedApplication"));
+}
+
+# Set the activation policy and convert the Cocoa BOOL result to atom.
++ set_activation_policy?(application<ns_application_t>, policy<ns_application_activation_policy_e>) -> atom
+{
+	let send<fptr> = &objc.objc_msgSend;
+	let result<objc.objc_bool_t> = (send ~> (voidptr, voidptr, ns_application_activation_policy_e) -> objc.objc_bool_t)(application, get_selector("setActivationPolicy:"), policy);
+
+	if(result != 0_s1)
+	{
+		^ :true;
+	}
+
+	^ :false;
+}
+
+# Ask NSApplication to activate, optionally ignoring other apps.
++ activate_ignoring_other_apps(application<ns_application_t>, flag<atom>) -> ()
+{
+	let send<fptr> = &objc.objc_msgSend;
+	let objc_flag<objc.objc_bool_t> = 0_s1;
+
+	if(flag)
+	{
+		objc_flag = 1_s1;
+	}
+
+	(send ~> (voidptr, voidptr, objc.objc_bool_t) -> ())(application, get_selector("activateIgnoringOtherApps:"), objc_flag);
+	^ ();
+}
+
+# Finish launching the shared application.
++ finish_launching(application<ns_application_t>) -> ()
+{
+	objc.send_void(application, get_selector("finishLaunching"));
+	^ ();
+}
+
+# Enter the NSApplication main event loop.
++ run(application<ns_application_t>) -> ()
+{
+	objc.send_void(application, get_selector("run"));
+	^ ();
+}
+
+# Stop the NSApplication main event loop.
++ stop(application<ns_application_t>, sender<ns_object_t>) -> ()
+{
+	objc.send_void(application, get_selector("stop:"), sender);
+	^ ();
+}
+
+# Fetch the next event matching the given mask.
++ next_event_matching_mask(application<ns_application_t>, mask<nsuinteger_t>, until_date<ns_object_t>, mode<ns_object_t>, dequeue<atom>) -> ns_event_t
+{
+	let send<fptr> = &objc.objc_msgSend;
+	let objc_dequeue<objc.objc_bool_t> = 0_s1;
+
+	if(dequeue)
+	{
+		objc_dequeue = 1_s1;
+	}
+
+	^ (send ~> (voidptr, voidptr, nsuinteger_t, voidptr, voidptr, objc.objc_bool_t) -> voidptr)(application, get_selector("nextEventMatchingMask:untilDate:inMode:dequeue:"), mask, until_date, mode, objc_dequeue);
+}
+
+# Dispatch an NSEvent through NSApplication.
++ send_event(application<ns_application_t>, event<ns_event_t>) -> ()
+{
+	objc.send_void(application, get_selector("sendEvent:"), event);
+	^ ();
+}
+
+# Ask NSApplication to update its windows.
++ update_windows(application<ns_application_t>) -> ()
+{
+	objc.send_void(application, get_selector("updateWindows"));
+	^ ();
+}

@@ -1,0 +1,122 @@
+package cocoa;
+require core.basic ~> .;
+require core.platform.osx.objc ~> objc;
+
+let input_tracking_view_class<objc.objc_class_t> = nil;
+
+# Consume input events in the tracking view.
++ track_input_event(this<ns_object_t>, cmd<objc.objc_selector_t>, event<ns_event_t>) -> ()
+{
+	^ ();
+}
+
+# Return YES so the input-tracking view can become first responder.
++ input_tracking_view_accepts_first_responder(this<ns_object_t>, cmd<objc.objc_selector_t>) -> objc.objc_bool_t
+{
+	^ 1_s1;
+}
+
+# Return the reusable NSView subclass that records input events.
++ get_input_tracking_view_class() -> objc.objc_class_t
+{
+	if(input_tracking_view_class != nil)
+	{
+		^ input_tracking_view_class;
+	}
+
+	let view_class<objc.objc_class_t> = get_class("GlcInputTrackingView");
+
+	if(view_class != nil)
+	{
+		input_tracking_view_class = view_class;
+		^ view_class;
+	}
+
+	view_class = alloc_class_pair(get_class("NSView"), "GlcInputTrackingView");
+
+	if(view_class == nil)
+	{
+		^ nil;
+	}
+
+	if(!add_method?(view_class, get_selector("acceptsFirstResponder"), &input_tracking_view_accepts_first_responder, "c@:"))
+	{
+		^ nil;
+	}
+
+	if(!add_method?(view_class, get_selector("keyDown:"), &track_input_event, "v@:@"))
+	{
+		^ nil;
+	}
+
+	if(!add_method?(view_class, get_selector("keyUp:"), &track_input_event, "v@:@"))
+	{
+		^ nil;
+	}
+
+	if(!add_method?(view_class, get_selector("mouseMoved:"), &track_input_event, "v@:@"))
+	{
+		^ nil;
+	}
+
+	if(!add_method?(view_class, get_selector("mouseDown:"), &track_input_event, "v@:@"))
+	{
+		^ nil;
+	}
+
+	if(!add_method?(view_class, get_selector("mouseUp:"), &track_input_event, "v@:@"))
+	{
+		^ nil;
+	}
+
+	if(!add_method?(view_class, get_selector("rightMouseDown:"), &track_input_event, "v@:@"))
+	{
+		^ nil;
+	}
+
+	if(!add_method?(view_class, get_selector("rightMouseUp:"), &track_input_event, "v@:@"))
+	{
+		^ nil;
+	}
+
+	if(!add_method?(view_class, get_selector("scrollWheel:"), &track_input_event, "v@:@"))
+	{
+		^ nil;
+	}
+
+	register_class_pair(view_class);
+	input_tracking_view_class = view_class;
+	^ view_class;
+}
+
+# Allocate an NSView instance.
++ alloc_view -> ns_view_t
+{
+	^ objc.send_id(get_class("NSView"), get_selector("alloc"));
+}
+
+# Initialize an NSView with the given frame.
++ init_with_frame(view<ns_view_t>, frame<ns_rect_r>) -> ns_view_t
+{
+	let send<fptr> = &objc.objc_msgSend;
+	^ (send ~> (voidptr, voidptr, ns_rect_r) -> voidptr)(view, get_selector("initWithFrame:"), frame);
+}
+
+# Create an NSView with the given frame.
++ make_view(frame<ns_rect_r>) -> ns_view_t
+{
+	^ init_with_frame(alloc_view(), frame);
+}
+
+# Create an NSView subclass that records input events.
++ make_input_tracking_view(frame<ns_rect_r>) -> ns_view_t
+{
+	let view_class<objc.objc_class_t> = get_input_tracking_view_class();
+
+	if(view_class == nil)
+	{
+		^ nil;
+	}
+
+	^ init_with_frame(objc.send_id(view_class, get_selector("alloc")), frame);
+}

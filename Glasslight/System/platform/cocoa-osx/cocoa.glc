@@ -1,0 +1,8 @@
+package cocoa;
+
+[[(:kind, :alias), (:alias, :weak)]] typecreate ns_application_t ~> voidptr;
+[[(:kind, :alias), (:alias, :weak)]] typecreate ns_window_t ~> voidptr;
+[[(:kind, :alias), (:alias, :weak)]] typecreate ns_view_t ~> voidptr;
+[[(:kind, :alias), (:alias, :weak)]] typecreate ns_event_t ~> voidptr;
+[[(:kind, :alias), (:alias, :weak)]] typecreate ns_notification_t ~> voidptr;
+[[(:kind, :alias), (:alias, :weak)]] typecreate ns_object_t ~> voidptr;

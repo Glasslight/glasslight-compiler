@@ -1,0 +1,16 @@
+package cocoa;
+require core.basic ~> basic;
+
+[[:system, :framework]]
+foreign "AppKit" ~> .
+{
+	+ NSApplicationLoad() -> basic.cbool ->> basic.atom;
+	+ NSApplicationMain(argc<basic.s4>, argv<basic.voidptr>) -> basic.s4;
+	+ NSRectFill(rect<ns_rect_r>) -> ();
+}
+
+# Load the AppKit framework into the current process.
++ load_appkit? -> atom
+{
+	^ NSApplicationLoad();
+}

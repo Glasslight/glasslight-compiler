@@ -1,0 +1,164 @@
+package cocoa;
+require core.basic ~> .;
+require core.platform.osx.objc ~> objc;
+
+[[(:kind, :alias), (:alias, :weak)]] typecreate ns_window_style_mask_t ~> nsuinteger_t;
+
+const ns_backing_store_buffered<nsuinteger_t> = 2_u8;
+
+const ns_window_style_mask_borderless<ns_window_style_mask_t> = 0_u8;
+const ns_window_style_mask_titled<ns_window_style_mask_t> = 1_u8 << 0_sz;
+const ns_window_style_mask_closable<ns_window_style_mask_t> = 1_u8 << 1_sz;
+const ns_window_style_mask_miniaturizable<ns_window_style_mask_t> = 1_u8 << 2_sz;
+const ns_window_style_mask_resizable<ns_window_style_mask_t> = 1_u8 << 3_sz;
+const ns_window_style_mask_utility_window<ns_window_style_mask_t> = 1_u8 << 4_sz;
+const ns_window_style_mask_doc_modal_window<ns_window_style_mask_t> = 1_u8 << 6_sz;
+const ns_window_style_mask_nonactivating_panel<ns_window_style_mask_t> = 1_u8 << 7_sz;
+const ns_window_style_mask_unified_title_and_toolbar<ns_window_style_mask_t> = 1_u8 << 12_sz;
+const ns_window_style_mask_hud_window<ns_window_style_mask_t> = 1_u8 << 13_sz;
+const ns_window_style_mask_full_screen<ns_window_style_mask_t> = 1_u8 << 14_sz;
+const ns_window_style_mask_full_size_content_view<ns_window_style_mask_t> = 1_u8 << 15_sz;
+
+# Allocate an NSWindow instance.
++ alloc_window -> ns_window_t
+{
+	^ objc.send_id(get_class("NSWindow"), get_selector("alloc"));
+}
+
+# Initialize an NSWindow with a content rect and style mask.
++ init_with_content_rect(window<ns_window_t>, content_rect<ns_rect_r>, style_mask<ns_window_style_mask_t>, backing_store<nsuinteger_t>, defer_flag<atom>) -> ns_window_t
+{
+	let send<fptr> = &objc.objc_msgSend;
+	let objc_defer_flag<objc.objc_bool_t> = 0_s1;
+
+	if(defer_flag)
+	{
+		objc_defer_flag = 1_s1;
+	}
+
+	^ (send ~> (voidptr, voidptr, ns_rect_r, nsuinteger_t, nsuinteger_t, objc.objc_bool_t) -> voidptr)(window, get_selector("initWithContentRect:styleMask:backing:defer:"), content_rect, style_mask, backing_store, objc_defer_flag);
+}
+
+# Create a buffered NSWindow with the given rect and style mask.
++ make_window(content_rect<ns_rect_r>, style_mask<ns_window_style_mask_t>) -> ns_window_t
+{
+	^ init_with_content_rect(alloc_window(), content_rect, style_mask, ns_backing_store_buffered, :false);
+}
+
+# Create a window with a view, title, and reusable delegate attached.
++ make_titled_window(content_rect<ns_rect_r>, style_mask<ns_window_style_mask_t>, title_text<[c1, :c]>) -> ns_window_t
+{
+	let window<ns_window_t> = make_window(content_rect, style_mask);
+	let view<ns_view_t> = make_view(content_rect);
+	let title<ns_object_t> = make_string_utf8(title_text);
+	let delegate<ns_object_t> = make_stop_on_close_window_delegate();
+
+	if(delegate != nil)
+	{
+		set_delegate(window, delegate);
+	}
+
+	if(view != nil)
+	{
+		set_content_view(window, view);
+	}
+
+	if(title != nil)
+	{
+		set_title(window, title);
+	}
+
+	^ window;
+}
+
+# Set the window title from an NSString-compatible object.
++ set_title(window<ns_window_t>, title<ns_object_t>) -> ()
+{
+	objc.send_void(window, get_selector("setTitle:"), title);
+	^ ();
+}
+
+# Set the window content view.
++ set_content_view(window<ns_window_t>, view<ns_view_t>) -> ()
+{
+	objc.send_void(window, get_selector("setContentView:"), view);
+	^ ();
+}
+
+# Ask the window to route first-responder actions to the given object.
++ make_first_responder?(window<ns_window_t>, responder<ns_object_t>) -> atom
+{
+	^ objc.send_bool?(window, get_selector("makeFirstResponder:"), responder);
+}
+
+# Enable or disable mouse moved events for the window.
++ set_accepts_mouse_moved_events(window<ns_window_t>, flag<atom>) -> ()
+{
+	let send<fptr> = &objc.objc_msgSend;
+	let objc_flag<objc.objc_bool_t> = 0_s1;
+
+	if(flag)
+	{
+		objc_flag = 1_s1;
+	}
+
+	(send ~> (voidptr, voidptr, objc.objc_bool_t) -> ())(window, get_selector("setAcceptsMouseMovedEvents:"), objc_flag);
+	^ ();
+}
+
+# Return the current content size of the window.
++ content_size(window<ns_window_t>) -> ns_size_r
+{
+	let view<ns_object_t> = content_view(window);
+
+	if(view == nil)
+	{
+		^ make_ns_size(0.0_f8, 0.0_f8);
+	}
+
+	let send<fptr> = &objc.objc_msgSend;
+	let rect<ns_rect_r> = (send ~> (voidptr, voidptr) -> ns_rect_r)(view, get_selector("frame"));
+	^ rect.size;
+}
+
+# Set the content size of the window.
++ set_content_size(window<ns_window_t>, size<ns_size_r>) -> ()
+{
+	let send<fptr> = &objc.objc_msgSend;
+	(send ~> (voidptr, voidptr, ns_size_r) -> ())(window, get_selector("setContentSize:"), size);
+	^ ();
+}
+
+# Show the window and make it key.
++ make_key_and_order_front(window<ns_window_t>, sender<ns_object_t>) -> ()
+{
+	objc.send_void(window, get_selector("makeKeyAndOrderFront:"), sender);
+	^ ();
+}
+
+# Remove the window from screen ordering.
++ order_out(window<ns_window_t>, sender<ns_object_t>) -> ()
+{
+	objc.send_void(window, get_selector("orderOut:"), sender);
+	^ ();
+}
+
+# Close the window.
++ close(window<ns_window_t>) -> ()
+{
+	objc.send_void(window, get_selector("close"));
+	^ ();
+}
+
+# Attach a delegate object to the window.
++ set_delegate(window<ns_window_t>, delegate<ns_object_t>) -> ()
+{
+	objc.send_void(window, get_selector("setDelegate:"), delegate);
+	^ ();
+}
+
+# Return the window's content view.
++ content_view(window<ns_window_t>) -> ns_object_t
+{
+	^ objc.send_id(window, get_selector("contentView"));
+}

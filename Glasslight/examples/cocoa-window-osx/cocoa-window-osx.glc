@@ -1,0 +1,14 @@
+package main;
+require core.basic ~> .;
+require platform.cocoa ~> cocoa;
+
+let application<cocoa.ns_application_t> = cocoa.shared_application();
+let style_mask<cocoa.ns_window_style_mask_t> = cocoa.ns_window_style_mask_titled + cocoa.ns_window_style_mask_closable + cocoa.ns_window_style_mask_resizable;
+let content_rect<cocoa.ns_rect_r> = cocoa.make_ns_rect(100.0_f8, 100.0_f8, 800.0_f8, 600.0_f8);
+let window<cocoa.ns_window_t> = cocoa.make_titled_window(content_rect, style_mask, "Glasslight Cocoa Window");
+
+cocoa.set_activation_policy?(application, cocoa.ns_application_activation_policy_e.regular);
+cocoa.finish_launching(application);
+cocoa.make_key_and_order_front(window, nil);
+cocoa.activate_ignoring_other_apps(application, :true);
+cocoa.run(application);
