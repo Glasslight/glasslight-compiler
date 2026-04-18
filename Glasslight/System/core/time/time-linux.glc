@@ -1,0 +1,113 @@
+package time;
+require core.basic ~> basic;
+require core.c ~> cc;
+
+# Clock IDs used with clock_gettime on Linux (from <bits/time.h>).
+const CLOCK_REALTIME<basic.s4>  = 0_s4;
+const CLOCK_MONOTONIC<basic.s4> = 1_s4;
+
+# Nanoseconds per second, used by the timespec conversions and split multiplies.
+const NS_PER_SEC<basic.s8> = 1000000000_s8;
+
+[[:system, :dynamic]]
+foreign "c" ~> .
+{
+	# Reads the specified clock into *ts. Returns 0 on success.
+	+ clock_gettime(clk<basic.s4>, ts<cc.timespec_r*>) -> basic.s4;
+
+	# Sleeps for *req nanoseconds, writing remaining time to *rem if signalled.
+	# Returns 0 on full completion, -1 on signal (remaining in *rem).
+	+ nanosleep(req<cc.timespec_r*>, rem<cc.timespec_r*>) -> basic.s4;
+}
+
+# Monotonic nanoseconds. Reference point is unspecified; only deltas are meaningful.
+# Never jumps backwards.
++ monotonic_ns -> basic.s8
+{
+	let ts<cc.timespec_r>;
+	clock_gettime(CLOCK_MONOTONIC, &ts);
+
+	^ (ts.tv_sec * NS_PER_SEC) + ts.tv_nsec;
+}
+
+# Wall-clock nanoseconds since the Unix epoch (1970-01-01 UTC). Subject to NTP
+# adjustments and manual clock changes; may jump forward or backward.
++ wall_ns -> basic.s8
+{
+	let ts<cc.timespec_r>;
+	clock_gettime(CLOCK_REALTIME, &ts);
+
+	^ (ts.tv_sec * NS_PER_SEC) + ts.tv_nsec;
+}
+
+# Split total nanoseconds into a normalized timespec (tv_nsec in [0, NS_PER_SEC)).
++ ns_to_timespec(ns<basic.s8>, ts<cc.timespec_r*>) -> ()
+{
+	let sec<basic.s8> = ns / NS_PER_SEC;
+	let rem<basic.s8> = ns - (sec * NS_PER_SEC);
+
+	if(rem < 0_s8)
+	{
+		sec = sec - 1_s8;
+		rem = rem + NS_PER_SEC;
+	}
+
+	ts.tv_sec  = sec;
+	ts.tv_nsec = rem;
+
+	^ ();
+}
+
+# Recombine a normalized timespec into total nanoseconds.
++ timespec_to_ns(ts<cc.timespec_r*>) -> basic.s8
+{
+	^ (ts.tv_sec * NS_PER_SEC) + ts.tv_nsec;
+}
+
+# Sleep for at least `ns` nanoseconds. Non-positive values return immediately.
+# Restarts nanosleep on EINTR-style partial completion using the remaining time.
++ sleep_ns(ns<basic.s8>) -> ()
+{
+	if(ns <= 0_s8)
+	{
+		^ ();
+	}
+
+	let req<cc.timespec_r>;
+	let rem<cc.timespec_r>;
+	ns_to_timespec(ns, &req);
+
+	while(nanosleep(&req, &rem) != 0_s4)
+	{
+		req = rem;
+	}
+
+	^ ();
+}
+
+# Compute an absolute monotonic deadline `timeout_ns` nanoseconds in the future.
+# Non-positive timeouts return the current monotonic reading (already expired).
++ deadline_from_timeout_ns(timeout_ns<basic.s8>) -> basic.s8
+{
+	let now<basic.s8> = monotonic_ns;
+
+	if(timeout_ns <= 0_s8)
+	{
+		^ now;
+	}
+
+	^ now + timeout_ns;
+}
+
+# Nanoseconds remaining until a monotonic deadline; clamped to 0 once past.
++ nanos_until(deadline_ns<basic.s8>) -> basic.s8
+{
+	let now<basic.s8> = monotonic_ns;
+
+	if(deadline_ns <= now)
+	{
+		^ 0_s8;
+	}
+
+	^ deadline_ns - now;
+}

@@ -1,0 +1,157 @@
+package time;
+require core.basic ~> basic;
+require core.c ~> c;
+
+# Nanoseconds per second, used by the timespec conversions and split multiplies.
+const NS_PER_SEC<basic.s8> = 1000000000_s8;
+
+# 100-ns ticks between 1601-01-01 UTC (FILETIME epoch) and 1970-01-01 UTC
+# (Unix epoch): 11644473600 seconds * 10_000_000 ticks/second.
+const FILETIME_UNIX_EPOCH_100NS<basic.s8> = 116444736000000000_s8;
+
+# Largest Sleep-safe DWORD (avoids INFINITE = 0xFFFFFFFF).
+const SLEEP_MAX_MS<basic.s8> = 4294967294_s8;
+
+# Win32 LARGE_INTEGER (8 bytes). We treat it as a single 64-bit signed quantity.
+[[(:alignment, 8_sz)]]
+record LARGE_INTEGER_r
+{
+	let quad<basic.s8>;
+}
+
+# Win32 FILETIME: 64-bit count of 100-ns intervals since 1601-01-01 UTC,
+# expressed as two adjacent DWORDs (low, high).
+[[(:alignment, 4_sz)]]
+record FILETIME_r
+{
+	let dwLowDateTime<basic.u4>;
+	let dwHighDateTime<basic.u4>;
+}
+
+[[:system, :dynamic]]
+foreign "Kernel32" ~> .
+{
+	# High-resolution performance counter. BOOL always non-zero on XP+.
+	+ QueryPerformanceCounter(counter<LARGE_INTEGER_r*>) -> basic.cbool ->> basic.atom;
+
+	# QPC tick rate (fixed for process lifetime per MSDN). BOOL always non-zero on XP+.
+	+ QueryPerformanceFrequency(freq<LARGE_INTEGER_r*>) -> basic.cbool ->> basic.atom;
+
+	# System wall-clock with ~100 ns resolution. Win8+.
+	+ GetSystemTimePreciseAsFileTime(ft<FILETIME_r*>) -> ();
+
+	# Sleep for at least `milliseconds` ms. 0 yields; 0xFFFFFFFF is INFINITE.
+	+ Sleep(milliseconds<basic.u4>) -> ();
+}
+
+# Monotonic nanoseconds derived from QueryPerformanceCounter. QPC is cached by
+# the OS in a user-mode page on modern Windows, so the two calls resolve
+# without a kernel transition; no file-scope cache is needed.
+# Split-multiply `(count * NS_PER_SEC) / freq` to keep intermediate values in s8.
++ monotonic_ns -> basic.s8
+{
+	let counter<LARGE_INTEGER_r>;
+	let freq<LARGE_INTEGER_r>;
+	let _qpc<basic.atom> = QueryPerformanceCounter(&counter);
+	let _qpf<basic.atom> = QueryPerformanceFrequency(&freq);
+
+	let c<basic.s8> = counter.quad;
+	let f<basic.s8> = freq.quad;
+
+	let whole_seconds<basic.s8> = c / f;
+	let sub_second_ticks<basic.s8> = c - (whole_seconds * f);
+
+	^ (whole_seconds * NS_PER_SEC) + ((sub_second_ticks * NS_PER_SEC) / f);
+}
+
+# Wall-clock nanoseconds since the Unix epoch (1970-01-01 UTC).
++ wall_ns -> basic.s8
+{
+	let ft<FILETIME_r>;
+	GetSystemTimePreciseAsFileTime(&ft);
+
+	let high<basic.s8> = ft.dwHighDateTime ~> basic.s8;
+	let low<basic.s8> = ft.dwLowDateTime ~> basic.s8;
+	let ticks<basic.s8> = (high << 32_sz) | low;
+
+	^ (ticks - FILETIME_UNIX_EPOCH_100NS) * 100_s8;
+}
+
+# Split total nanoseconds into a normalized timespec (tv_nsec in [0, NS_PER_SEC)).
++ ns_to_timespec(ns<basic.s8>, ts<c.timespec_r*>) -> ()
+{
+	let sec<basic.s8> = ns / NS_PER_SEC;
+	let rem<basic.s8> = ns - (sec * NS_PER_SEC);
+
+	if(rem < 0_s8)
+	{
+		sec = sec - 1_s8;
+		rem = rem + NS_PER_SEC;
+	}
+
+	ts.tv_sec  = sec;
+	ts.tv_nsec = rem;
+
+	^ ();
+}
+
+# Recombine a normalized timespec into total nanoseconds.
++ timespec_to_ns(ts<c.timespec_r*>) -> basic.s8
+{
+	^ (ts.tv_sec * NS_PER_SEC) + ts.tv_nsec;
+}
+
+# Sleep for at least `ns` nanoseconds. Non-positive values return immediately.
+# Windows Sleep is millisecond-granular; ns rounds up to the nearest whole ms.
+# Chunks beyond SLEEP_MAX_MS are looped so that `ns` can exceed ~49.7 days
+# without wrapping into INFINITE.
++ sleep_ns(ns<basic.s8>) -> ()
+{
+	if(ns <= 0_s8)
+	{
+		^ ();
+	}
+
+	let remaining_ms<basic.s8> = ((ns - 1_s8) / 1000000_s8) + 1_s8;
+
+	while(remaining_ms > 0_s8)
+	{
+		let chunk<basic.s8> = remaining_ms;
+	
+		if(chunk > SLEEP_MAX_MS)
+		{
+			chunk = SLEEP_MAX_MS;
+		}
+	
+		Sleep(chunk ~> basic.u4);
+		remaining_ms = remaining_ms - chunk;
+	}
+
+	^ ();
+}
+
+# Compute an absolute monotonic deadline `timeout_ns` nanoseconds in the future.
++ deadline_from_timeout_ns(timeout_ns<basic.s8>) -> basic.s8
+{
+	let now<basic.s8> = monotonic_ns;
+
+	if(timeout_ns <= 0_s8)
+	{
+		^ now;
+	}
+
+	^ now + timeout_ns;
+}
+
+# Nanoseconds remaining until a monotonic deadline; clamped to 0 once past.
++ nanos_until(deadline_ns<basic.s8>) -> basic.s8
+{
+	let now<basic.s8> = monotonic_ns;
+
+	if(deadline_ns <= now)
+	{
+		^ 0_s8;
+	}
+
+	^ deadline_ns - now;
+}

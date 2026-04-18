@@ -12,7 +12,7 @@ const style_mask_closable<style_mask_t> = cocoa.ns_window_style_mask_closable;
 const style_mask_resizable<style_mask_t> = cocoa.ns_window_style_mask_resizable;
 
 # Return the default titled, closable, resizable style mask.
-+ default_style_mask() -> style_mask_t
++ default_style_mask -> style_mask_t
 {
 	^ style_mask_titled + style_mask_closable + style_mask_resizable;
 }
@@ -38,7 +38,7 @@ const style_mask_resizable<style_mask_t> = cocoa.ns_window_style_mask_resizable;
 # Create a titled platform window using the default style mask.
 + make_default_window(content_rect<rect_t>, title_text<[c1, :c]>) -> window_t
 {
-	^ make_titled_window(content_rect, default_style_mask(), title_text);
+	^ make_titled_window(content_rect, default_style_mask, title_text);
 }
 
 # Show the window and make it key.
@@ -69,33 +69,33 @@ const style_mask_resizable<style_mask_t> = cocoa.ns_window_style_mask_resizable;
 }
 
 # Clear the recorded resize state for the reusable window delegate.
-+ reset_resize_state() -> ()
++ reset_resize_state -> ()
 {
-	cocoa.reset_resize_tracking_window_delegate_state();
+	cocoa.reset_resize_tracking_window_delegate_state;
 	^ ();
 }
 
 # Return whether the reusable window delegate observed a resize.
-+ did_resize?() -> atom
++ did_resize? -> atom
 {
-	^ cocoa.resize_tracking_window_delegate_did_resize?();
+	^ cocoa.resize_tracking_window_delegate_did_resize?;
 }
 
 # Return the latest size observed by the reusable window delegate.
-+ latest_resize_size() -> size_t
++ latest_resize_size -> size_t
 {
-	^ cocoa.resize_tracking_window_delegate_latest_size();
+	^ cocoa.resize_tracking_window_delegate_latest_size;
 }
 
 # Clear the recorded close state for the reusable window delegate.
-+ reset_close_state() -> ()
++ reset_close_state -> ()
 {
-	cocoa.reset_stop_on_close_window_delegate_state();
+	cocoa.reset_stop_on_close_window_delegate_state;
 	^ ();
 }
 
 # Return whether the reusable window delegate observed a close.
-+ did_close?() -> atom
++ did_close? -> atom
 {
-	^ cocoa.stop_on_close_window_delegate_did_close?();
+	^ cocoa.stop_on_close_window_delegate_did_close?;
 }

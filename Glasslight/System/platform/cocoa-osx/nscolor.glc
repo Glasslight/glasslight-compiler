@@ -2,31 +2,31 @@ package cocoa;
 require core.platform.osx.objc ~> objc;
 
 # Return the standard gray NSColor.
-+ gray_color() -> ns_object_t
++ gray_color -> ns_object_t
 {
 	^ objc.send_id(get_class("NSColor"), get_selector("grayColor"));
 }
 
 # Return the standard red NSColor.
-+ red_color() -> ns_object_t
++ red_color -> ns_object_t
 {
 	^ objc.send_id(get_class("NSColor"), get_selector("redColor"));
 }
 
 # Return the standard green NSColor.
-+ green_color() -> ns_object_t
++ green_color -> ns_object_t
 {
 	^ objc.send_id(get_class("NSColor"), get_selector("greenColor"));
 }
 
 # Return the standard blue NSColor.
-+ blue_color() -> ns_object_t
++ blue_color -> ns_object_t
 {
 	^ objc.send_id(get_class("NSColor"), get_selector("blueColor"));
 }
 
 # Return the standard yellow NSColor.
-+ yellow_color() -> ns_object_t
++ yellow_color -> ns_object_t
 {
 	^ objc.send_id(get_class("NSColor"), get_selector("yellowColor"));
 }

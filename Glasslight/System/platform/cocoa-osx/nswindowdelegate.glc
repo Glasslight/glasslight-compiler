@@ -25,7 +25,7 @@ let resize_tracking_window_delegate_latest_size_value<ns_size_r>;
 }
 
 # Clear the recorded resize state for the reusable window delegate.
-+ reset_resize_tracking_window_delegate_state() -> ()
++ reset_resize_tracking_window_delegate_state -> ()
 {
 	resize_tracking_window_delegate_did_resize = :false;
 	resize_tracking_window_delegate_latest_size_value = make_ns_size(0.0_f8, 0.0_f8);
@@ -33,14 +33,14 @@ let resize_tracking_window_delegate_latest_size_value<ns_size_r>;
 }
 
 # Clear the recorded close state for the reusable window delegate.
-+ reset_stop_on_close_window_delegate_state() -> ()
++ reset_stop_on_close_window_delegate_state -> ()
 {
 	stop_on_close_window_delegate_did_close = :false;
 	^ ();
 }
 
 # Return the reusable NSWindow delegate class that stops the app on close.
-+ get_stop_on_close_window_delegate_class() -> objc.objc_class_t
++ get_stop_on_close_window_delegate_class -> objc.objc_class_t
 {
 	if(stop_on_close_window_delegate_class != nil)
 	{
@@ -78,7 +78,7 @@ let resize_tracking_window_delegate_latest_size_value<ns_size_r>;
 }
 
 # Create an NSWindow delegate that stops the shared application on close.
-+ make_stop_on_close_window_delegate() -> ns_object_t
++ make_stop_on_close_window_delegate -> ns_object_t
 {
 	let delegate_class<objc.objc_class_t> = get_stop_on_close_window_delegate_class();
 
@@ -93,25 +93,25 @@ let resize_tracking_window_delegate_latest_size_value<ns_size_r>;
 }
 
 # Create an NSWindow delegate that records whether a resize happened.
-+ make_resize_tracking_window_delegate() -> ns_object_t
++ make_resize_tracking_window_delegate -> ns_object_t
 {
 	^ make_stop_on_close_window_delegate();
 }
 
 # Return whether the resize-tracking delegate observed a resize.
-+ resize_tracking_window_delegate_did_resize?() -> atom
++ resize_tracking_window_delegate_did_resize? -> atom
 {
 	^ resize_tracking_window_delegate_did_resize;
 }
 
 # Return the latest size observed by the resize-tracking delegate.
-+ resize_tracking_window_delegate_latest_size() -> ns_size_r
++ resize_tracking_window_delegate_latest_size -> ns_size_r
 {
 	^ resize_tracking_window_delegate_latest_size_value;
 }
 
 # Return whether the reusable window delegate observed a close.
-+ stop_on_close_window_delegate_did_close?() -> atom
++ stop_on_close_window_delegate_did_close? -> atom
 {
 	^ stop_on_close_window_delegate_did_close;
 }
