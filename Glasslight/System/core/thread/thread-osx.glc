@@ -1,0 +1,188 @@
+package thread;
+
+require core.basic ~> .;
+require core.context ~> .;
+require core.allocator ~> .;
+
+record thread_r
+{
+	let native<u8>;
+}
+
+record thread_spawn_config_r
+{
+	let name<[c1, :c]> = nil;
+	let stack_bytes<size> = 0_sz;
+}
+
+record thread_args_r
+{
+	let ctx<context_r>;
+	let entry<(context_r, voidptr) -> ()>;
+	let user_data<voidptr>;
+	let args_alloc<allocator_r>;
+}
+
+[[(:kind, :alias), (:alias, :weak)]] typecreate pthread_t ~> u8;
+
+# _opaque_pthread_attr_t on Darwin arm64: sig (s8) + 56 opaque bytes = 64 bytes.
+[[(:alignment, 8_sz)]]
+record pthread_attr_t
+{
+	let _sig<s8>;
+	let _opaque<[u1, 56_sz]>;
+}
+
+[[:system, :dynamic]]
+foreign "libSystem.B.tbd" ~> .
+{
+	# Create a new thread running `start(arg)`. Returns 0 on success.
+	+ pthread_create(tid<pthread_t*>, attr<pthread_attr_t*>, start<fptr>, arg<voidptr>) -> s4;
+
+	# Block until `tid` exits; receive its return value via `*retval`.
+	+ pthread_join(tid<pthread_t>, retval<voidptr*>) -> s4;
+
+	# Mark `tid` as detached so its resources are reclaimed on exit.
+	+ pthread_detach(tid<pthread_t>) -> s4;
+
+	# Return the calling thread's pthread handle.
+	+ pthread_self -> pthread_t;
+
+	# Terminate the calling thread with the given return value.
+	+ pthread_exit(retval<voidptr>) -> ();
+
+	# Initialize a thread-attribute record to default values.
+	+ pthread_attr_init(attr<pthread_attr_t*>) -> s4;
+
+	# Release resources held by a thread-attribute record.
+	+ pthread_attr_destroy(attr<pthread_attr_t*>) -> s4;
+
+	# Set the stack size (in bytes) for threads created with this attribute.
+	+ pthread_attr_setstacksize(attr<pthread_attr_t*>, bytes<size>) -> s4;
+
+	# Yield the CPU to any other ready thread.
+	+ sched_yield -> s4;
+}
+
+# Pthread entry trampoline: `+` so the OS can call it. Installs ctx from args
+# in scope, frees the args buffer, and calls the user entry — that call
+# auto-injects ctx from this scope.
++ __glc_thread_bootstrap_posix(raw<voidptr>) -> voidptr
+{
+	let args<thread_args_r*> = raw ~~> thread_args_r*;
+	let ctx<context_r> = args.ctx;
+	let entry<(context_r, voidptr) -> ()> = args.entry;
+	let user_data<voidptr> = args.user_data;
+	let args_alloc<allocator_r> = args.args_alloc;
+
+	allocator_free(args_alloc, raw);
+	entry(user_data);
+	^ nil;
+}
+
+# Spawn a worker thread running `entry(ctx, user_data)` with the given config.
+++ spawn(config<thread_spawn_config_r>, entry<(context_r, voidptr) -> ()>, user_data<voidptr>) -> (atom, thread_r)
+{
+	let a<allocator_r> = ctx.main;
+	let raw<voidptr> = allocator_alloc(a, typeinfo(thread_args_r, :bytes));
+	let args<thread_args_r*> = raw ~~> thread_args_r*;
+	args.ctx = ctx;
+	args.entry = entry;
+	args.user_data = user_data;
+	args.args_alloc = a;
+
+	let attr<pthread_attr_t>;
+	let has_attr<atom> = :false;
+
+	if(config.stack_bytes > 0_sz)
+	{
+		pthread_attr_init(&attr);
+		pthread_attr_setstacksize(&attr, config.stack_bytes);
+		has_attr = :true;
+	}
+
+	let tid<pthread_t>;
+	let attr_arg<pthread_attr_t*> = nil;
+
+	if(has_attr)
+	{
+		attr_arg = &attr;
+	}
+
+	let rc<s4> = pthread_create(&tid, attr_arg, &__glc_thread_bootstrap_posix ~> fptr, raw);
+
+	if(has_attr)
+	{
+		pthread_attr_destroy(&attr);
+	}
+
+	if(rc != 0_s4)
+	{
+		allocator_free(a, raw);
+		let failed<thread_r>;
+		^ (:failed, failed);
+	}
+
+	let t<thread_r>;
+	t.native = tid ~~> u8;
+	^ (:ok, t);
+}
+
+# Spawn a worker thread with the default config (no name, OS-default stack).
+++ spawn_default(entry<(context_r, voidptr) -> ()>, user_data<voidptr>) -> (atom, thread_r)
+{
+	let config<thread_spawn_config_r>;
+	^ spawn(config, entry, user_data);
+}
+
+# Block until thread `t` exits. Returns :ok on success or :failed on error.
++ join(t<thread_r>) -> atom
+{
+	let tid<pthread_t> = t.native ~~> pthread_t;
+	let retval<voidptr>;
+	let rc<s4> = pthread_join(tid, &retval);
+
+	if(rc == 0_s4)
+	{
+		^ :ok;
+	}
+
+	^ :failed;
+}
+
+# Mark thread `t` as detached so its resources are reclaimed on exit.
++ detach(t<thread_r>) -> atom
+{
+	let tid<pthread_t> = t.native ~~> pthread_t;
+	let rc<s4> = pthread_detach(tid);
+
+	if(rc == 0_s4)
+	{
+		^ :ok;
+	}
+
+	^ :failed;
+}
+
+# Return a handle to the calling thread.
++ current -> thread_r
+{
+	let tid<pthread_t> = pthread_self;
+	let t<thread_r>;
+	t.native = tid ~~> u8;
+	^ t;
+}
+
+# Hint to the scheduler to run another ready thread.
++ yield_now -> ()
+{
+	let _rc<s4> = sched_yield;
+	^ ();
+}
+
+# Terminate the calling thread immediately.
++ exit_thread -> ()
+{
+	pthread_exit(nil);
+	^ ();
+}

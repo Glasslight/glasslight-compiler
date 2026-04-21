@@ -1,0 +1,149 @@
+package thread;
+
+require core.basic ~> .;
+require core.context ~> .;
+require core.allocator ~> .;
+
+record thread_r
+{
+	let native<u8>;
+}
+
+record thread_spawn_config_r
+{
+	let name<[c1, :c]> = nil;
+	let stack_bytes<size> = 0_sz;
+}
+
+record thread_args_r
+{
+	let ctx<context_r>;
+	let entry<(context_r, voidptr) -> ()>;
+	let user_data<voidptr>;
+	let args_alloc<allocator_r>;
+}
+
+const WAIT_OBJECT_0<u4> = 0_u4;
+const INFINITE<u4> = 0xFFFFFFFF_u4;
+
+[[:system, :dynamic]]
+foreign "Kernel32" ~> .
+{
+	# Create a new thread running `lpStartAddress(lpParameter)`. Returns HANDLE or nil on failure.
+	+ CreateThread(lpThreadAttributes<voidptr>, dwStackSize<size>, lpStartAddress<fptr>, lpParameter<voidptr>, dwCreationFlags<u4>, lpThreadId<u4*>) -> voidptr;
+
+	# Block until the kernel object signals. Returns WAIT_OBJECT_0 on success.
+	+ WaitForSingleObject(hHandle<voidptr>, dwMilliseconds<u4>) -> u4;
+
+	# Release a kernel handle's reference; frees the object when the last ref goes.
+	+ CloseHandle(h<voidptr>) -> cbool ->> atom;
+
+	# Return a pseudo-handle for the calling thread.
+	+ GetCurrentThread -> voidptr;
+
+	# Terminate the calling thread with the given exit code.
+	+ ExitThread(dwExitCode<u4>) -> ();
+
+	# Yield to another ready thread on the same processor.
+	+ SwitchToThread -> cbool ->> atom;
+}
+
+# Win32 entry trampoline: `+` so the OS can call it. Installs ctx from args in
+# scope, frees the args buffer, and calls the user entry — that call
+# auto-injects ctx from this scope. Returns DWORD (u4) to match
+# LPTHREAD_START_ROUTINE.
++ __glc_thread_bootstrap_win64(raw<voidptr>) -> u4
+{
+	let args<thread_args_r*> = raw ~~> thread_args_r*;
+	let ctx<context_r> = args.ctx;
+	let entry<(context_r, voidptr) -> ()> = args.entry;
+	let user_data<voidptr> = args.user_data;
+	let args_alloc<allocator_r> = args.args_alloc;
+
+	allocator_free(args_alloc, raw);
+	entry(user_data);
+	^ 0_u4;
+}
+
+# Spawn a worker thread running `entry(ctx, user_data)` with the given config.
+++ spawn(config<thread_spawn_config_r>, entry<(context_r, voidptr) -> ()>, user_data<voidptr>) -> (atom, thread_r)
+{
+	let a<allocator_r> = ctx.main;
+	let raw<voidptr> = allocator_alloc(a, typeinfo(thread_args_r, :bytes));
+	let args<thread_args_r*> = raw ~~> thread_args_r*;
+	args.ctx = ctx;
+	args.entry = entry;
+	args.user_data = user_data;
+	args.args_alloc = a;
+
+	let handle<voidptr> = CreateThread(nil, config.stack_bytes, &__glc_thread_bootstrap_win64 ~> fptr, raw, 0_u4, nil);
+
+	if(nil?(handle))
+	{
+		allocator_free(a, raw);
+		let failed<thread_r>;
+		^ (:failed, failed);
+	}
+
+	let t<thread_r>;
+	t.native = handle ~~> u8;
+	^ (:ok, t);
+}
+
+# Spawn a worker thread with the default config (no name, OS-default stack).
+++ spawn_default(entry<(context_r, voidptr) -> ()>, user_data<voidptr>) -> (atom, thread_r)
+{
+	let config<thread_spawn_config_r>;
+	^ spawn(config, entry, user_data);
+}
+
+# Block until thread `t` exits, then close its handle. Returns :ok or :failed.
++ join(t<thread_r>) -> atom
+{
+	let handle<voidptr> = t.native ~~> voidptr;
+	let wait_result<u4> = WaitForSingleObject(handle, INFINITE);
+
+	if(wait_result != WAIT_OBJECT_0)
+	{
+		^ :failed;
+	}
+
+	let closed<atom> = CloseHandle(handle);
+
+	if(closed)
+	{
+		^ :ok;
+	}
+
+	^ :failed;
+}
+
+# Detach by closing the thread handle; the thread keeps running until exit.
++ detach(t<thread_r>) -> atom
+{
+	let handle<voidptr> = t.native ~~> voidptr;
+	^ CloseHandle(handle);
+}
+
+# Return a pseudo-handle for the calling thread.
++ current -> thread_r
+{
+	let handle<voidptr> = GetCurrentThread;
+	let t<thread_r>;
+	t.native = handle ~~> u8;
+	^ t;
+}
+
+# Hint to the scheduler to run another ready thread.
++ yield_now -> ()
+{
+	let _r<atom> = SwitchToThread;
+	^ ();
+}
+
+# Terminate the calling thread immediately with exit code 0.
++ exit_thread -> ()
+{
+	ExitThread(0_u4);
+	^ ();
+}
