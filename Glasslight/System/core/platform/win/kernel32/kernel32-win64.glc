@@ -27,4 +27,10 @@ foreign "Kernel32" ~> .
 
 	# Write a string to the console.
 	+ WriteConsoleA(hConsoleOutput<handle_t>, lpBuffer<voidptr>, nNumberOfCharsToWrite<u4>, lpNumberOfCharsWritten<u4*>, lpReserved<voidptr>) -> cbool ->> atom;
+
+	# Block until the kernel object signals. Returns WAIT_OBJECT_0 on success.
+	+ WaitForSingleObject(hHandle<handle_t>, dwMilliseconds<u4>) -> u4;
+
+	# Release a kernel handle's reference; frees the object when the last ref goes.
+	+ CloseHandle(h<handle_t>) -> cbool ->> atom;
 }

@@ -61,8 +61,14 @@ package basic;
 # C string literals - [c1, :c] resolves to cstring.
 [[(:kind, :cstring), :mixable, (:compare, :value)]] typecreate cstring;
 
+# Wide C string literals - [c2, :c] resolves to wcstring.
+[[(:kind, :wcstring), :mixable, (:compare, :value)]] typecreate wcstring;
+
 # Compile-time only/const string literal - [c1, :const] resolves to strlit.
 [[(:kind, :strlit), :const_only]] typecreate strlit;
+
+# Compile-time only/const wide string literal - [c2, :const] resolves to wstrlit.
+[[(:kind, :wstrlit), :const_only]] typecreate wstrlit;
 
 # Opaque (void*) type.
 [[(:kind, :voidptr), (:compare, :value)]] typecreate voidptr;
@@ -102,6 +108,9 @@ package basic;
 
 # Base type for strings — [c1] resolves to string_r.
 [[(:kind, :string), (:record, :string_r)]] typecreate _;
+
+# Base type for wide strings — [c2] resolves to wstring_r.
+[[(:kind, :wstring), (:record, :wstring_r)]] typecreate _;
 
 # Comparison mode for compare/order attributes.
 atomenum type_compare_mode_e
@@ -156,6 +165,9 @@ atomenum typekind_e
 	:view_unsized,
 	:view_sized,
 	:cstring,
+	:wcstring,
 	:strlit,
-	:string
+	:wstrlit,
+	:string,
+	:wstring
 }

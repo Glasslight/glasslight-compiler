@@ -1,0 +1,32 @@
+package wstring;
+require core.common ~> .;
+require core.ffi.wstring ~> .;
+
+# Length in c2 elements of a null-terminated wcstring. Portable across
+# platforms (backed by __glc_wcs_len, which operates on 16-bit elements
+# regardless of wchar_t width).
++ wcslen(s<[c2, :c]>) -> size
+{
+	^ __glc_wcs_len(s);
+}
+
+# Length in c2 elements, capped at n.
++ wcsnlen(s<[c2, :c]>, n<size>) -> size
+{
+	^ __glc_wcs_nlen(s, n);
+}
+
+typemix wcstring
+{
+	# Return the length of the wcstring in c2 elements.
+	- length() -> size { ^ wcslen(*self); }
+
+	# Return the length of the wcstring in c2 elements (capped at n).
+	- length(n<size>) -> size { ^ wcsnlen(*self, n); }
+
+	# Return :true if the wcstring is empty.
+	- empty? -> atom { ^ wcslen(*self) == 0_sz; }
+
+	# Return an unsized wide-string view over the wcstring elements.
+	- view -> [c2, ()] { ^ make_view(c2, *self ~~> c2*, self.length()); }
+}

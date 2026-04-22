@@ -1,0 +1,9 @@
+package ffi_wstring;
+require core.basic;
+
+[[:builtin, :static]]
+foreign "core/ffi/wstring" ~> .
+{
+	+ __glc_wcs_len(s<[basic.c2, :c]>) -> basic.size;
+	+ __glc_wcs_nlen(s<[basic.c2, :c]>, n<basic.size>) -> basic.size;
+}

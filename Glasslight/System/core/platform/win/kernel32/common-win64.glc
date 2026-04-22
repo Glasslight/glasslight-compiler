@@ -9,6 +9,12 @@ const STD_INPUT_HANDLE<u4>  = 0xFFFFFFF6_u4;
 const STD_OUTPUT_HANDLE<u4> = 0xFFFFFFF5_u4;
 const STD_ERROR_HANDLE<u4>  = 0xFFFFFFF4_u4;
 
+# Return code from WaitForSingleObject indicating the handle was signaled.
+const WAIT_OBJECT_0<u4> = 0_u4;
+
+# Sentinel timeout for WaitForSingleObject meaning "wait forever".
+const INFINITE<u4> = 0xFFFFFFFF_u4;
+
 enum win32_error_code_e : u4
 {
 	error_none                = 0_u4,

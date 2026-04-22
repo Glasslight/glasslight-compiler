@@ -1,0 +1,149 @@
+package wstring;
+require core.common ~> .;
+require core.array ~> .;
+require core.mem ~> .;
+require core.error ~> error;
+
+record wstring_r
+{
+	let buf<[c2, :dynamic]>;
+
+	# Returns the current number of elements.
+	- length() -> size { ^ self.buf.length; }
+
+	# Returns the current allocated capacity (excluding null terminator).
+	- capacity() when self.buf.capacity == 0_sz -> size { ^ 0_sz; }
+	- capacity() -> size { ^ self.buf.capacity - 1_sz; }
+
+	# Returns the raw data pointer.
+	- data() -> c2* { ^ self.buf.data; }
+
+	# Returns the element at idx.
+	- at(idx<size>) -> c2 { ^ self.buf.at(idx); }
+
+	# Returns the element at idx via subscript operator.
+	- subscript(idx<size>) -> c2 { ^ self.buf[idx]; }
+
+	# Sets the element at idx via subscript operator.
+	- subscript(idx<size>, val<c2>) -> ()
+	{
+		self.buf[idx] = val;
+		^ ();
+	}
+
+	# Returns :true when empty and :false otherwise.
+	- empty? -> atom { ^ self.buf.empty?; }
+
+	# Ensures capacity is at least new_cap (reserves new_cap + 1 for null terminator).
+	- reserve(new_cap<size>) when new_cap <= self.capacity -> () { ^ (); }
+	- reserve(new_cap<size>) -> ()
+	{
+		self.buf.reserve(new_cap + 1_sz);
+		*(self.buf.data + self.buf.length) = 0_c2;
+		^ ();
+	}
+
+	# Appends one element, growing storage if needed. Maintains null terminator.
+	- append!(value<c2>) -> ()
+	{
+		self.buf.ensure_capacity(self.buf.length + 2_sz);
+
+		*(self.buf.data + self.buf.length) = value;
+		self.buf.length += 1_sz;
+		*(self.buf.data + self.buf.length) = 0_c2;
+
+		^ ();
+	}
+
+	# Appends all elements from a wide string view. Handles self-alias.
+	- append!(v<[c2, ()]>) -> ()
+	{
+		let add_len<size> = v.length;
+
+		if(add_len == 0_sz)
+		{
+			^ ();
+		}
+
+		let old_len<size> = self.buf.length;
+		let new_len<size> = old_len + add_len;
+		let src<c2*> = v.data();
+		let self_alias<atom> = self.buf.data == src;
+
+		self.buf.ensure_capacity(new_len + 1_sz);
+
+		let dst<voidptr> = (self.buf.data + old_len) ~~> voidptr;
+		let bytes<size> = add_len * typeinfo(c2, :bytes);
+
+		if(self_alias)
+		{
+			__glc_mem_move(dst, self.buf.data ~~> voidptr, bytes);
+		}
+		else
+		{
+			__glc_mem_copy(dst, src ~~> voidptr, bytes);
+		}
+
+		self.buf.length = new_len;
+		*(self.buf.data + self.buf.length) = 0_c2;
+
+		^ ();
+	}
+
+	# Removes all elements but keeps allocation. Writes null terminator.
+	- clear! -> ()
+	{
+		self.buf.clear!;
+
+		if(self.buf.capacity > 0_sz)
+		{
+			*self.buf.data = 0_c2;
+		}
+
+		^ ();
+	}
+
+	# Frees storage and resets the wide string state.
+	- delete -> ()
+	{
+		self.buf.delete;
+		^ ();
+	}
+
+	# Reverses all elements in-place.
+	- reverse! when self.buf.length <= 1_sz -> () { ^ (); }
+	- reverse! -> ()
+	{
+		self.buf.reverse!;
+		^ ();
+	}
+
+	# Create an unsized wide string view from this wide string.
+	- view -> [c2, ()] { ^ self.buf.view; }
+
+	# Return a wcstring pointer to the null-terminated buffer.
+	- to_wcstring -> [c2, :c] { ^ self.data() ~~> wcstring; }
+}
+
+# Create a wide string with initial capacity.
+++ make_wstring(cap<size>) -> [c2]
+{
+	let result<[c2]>;
+	result.buf = make_array(c2, cap + 1_sz);
+	*result.buf.data = 0_c2;
+	^ result;
+}
+
+# Create a wide string from a wide string view.
+++ make_wstring(v<[c2, ()]>) -> [c2]
+{
+	let result<[c2]> = make_wstring(v.length());
+	result.append!(v);
+	^ result;
+}
+
+# Create an empty wide string.
+++ make_empty_wstring -> [c2]
+{
+	^ make_wstring(0_sz);
+}

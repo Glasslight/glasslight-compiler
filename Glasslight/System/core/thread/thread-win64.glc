@@ -3,6 +3,7 @@ package thread;
 require core.basic ~> .;
 require core.context ~> .;
 require core.allocator ~> .;
+require core.platform.win.kernel32 ~> kernel32;
 
 record thread_r
 {
@@ -23,23 +24,14 @@ record thread_args_r
 	let args_alloc<allocator_r>;
 }
 
-const WAIT_OBJECT_0<u4> = 0_u4;
-const INFINITE<u4> = 0xFFFFFFFF_u4;
-
 [[:system, :dynamic]]
 foreign "Kernel32" ~> .
 {
 	# Create a new thread running `lpStartAddress(lpParameter)`. Returns HANDLE or nil on failure.
-	+ CreateThread(lpThreadAttributes<voidptr>, dwStackSize<size>, lpStartAddress<fptr>, lpParameter<voidptr>, dwCreationFlags<u4>, lpThreadId<u4*>) -> voidptr;
-
-	# Block until the kernel object signals. Returns WAIT_OBJECT_0 on success.
-	+ WaitForSingleObject(hHandle<voidptr>, dwMilliseconds<u4>) -> u4;
-
-	# Release a kernel handle's reference; frees the object when the last ref goes.
-	+ CloseHandle(h<voidptr>) -> cbool ->> atom;
+	+ CreateThread(lpThreadAttributes<voidptr>, dwStackSize<size>, lpStartAddress<fptr>, lpParameter<voidptr>, dwCreationFlags<u4>, lpThreadId<u4*>) -> kernel32.handle_t;
 
 	# Return a pseudo-handle for the calling thread.
-	+ GetCurrentThread -> voidptr;
+	+ GetCurrentThread -> kernel32.handle_t;
 
 	# Terminate the calling thread with the given exit code.
 	+ ExitThread(dwExitCode<u4>) -> ();
@@ -76,7 +68,7 @@ foreign "Kernel32" ~> .
 	args.user_data = user_data;
 	args.args_alloc = a;
 
-	let handle<voidptr> = CreateThread(nil, config.stack_bytes, &__glc_thread_bootstrap_win64 ~> fptr, raw, 0_u4, nil);
+	let handle<kernel32.handle_t> = CreateThread(nil, config.stack_bytes, &__glc_thread_bootstrap_win64 ~> fptr, raw, 0_u4, nil);
 
 	if(nil?(handle))
 	{
@@ -100,15 +92,15 @@ foreign "Kernel32" ~> .
 # Block until thread `t` exits, then close its handle. Returns :ok or :failed.
 + join(t<thread_r>) -> atom
 {
-	let handle<voidptr> = t.native ~~> voidptr;
-	let wait_result<u4> = WaitForSingleObject(handle, INFINITE);
+	let handle<kernel32.handle_t> = t.native ~~> kernel32.handle_t;
+	let wait_result<u4> = kernel32.WaitForSingleObject(handle, kernel32.INFINITE);
 
-	if(wait_result != WAIT_OBJECT_0)
+	if(wait_result != kernel32.WAIT_OBJECT_0)
 	{
 		^ :failed;
 	}
 
-	let closed<atom> = CloseHandle(handle);
+	let closed<atom> = kernel32.CloseHandle(handle);
 
 	if(closed)
 	{
@@ -121,14 +113,14 @@ foreign "Kernel32" ~> .
 # Detach by closing the thread handle; the thread keeps running until exit.
 + detach(t<thread_r>) -> atom
 {
-	let handle<voidptr> = t.native ~~> voidptr;
-	^ CloseHandle(handle);
+	let handle<kernel32.handle_t> = t.native ~~> kernel32.handle_t;
+	^ kernel32.CloseHandle(handle);
 }
 
 # Return a pseudo-handle for the calling thread.
 + current -> thread_r
 {
-	let handle<voidptr> = GetCurrentThread;
+	let handle<kernel32.handle_t> = GetCurrentThread;
 	let t<thread_r>;
 	t.native = handle ~~> u8;
 	^ t;
