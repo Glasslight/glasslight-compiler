@@ -1,0 +1,54 @@
+package utf8proc;
+require core.basic ~> basic;
+
+[[:builtin, :static]]
+foreign "core/utf8proc" ~> .
+{
+	# Return the utf8proc library version string.
+	+ utf8proc_version() -> basic.c1*;
+
+	# Return the supported Unicode version string.
+	+ utf8proc_unicode_version() -> basic.c1*;
+
+	# Return the utf8proc error message for an error code.
+	+ utf8proc_errmsg(errcode<utf8proc_ssize_t>) -> basic.c1*;
+
+	# Decode one UTF-8 codepoint and write it through the out pointer.
+	+ utf8proc_iterate(str<basic.c1*>, strlen<utf8proc_ssize_t>, codepoint_ref<basic.s4*>) -> utf8proc_ssize_t;
+
+	# Encode one codepoint into UTF-8 bytes.
+	+ utf8proc_encode_char(codepoint<utf8proc_codepoint_t>, dst<basic.c1*>) -> utf8proc_ssize_t;
+
+	# Return whether the codepoint is valid.
+	+ utf8proc_codepoint_valid(codepoint<utf8proc_codepoint_t>) -> basic.cbool ->> basic.atom;
+
+	# Lowercase a codepoint.
+	+ utf8proc_tolower(codepoint<utf8proc_codepoint_t>) -> utf8proc_codepoint_t;
+
+	# Uppercase a codepoint.
+	+ utf8proc_toupper(codepoint<utf8proc_codepoint_t>) -> utf8proc_codepoint_t;
+
+	# Titlecase a codepoint.
+	+ utf8proc_totitle(codepoint<utf8proc_codepoint_t>) -> utf8proc_codepoint_t;
+
+	# Return whether the codepoint is lowercase.
+	+ utf8proc_islower(codepoint<utf8proc_codepoint_t>) -> basic.s4;
+
+	# Return whether the codepoint is uppercase.
+	+ utf8proc_isupper(codepoint<utf8proc_codepoint_t>) -> basic.s4;
+
+	# Return the display width for a codepoint.
+	+ utf8proc_charwidth(codepoint<utf8proc_codepoint_t>) -> basic.s4;
+
+	# Return whether the codepoint has ambiguous width.
+	+ utf8proc_charwidth_ambiguous(codepoint<utf8proc_codepoint_t>) -> basic.cbool ->> basic.atom;
+
+	# Return the category enum for a codepoint.
+	+ utf8proc_category(codepoint<utf8proc_codepoint_t>) -> utf8proc_category_e;
+
+	# Return the category string for a codepoint.
+	+ utf8proc_category_string(codepoint<utf8proc_codepoint_t>) -> basic.c1*;
+
+	# Return the property record pointer for a codepoint.
+	+ utf8proc_get_property(codepoint<utf8proc_codepoint_t>) -> basic.voidptr;
+}

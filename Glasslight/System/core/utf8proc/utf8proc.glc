@@ -1,0 +1,234 @@
+package utf8proc;
+require core.common ~> .;
+require core.string;
+require core.c ~> c;
+
+[[(:kind, :alias), (:alias, :weak)]] typecreate utf8proc_codepoint_t ~> c4;
+[[(:kind, :alias), (:alias, :weak)]] typecreate utf8proc_ssize_t ~> s8;
+[[(:kind, :alias), (:alias, :weak)]] typecreate utf8proc_propval_t ~> s2;
+[[(:kind, :alias), (:alias, :weak)]] typecreate utf8proc_bool_t ~> cbool;
+
+# utf8proc error codes returned by fallible APIs.
+enum utf8proc_error_e : s4
+{
+	nomem        = -1_s4,
+	overflow     = -2_s4,
+	invalid_utf8 = -3_s4,
+	not_assigned = -4_s4,
+	invalid_opts = -5_s4
+}
+
+# utf8proc Unicode general category values.
+enum utf8proc_category_e : s4
+{
+	cn = 0_s4,
+	lu = 1_s4,
+	ll = 2_s4,
+	lt = 3_s4,
+	lm = 4_s4,
+	lo = 5_s4,
+	mn = 6_s4,
+	mc = 7_s4,
+	me = 8_s4,
+	nd = 9_s4,
+	nl = 10_s4,
+	no = 11_s4,
+	pc = 12_s4,
+	pd = 13_s4,
+	ps = 14_s4,
+	pe = 15_s4,
+	pi = 16_s4,
+	pf = 17_s4,
+	po = 18_s4,
+	sm = 19_s4,
+	sc = 20_s4,
+	sk = 21_s4,
+	so = 22_s4,
+	zs = 23_s4,
+	zl = 24_s4,
+	zp = 25_s4,
+	cc = 26_s4,
+	cf = 27_s4,
+	cs = 28_s4,
+	co = 29_s4
+}
+
+# utf8proc bidirectional class values for Unicode codepoints.
+enum utf8proc_bidi_class_e : s4
+{
+	left_to_right              = 1_s4,
+	left_to_right_embedding    = 2_s4,
+	left_to_right_override     = 3_s4,
+	right_to_left              = 4_s4,
+	right_to_left_arabic       = 5_s4,
+	right_to_left_embedding    = 6_s4,
+	right_to_left_override     = 7_s4,
+	pop_directional_format     = 8_s4,
+	european_number            = 9_s4,
+	european_separator         = 10_s4,
+	european_number_terminator = 11_s4,
+	arabic_number              = 12_s4,
+	common_number_separator = 13_s4,
+	nonspacing_mark           = 14_s4,
+	boundary_neutral          = 15_s4,
+	paragraph_separator       = 16_s4,
+	segment_separator         = 17_s4,
+	whitespace                = 18_s4,
+	other_neutrals            = 19_s4,
+	left_to_right_isolate     = 20_s4,
+	right_to_left_isolate     = 21_s4,
+	first_strong_isolate      = 22_s4,
+	pop_directional_isolate = 23_s4
+}
+
+# utf8proc decomposition type values from the property table.
+enum utf8proc_decomp_type_e : s4
+{
+	font         = 1_s4,
+	nobreak      = 2_s4,
+	initial      = 3_s4,
+	medial       = 4_s4,
+	final        = 5_s4,
+	isolated     = 6_s4,
+	circle       = 7_s4,
+	superscript = 8_s4,
+	sub          = 9_s4,
+	vertical     = 10_s4,
+	wide         = 11_s4,
+	narrow       = 12_s4,
+	small        = 13_s4,
+	square       = 14_s4,
+	fraction     = 15_s4,
+	compat       = 16_s4
+}
+
+# utf8proc grapheme boundary class values from the property table.
+enum utf8proc_boundclass_e : s4
+{
+	start                     = 0_s4,
+	other                     = 1_s4,
+	cr                        = 2_s4,
+	lf                        = 3_s4,
+	control                   = 4_s4,
+	extend                    = 5_s4,
+	l                         = 6_s4,
+	v                         = 7_s4,
+	t                         = 8_s4,
+	lv                        = 9_s4,
+	lvt                       = 10_s4,
+	regional_indicator        = 11_s4,
+	spacing_mark              = 12_s4,
+	prepend                   = 13_s4,
+	zero_width_joiner         = 14_s4,
+	emoji_base                = 15_s4,
+	emoji_modifier            = 16_s4,
+	glue_after_zero_width_joiner = 17_s4,
+	emoji_base_gaz              = 18_s4,
+	extended_pictographic       = 19_s4,
+	extended_pictographic_zero_width_joiner = 20_s4
+}
+
+# utf8proc Indic conjunct break values from the property table.
+enum utf8proc_indic_conjunct_break_e : s4
+{
+	no_break  = 0_s4,
+	linker    = 1_s4,
+	consonant = 2_s4,
+	extend    = 3_s4
+}
+
+record utf8proc_property_r
+{
+	let category<utf8proc_propval_t>;
+	let combining_class<utf8proc_propval_t>;
+	let bidi_class<utf8proc_propval_t>;
+	let decomp_type<utf8proc_propval_t>;
+	let decomp_seqindex<u2>;
+	let casefold_seqindex<u2>;
+	let uppercase_seqindex<u2>;
+	let lowercase_seqindex<u2>;
+	let titlecase_seqindex<u2>;
+
+	# Return the category as a typed enum.
+	- category_enum() -> utf8proc_category_e { ^ (self.category ~> s4) ~~> utf8proc_category_e; }
+
+	# Return the bidi class as a typed enum.
+	- bidi_class_enum() -> utf8proc_bidi_class_e { ^ (self.bidi_class ~> s4) ~~> utf8proc_bidi_class_e; }
+
+	# Return the decomposition type as a typed enum.
+	- decomp_type_enum() -> utf8proc_decomp_type_e { ^ (self.decomp_type ~> s4) ~~> utf8proc_decomp_type_e; }
+}
+
+record utf8proc_iterate_result_r
+{
+	let ok<atom> = :false;
+	let bytes_read<utf8proc_ssize_t> = 0_s8;
+	let codepoint<utf8proc_codepoint_t> = 0_c4;
+}
+
+# Return the utf8proc API version string.
++ version() -> cstring
+{
+	^ utf8proc_version() ~~> cstring;
+}
+
+# Return the supported Unicode version string.
++ unicode_version() -> cstring
+{
+	^ utf8proc_unicode_version() ~~> cstring;
+}
+
+# Return the error message for a utf8proc error code.
++ error_message(err<utf8proc_error_e>) -> cstring
+{
+	let errcode<utf8proc_ssize_t> = err ~> s4 ~> s8;
+	^ utf8proc_errmsg(errcode) ~~> cstring;
+}
+
+# Return :true when the codepoint is uppercase according to utf8proc.
++ isupper?(codepoint<utf8proc_codepoint_t>) -> atom
+{
+	^ utf8proc_isupper(codepoint) != 0_s4;
+}
+
+# Return :true when the codepoint is lowercase according to utf8proc.
++ islower?(codepoint<utf8proc_codepoint_t>) -> atom
+{
+	^ utf8proc_islower(codepoint) != 0_s4;
+}
+
+# Decode one UTF-8 codepoint from bytes with an explicit byte length.
++ iterate(ptr<c1*>, length<utf8proc_ssize_t>) -> utf8proc_iterate_result_r
+{
+	let raw_codepoint<s4> = -1_s4;
+	let bytes_read<utf8proc_ssize_t> = utf8proc_iterate(ptr, length, &raw_codepoint);
+	let result<utf8proc_iterate_result_r>;
+
+	if(bytes_read > 0_s8)
+	{
+		result.ok = :true;
+		result.bytes_read = bytes_read;
+		result.codepoint = raw_codepoint ~~> utf8proc_codepoint_t;
+	}
+
+	^ result;
+}
+
+# Decode one UTF-8 codepoint from a byte view.
++ iterate(ptr<[c1, ()]>) -> utf8proc_iterate_result_r
+{
+	^ iterate(ptr.data(), (ptr.length ~~> u8) ~> utf8proc_ssize_t);
+}
+
+# Decode one UTF-8 codepoint from a null-terminated C string.
++ iterate(ptr<[c1, :c]>) -> utf8proc_iterate_result_r
+{
+	# Pass -1 so utf8proc measures the null-terminated input itself.
+	^ iterate(ptr ~~> c1*, -1_s8);
+}
+
+# Return the raw property record head for a codepoint.
++ get_property(codepoint<utf8proc_codepoint_t>) -> utf8proc_property_r*
+{
+	^ utf8proc_get_property(codepoint) ~~> utf8proc_property_r*;
+}
