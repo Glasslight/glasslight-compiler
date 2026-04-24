@@ -1,0 +1,75 @@
+package unicode;
+require core.basic ~> .;
+require core.utf8proc ~> up;
+
+# Friendly alias so user code can write `unicode_category_e.lu` without
+# needing to know the underlying utf8proc enum name.
+[[(:kind, :alias), (:alias, :weak)]] typecreate unicode_category_e ~> up.utf8proc_category_e;
+
+# Per-codepoint case mapping. Single-codepoint mapping only; multi-codepoint
+# expansions (e.g. U+00DF -> SS) return the input unchanged.
++ codepoint_to_lower(cp<c4>) -> c4 { ^ up.utf8proc_tolower(cp); }
++ codepoint_to_upper(cp<c4>) -> c4 { ^ up.utf8proc_toupper(cp); }
+
+# Per-codepoint predicates.
++ codepoint_is_lower?(cp<c4>) -> atom { ^ up.islower?(cp); }
++ codepoint_is_upper?(cp<c4>) -> atom { ^ up.isupper?(cp); }
++ codepoint_is_valid?(cp<c4>) -> atom { ^ up.utf8proc_codepoint_valid(cp); }
+
+# Unicode general category for a codepoint.
++ codepoint_category(cp<c4>) -> unicode_category_e { ^ up.utf8proc_category(cp); }
+
+# Display width: -1 (invalid), 0 (zero-width), 1, or 2.
++ codepoint_char_width(cp<c4>) -> s4 { ^ up.utf8proc_charwidth(cp); }
+
+# Whitespace = Unicode category Zs/Zl/Zp OR ASCII control whitespace
+# (\t \n \v \f \r). The Zs/Zl/Zp categories cover U+0020, U+00A0, U+1680
+# and similar; the ASCII control whitespace points have category Cc, so we
+# add them explicitly.
++ codepoint_is_whitespace?(cp<c4>) -> atom
+{
+	# Fast path for ASCII control whitespace (most common case).
+	match(cp)
+	{
+		case 0x09_c4 => { ^ :true; }
+		case 0x0A_c4 => { ^ :true; }
+		case 0x0B_c4 => { ^ :true; }
+		case 0x0C_c4 => { ^ :true; }
+		case 0x0D_c4 => { ^ :true; }
+	}
+
+	match(codepoint_category(cp))
+	{
+		case unicode_category_e.zs => { ^ :true; }
+		case unicode_category_e.zl => { ^ :true; }
+		case unicode_category_e.zp => { ^ :true; }
+	}
+	else
+	{
+		^ :false;
+	}
+
+	^ :false;
+}
+
+# UTF-32 utilities. c4 IS a codepoint — no encode/decode pair needed.
+
+# Returns :true if every code unit is a valid Unicode codepoint
+# (in 0..0x10FFFF and not a surrogate).
++ utf32_validate?(v<[c4, ()]>) -> atom
+{
+	for(let i<size> = 0_sz; i < v.length; i += 1_sz)
+	{
+		let cp<c4> = v.at(i);
+
+		if(!codepoint_is_valid?(cp))
+		{
+			^ :false;
+		}
+	}
+
+	^ :true;
+}
+
+# Trivially v.length — UTF-32 has one code unit per codepoint by definition.
++ utf32_count_codepoints(v<[c4, ()]>) -> size { ^ v.length; }

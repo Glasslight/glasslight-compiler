@@ -3,6 +3,8 @@ package thread;
 require core.basic ~> .;
 require core.context ~> .;
 require core.allocator ~> .;
+require core.wstring ~> .;
+require core.unicode.wstring ~> uwstr;
 require core.platform.win.kernel32 ~> kernel32;
 
 record thread_r
@@ -38,6 +40,18 @@ foreign "Kernel32" ~> .
 
 	# Yield to another ready thread on the same processor.
 	+ SwitchToThread -> cbool ->> atom;
+
+	# Return the calling thread's numeric id (DWORD).
+	+ GetCurrentThreadId -> u4;
+
+	# Return the numeric id (DWORD) of the thread referenced by `handle`.
+	+ GetThreadId(handle<kernel32.handle_t>) -> u4;
+
+	# Set the description (name) of `handle`. Takes a NUL-terminated UTF-16LE wide string. Returns S_OK (0) on success.
+	+ SetThreadDescription(handle<kernel32.handle_t>, description<c2*>) -> s4;
+
+	# Set the CPU affinity mask for `handle`. Returns the previous mask, or 0 on failure.
+	+ SetThreadAffinityMask(handle<kernel32.handle_t>, dwThreadAffinityMask<size>) -> size;
 }
 
 # Win32 entry trampoline: `+` so the OS can call it. Installs ctx from args in
@@ -138,4 +152,107 @@ foreign "Kernel32" ~> .
 {
 	ExitThread(0_u4);
 	^ ();
+}
+
+# Return the numeric thread id of `t`.
++ thread_id(t<thread_r>) -> u8
+{
+	let handle<kernel32.handle_t> = t.native ~~> kernel32.handle_t;
+	let id<u4> = GetThreadId(handle);
+	^ id ~> u8;
+}
+
+# Return the calling thread's numeric id.
++ current_id -> u8
+{
+	let id<u4> = GetCurrentThreadId;
+	^ id ~> u8;
+}
+
+# Return :true if `a` and `b` refer to the same thread, :false otherwise.
+# Win32 HANDLEs may differ for the same thread (DuplicateHandle); compare numeric ids.
++ thread_equal(a<thread_r>, b<thread_r>) -> atom
+{
+	let ha<kernel32.handle_t> = a.native ~~> kernel32.handle_t;
+	let hb<kernel32.handle_t> = b.native ~~> kernel32.handle_t;
+	let id_a<u4> = GetThreadId(ha);
+	let id_b<u4> = GetThreadId(hb);
+
+	if(id_a == id_b)
+	{
+		^ :true;
+	}
+
+	^ :false;
+}
+
+# Set the calling thread's name. Returns :ok or :failed.
+++ thread_set_name(name<[c1, :c]>) -> atom
+{
+	let wide<[c2]> = uwstr.make_from_utf8(name.view);
+	let handle<kernel32.handle_t> = GetCurrentThread;
+	let hr<s4> = SetThreadDescription(handle, wide.data);
+	wide.delete;
+
+	if(hr >= 0_s4)
+	{
+		^ :ok;
+	}
+
+	^ :failed;
+}
+
+# Return the number of logical processors on the system.
++ hardware_concurrency -> u4
+{
+	let info<kernel32.SYSTEM_INFO_r>;
+	kernel32.GetSystemInfo(&info);
+
+	if(info.dwNumberOfProcessors < 1_u4)
+	{
+		^ 1_u4;
+	}
+
+	^ info.dwNumberOfProcessors;
+}
+
+# Set the CPU affinity mask for thread `t` (low 64 CPUs). Returns :ok or :failed.
++ thread_set_affinity_mask(t<thread_r>, mask<u8>) -> atom
+{
+	let handle<kernel32.handle_t> = t.native ~~> kernel32.handle_t;
+	let prev<size> = SetThreadAffinityMask(handle, mask ~~> size);
+
+	if(prev != 0_sz)
+	{
+		^ :ok;
+	}
+
+	^ :failed;
+}
+
+# Query the CPU affinity mask for thread `t`. Win32 has no direct getter, so
+# temporarily set to the process mask, capture the returned previous mask,
+# and restore it. Returns (:ok, mask) or (:failed, 0_u8).
++ thread_get_affinity_mask(t<thread_r>) -> (atom, u8)
+{
+	let process<kernel32.handle_t> = kernel32.GetCurrentProcess;
+	let proc_mask<size> = 0_sz;
+	let sys_mask<size> = 0_sz;
+	let ok<atom> = kernel32.GetProcessAffinityMask(process, &proc_mask, &sys_mask);
+
+	if(ok != :true)
+	{
+		^ (:failed, 0_u8);
+	}
+
+	let handle<kernel32.handle_t> = t.native ~~> kernel32.handle_t;
+	let prev<size> = SetThreadAffinityMask(handle, proc_mask);
+
+	if(prev == 0_sz)
+	{
+		^ (:failed, 0_u8);
+	}
+
+	let _restore<size> = SetThreadAffinityMask(handle, prev);
+	^ (:ok, prev ~~> u8);
 }

@@ -3,6 +3,7 @@ package thread;
 require core.basic ~> .;
 require core.context ~> .;
 require core.allocator ~> .;
+require core.platform.posix.unistd ~> posix_unistd;
 
 record thread_r
 {
@@ -62,6 +63,16 @@ foreign "libSystem.B.tbd" ~> .
 
 	# Yield the CPU to any other ready thread.
 	+ sched_yield -> s4;
+
+	# Write the 64-bit kernel thread id of `tid` into `*tid_out`. If `tid` is 0,
+	# uses the calling thread. Returns 0 on success.
+	+ pthread_threadid_np(tid<pthread_t>, tid_out<u8*>) -> s4;
+
+	# Return non-zero if `a` and `b` refer to the same thread.
+	+ pthread_equal(a<pthread_t>, b<pthread_t>) -> s4;
+
+	# Set the calling thread's name (current-thread-only on macOS). Returns 0 on success.
+	+ pthread_setname_np(name<[c1, :c]>) -> s4;
 }
 
 # Pthread entry trampoline: `+` so the OS can call it. Installs ctx from args
@@ -185,4 +196,75 @@ foreign "libSystem.B.tbd" ~> .
 {
 	pthread_exit(nil);
 	^ ();
+}
+
+# Return the kernel thread id of `t`.
++ thread_id(t<thread_r>) -> u8
+{
+	let tid<pthread_t> = t.native ~~> pthread_t;
+	let out<u8> = 0_u8;
+	let _rc<s4> = pthread_threadid_np(tid, &out);
+	^ out;
+}
+
+# Return the calling thread's kernel thread id.
++ current_id -> u8
+{
+	let out<u8> = 0_u8;
+	let _rc<s4> = pthread_threadid_np(0_u8 ~~> pthread_t, &out);
+	^ out;
+}
+
+# Return :true if `a` and `b` refer to the same thread, :false otherwise.
++ thread_equal(a<thread_r>, b<thread_r>) -> atom
+{
+	let tid_a<pthread_t> = a.native ~~> pthread_t;
+	let tid_b<pthread_t> = b.native ~~> pthread_t;
+	let rc<s4> = pthread_equal(tid_a, tid_b);
+
+	if(rc != 0_s4)
+	{
+		^ :true;
+	}
+
+	^ :false;
+}
+
+# Set the calling thread's name. Returns :ok or :failed.
+++ thread_set_name(name<[c1, :c]>) -> atom
+{
+	let rc<s4> = pthread_setname_np(name);
+
+	if(rc == 0_s4)
+	{
+		^ :ok;
+	}
+
+	^ :failed;
+}
+
+# Return the number of logical processors currently online.
++ hardware_concurrency -> u4
+{
+	let n<s8> = posix_unistd.sysconf(posix_unistd.SC_NPROCESSORS_ONLN);
+
+	if(n < 1_s8)
+	{
+		^ 1_u4;
+	}
+
+	^ n ~> u4;
+}
+
+# Set the CPU affinity mask for thread `t`. macOS has no real affinity API;
+# always returns :unsupported without calling any Mach routine.
++ thread_set_affinity_mask(t<thread_r>, mask<u8>) -> atom
+{
+	^ :unsupported;
+}
+
+# Query the CPU affinity mask for thread `t`. Returns (:unsupported, 0_u8) on macOS.
++ thread_get_affinity_mask(t<thread_r>) -> (atom, u8)
+{
+	^ (:unsupported, 0_u8);
 }

@@ -1,6 +1,9 @@
 package unistd;
 require core.basic ~> basic;
 
+# sysconf name for "number of processors currently online" on Linux glibc.
+const SC_NPROCESSORS_ONLN<basic.s4> = 84_s4;
+
 [[:system, :dynamic]]
 foreign "c" ~> .
 {
@@ -9,4 +12,7 @@ foreign "c" ~> .
 
 	# Write to a file descriptor (unistd.h).
 	+ write(fd<basic.s4>, buf<basic.voidptr>, count<basic.size>) -> basic.s8;
+
+	# Query a numeric system configuration variable (unistd.h). Returns -1 on error.
+	+ sysconf(name<basic.s4>) -> basic.s8;
 }

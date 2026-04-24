@@ -1,0 +1,70 @@
+package string;
+require core.common ~> .;
+require core.string ~> str;
+require core.wstring ~> wstr;
+require core.unicode.utf8 ~> utf8;
+require core.unicode.utf16 ~> utf16;
+
+# Wrap a [c1, :dynamic] byte buffer into a string_r. Transfers ownership:
+# the buffer's length is the string's length, no extra allocation.
+++ wrap_bytes(bytes<[c1, :dynamic]>) -> [c1]
+{
+	^ str.make_string(make_view(c1, bytes.data, bytes.length));
+}
+
+# Unicode-aware lowercase. Returns a new string_r. Invalid UTF-8 subsequences
+# are passed through verbatim (same policy as core.unicode.utf8.to_lower).
+++ to_lower(s<[c1]>) -> [c1]
+{
+	let bytes<[c1, :dynamic]> = utf8.to_lower(s.view);
+	let result<[c1]> = wrap_bytes(bytes);
+	bytes.delete;
+
+	^ result;
+}
+
+# Unicode-aware uppercase. Returns a new string_r.
+++ to_upper(s<[c1]>) -> [c1]
+{
+	let bytes<[c1, :dynamic]> = utf8.to_upper(s.view);
+	let result<[c1]> = wrap_bytes(bytes);
+	bytes.delete;
+
+	^ result;
+}
+
+# Trim leading Unicode whitespace. Returns a new string_r holding the
+# trimmed content.
+++ trim_start(s<[c1]>) -> [c1]
+{
+	let trimmed<[c1, ()]> = utf8.trim_start(s.view);
+	^ str.make_string(trimmed);
+}
+
+# Trim trailing Unicode whitespace.
+++ trim_end(s<[c1]>) -> [c1]
+{
+	let trimmed<[c1, ()]> = utf8.trim_end(s.view);
+	^ str.make_string(trimmed);
+}
+
+# Trim both leading and trailing Unicode whitespace.
+++ trim(s<[c1]>) -> [c1]
+{
+	let trimmed<[c1, ()]> = utf8.trim(s.view);
+	^ str.make_string(trimmed);
+}
+
+# Build a string_r from a UTF-16 view. Malformed UTF-16 (orphan surrogates,
+# etc.) is handled by core.unicode.utf16.to_utf8 per its documented contract:
+# the offending code unit is dropped from the output and the cursor advances
+# by 1 (recovery). Callers who want strict behavior should check
+# utf16.validate?(v) before calling.
+++ make_from_utf16(v<[c2, ()]>) -> [c1]
+{
+	let bytes<[c1, :dynamic]> = utf16.to_utf8(v);
+	let result<[c1]> = wrap_bytes(bytes);
+	bytes.delete;
+
+	^ result;
+}

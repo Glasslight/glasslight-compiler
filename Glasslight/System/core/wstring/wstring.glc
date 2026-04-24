@@ -3,6 +3,7 @@ require core.common ~> .;
 require core.array ~> .;
 require core.mem ~> .;
 require core.error ~> error;
+require core.unicode.utf16 ~> utf16;
 
 record wstring_r
 {
@@ -123,6 +124,15 @@ record wstring_r
 
 	# Return a wcstring pointer to the null-terminated buffer.
 	- to_wcstring -> [c2, :c] { ^ self.data() ~~> wcstring; }
+
+	# Return :true iff the underlying c2 buffer is valid UTF-16 (no orphan
+	# surrogates). Pure query, no allocation.
+	- validate?() -> atom { ^ utf16.validate?(self.view); }
+
+	# Return the number of Unicode codepoints represented by the buffer.
+	# For pure-BMP content this equals self.length; surrogate pairs count
+	# as a single codepoint spanning two code units.
+	- count_codepoints() -> size { ^ utf16.count_codepoints(self.view); }
 }
 
 # Create a wide string with initial capacity.

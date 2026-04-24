@@ -1,0 +1,67 @@
+package wstring;
+require core.common ~> .;
+require core.wstring ~> wstr;
+require core.unicode.utf8 ~> utf8;
+require core.unicode.utf16 ~> utf16;
+
+# Wrap a [c2, :dynamic] unit buffer into a wstring_r.
+++ wrap_units(units<[c2, :dynamic]>) -> [c2]
+{
+	^ wstr.make_wstring(make_view(c2, units.data, units.length));
+}
+
+# Unicode-aware lowercase. Returns a new wstring_r. Invalid UTF-16 code units
+# (orphan surrogates) are passed through verbatim.
+++ to_lower(s<[c2]>) -> [c2]
+{
+	let units<[c2, :dynamic]> = utf16.to_lower(s.view);
+	let result<[c2]> = wrap_units(units);
+	units.delete;
+
+	^ result;
+}
+
+# Unicode-aware uppercase. Returns a new wstring_r.
+++ to_upper(s<[c2]>) -> [c2]
+{
+	let units<[c2, :dynamic]> = utf16.to_upper(s.view);
+	let result<[c2]> = wrap_units(units);
+	units.delete;
+
+	^ result;
+}
+
+# Trim leading Unicode whitespace. Returns a new wstring_r.
+++ trim_start(s<[c2]>) -> [c2]
+{
+	let trimmed<[c2, ()]> = utf16.trim_start(s.view);
+	^ wstr.make_wstring(trimmed);
+}
+
+# Trim trailing Unicode whitespace.
+++ trim_end(s<[c2]>) -> [c2]
+{
+	let trimmed<[c2, ()]> = utf16.trim_end(s.view);
+	^ wstr.make_wstring(trimmed);
+}
+
+# Trim both leading and trailing Unicode whitespace.
+++ trim(s<[c2]>) -> [c2]
+{
+	let trimmed<[c2, ()]> = utf16.trim(s.view);
+	^ wstr.make_wstring(trimmed);
+}
+
+# Build a wstring_r from a UTF-8 view. Malformed UTF-8 is handled by
+# core.unicode.utf8.to_utf16 per its documented contract: the offending
+# byte is dropped from the output and the cursor advances by 1 (recovery).
+# Callers who want strict behavior should check utf8.validate?(v) before
+# calling.
+++ make_from_utf8(v<[c1, ()]>) -> [c2]
+{
+	let units<[c2, :dynamic]> = utf8.to_utf16(v);
+	let result<[c2]> = wrap_units(units);
+	units.delete;
+
+	^ result;
+}

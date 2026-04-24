@@ -33,4 +33,13 @@ foreign "Kernel32" ~> .
 
 	# Release a kernel handle's reference; frees the object when the last ref goes.
 	+ CloseHandle(h<handle_t>) -> cbool ->> atom;
+
+	# Return a pseudo-handle for the calling process.
+	+ GetCurrentProcess -> handle_t;
+
+	# Write the process's affinity masks into `*pProcessAffinityMask` and `*pSystemAffinityMask`.
+	+ GetProcessAffinityMask(hProcess<handle_t>, pProcessAffinityMask<size*>, pSystemAffinityMask<size*>) -> cbool ->> atom;
+
+	# Fill `*lpSystemInfo` with system configuration (number of CPUs, page size, etc.).
+	+ GetSystemInfo(lpSystemInfo<SYSTEM_INFO_r*>) -> ();
 }

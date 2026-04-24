@@ -3,6 +3,7 @@ package thread;
 require core.basic ~> .;
 require core.context ~> .;
 require core.allocator ~> .;
+require core.platform.posix.unistd ~> posix_unistd;
 
 record thread_r
 {
@@ -31,6 +32,13 @@ record thread_args_r
 record pthread_attr_t
 {
 	let _opaque<[u1, 64_sz]>;
+}
+
+# glibc cpu_set_t: CPU_SETSIZE == 1024 bits == 128 bytes.
+[[(:alignment, 8_sz)]]
+record cpu_set_t
+{
+	let _opaque<[u1, 128_sz]>;
 }
 
 [[:system, :dynamic]]
@@ -62,6 +70,21 @@ foreign "c" ~> .
 
 	# Yield the CPU to any other ready thread.
 	+ sched_yield -> s4;
+
+	# Return the calling thread's kernel thread id (glibc 2.30+).
+	+ gettid -> s4;
+
+	# Return non-zero if `a` and `b` refer to the same thread.
+	+ pthread_equal(a<pthread_t>, b<pthread_t>) -> s4;
+
+	# Set the name of thread `tid` (Linux takes a tid + name). Returns 0 on success.
+	+ pthread_setname_np(tid<pthread_t>, name<[c1, :c]>) -> s4;
+
+	# Set the CPU affinity of thread `tid`. Returns 0 on success.
+	+ pthread_setaffinity_np(tid<pthread_t>, cpusetsize<size>, set<cpu_set_t*>) -> s4;
+
+	# Get the CPU affinity of thread `tid`. Returns 0 on success.
+	+ pthread_getaffinity_np(tid<pthread_t>, cpusetsize<size>, set<cpu_set_t*>) -> s4;
 }
 
 # Pthread entry trampoline: `+` so the OS can call it. Installs ctx from args
@@ -185,4 +208,95 @@ foreign "c" ~> .
 {
 	pthread_exit(nil);
 	^ ();
+}
+
+# Return the kernel thread id of `t`. Not straightforward on Linux: gettid only
+# returns the calling thread's id. For a remote `t`, fall back to the pthread_t
+# bits truncated to u8 (still unique per thread within the process).
++ thread_id(t<thread_r>) -> u8
+{
+	^ t.native;
+}
+
+# Return the calling thread's kernel thread id.
++ current_id -> u8
+{
+	let tid<s4> = gettid;
+	^ (tid ~> u8);
+}
+
+# Return :true if `a` and `b` refer to the same thread, :false otherwise.
++ thread_equal(a<thread_r>, b<thread_r>) -> atom
+{
+	let tid_a<pthread_t> = a.native ~~> pthread_t;
+	let tid_b<pthread_t> = b.native ~~> pthread_t;
+	let rc<s4> = pthread_equal(tid_a, tid_b);
+
+	if(rc != 0_s4)
+	{
+		^ :true;
+	}
+
+	^ :false;
+}
+
+# Set the calling thread's name (max 15 chars on Linux). Returns :ok or :failed.
+++ thread_set_name(name<[c1, :c]>) -> atom
+{
+	let tid<pthread_t> = pthread_self;
+	let rc<s4> = pthread_setname_np(tid, name);
+
+	if(rc == 0_s4)
+	{
+		^ :ok;
+	}
+
+	^ :failed;
+}
+
+# Return the number of logical processors currently online.
++ hardware_concurrency -> u4
+{
+	let n<s8> = posix_unistd.sysconf(posix_unistd.SC_NPROCESSORS_ONLN);
+
+	if(n < 1_s8)
+	{
+		^ 1_u4;
+	}
+
+	^ n ~> u4;
+}
+
+# Set the CPU affinity mask for thread `t` (low 64 CPUs). Returns :ok or :failed.
++ thread_set_affinity_mask(t<thread_r>, mask<u8>) -> atom
+{
+	let set<cpu_set_t>;
+	let low<u8*> = &set ~~> u8*;
+	*low = mask;
+
+	let tid<pthread_t> = t.native ~~> pthread_t;
+	let rc<s4> = pthread_setaffinity_np(tid, typeinfo(cpu_set_t, :bytes), &set);
+
+	if(rc == 0_s4)
+	{
+		^ :ok;
+	}
+
+	^ :failed;
+}
+
+# Query the CPU affinity mask for thread `t`. Returns (:ok, mask) or (:failed, 0_u8).
++ thread_get_affinity_mask(t<thread_r>) -> (atom, u8)
+{
+	let set<cpu_set_t>;
+	let tid<pthread_t> = t.native ~~> pthread_t;
+	let rc<s4> = pthread_getaffinity_np(tid, typeinfo(cpu_set_t, :bytes), &set);
+
+	if(rc != 0_s4)
+	{
+		^ (:failed, 0_u8);
+	}
+
+	let low<u8*> = &set ~~> u8*;
+	^ (:ok, *low);
 }

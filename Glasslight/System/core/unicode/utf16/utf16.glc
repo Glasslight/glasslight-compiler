@@ -1,0 +1,404 @@
+package utf16;
+require core.common ~> .;
+require core.array ~> .;
+require core.utf8proc ~> up;
+require core.unicode ~> ucd;
+
+# Sentinel returned by decode_char on invalid / truncated input. Outside the
+# valid Unicode range, so it cannot collide with any legitimate codepoint.
++ decode_invalid -> c4 { ^ 0xFFFFFFFF_u4 ~~> c4; }
+
+# Result of encode_char: a fixed-size 2-unit buffer plus the actual count
+# written (0..2). Stack-allocated, no heap traffic per codepoint.
+record encoded_utf16_r
+{
+	let units<[c2, 2_sz]>;
+	let length<size> = 0_sz;
+}
+
+# How many UTF-16 code units a given codepoint encodes to. 1 for BMP non-
+# surrogate, 2 for supplementary plane (surrogate pair), 0 for invalid.
++ char_size(cp<c4>) -> size
+{
+	if(cp < 0x10000_c4)
+	{
+		# BMP, but reject surrogates.
+		if(cp >= 0xD800_c4 && cp <= 0xDFFF_c4)
+		{
+			^ 0_sz;
+		}
+
+		^ 1_sz;
+	}
+
+	if(!ucd.codepoint_is_valid?(cp))
+	{
+		^ 0_sz;
+	}
+
+	^ 2_sz;
+}
+
+# Encode one codepoint to UTF-16 code units. Returns an encoded_utf16_r —
+# fixed 2-unit stack buffer plus the actual count (1 or 2 for valid, 0 for
+# invalid). No allocation.
++ encode_char(cp<c4>) -> encoded_utf16_r
+{
+	let result<encoded_utf16_r>;
+	let n<size> = char_size(cp);
+
+	if(n == 0_sz)
+	{
+		^ result;
+	}
+
+	if(n == 1_sz)
+	{
+		result.units[0_sz] = (cp ~> u4) ~> c2;
+		result.length = 1_sz;
+		^ result;
+	}
+
+	# Supplementary plane: surrogate pair.
+	let offset<u4> = (cp ~> u4) - 0x10000_u4;
+
+	result.units[0_sz] = ((offset >> 10_sz) + 0xD800_u4) ~> c2;
+	result.units[1_sz] = ((offset & 0x3FF_u4) + 0xDC00_u4) ~> c2;
+	result.length = 2_sz;
+
+	^ result;
+}
+
+# Decode the leading codepoint from a UTF-16 view. Returns decode_invalid
+# (0xFFFFFFFF_c4) on invalid / truncated input. Caller advances by next_size.
++ decode_char(v<[c2, ()]>) -> c4
+{
+	if(v.length == 0_sz)
+	{
+		^ decode_invalid;
+	}
+
+	let u0<c2> = v.at(0_sz);
+
+	# BMP non-surrogate: just zero-extend.
+	if(u0 < 0xD800_c2 || u0 > 0xDFFF_c2)
+	{
+		^ (u0 ~> u2) ~> c4;
+	}
+
+	# Low surrogate at start = orphan, malformed.
+	if(u0 >= 0xDC00_c2)
+	{
+		^ decode_invalid;
+	}
+
+	# High surrogate. Need a low surrogate immediately after.
+	if(v.length < 2_sz)
+	{
+		^ decode_invalid;
+	}
+
+	let u1<c2> = v.at(1_sz);
+
+	if(u1 < 0xDC00_c2 || u1 > 0xDFFF_c2)
+	{
+		^ decode_invalid;
+	}
+
+	# Combine into a supplementary-plane codepoint.
+	let high_part<u4> = ((u0 ~> u2) ~> u4) - 0xD800_u4;
+	let low_part<u4> = ((u1 ~> u2) ~> u4) - 0xDC00_u4;
+	let cp<u4> = (high_part << 10_sz) + low_part + 0x10000_u4;
+
+	^ cp ~> c4;
+}
+
+# How many code units the next decode_char(v) call would consume. Always
+# >= 1 for non-empty input — on malformed or truncated input returns 1
+# (recovery advance). Returns 0 only for empty input.
++ next_size(v<[c2, ()]>) -> size
+{
+	if(v.length == 0_sz)
+	{
+		^ 0_sz;
+	}
+
+	let u0<c2> = v.at(0_sz);
+
+	# BMP non-surrogate: 1 unit.
+	if(u0 < 0xD800_c2 || u0 > 0xDFFF_c2)
+	{
+		^ 1_sz;
+	}
+
+	# Low surrogate at start = orphan: recovery advance 1.
+	if(u0 >= 0xDC00_c2)
+	{
+		^ 1_sz;
+	}
+
+	# High surrogate. If a valid low surrogate follows, that's a 2-unit pair.
+	if(v.length >= 2_sz)
+	{
+		let u1<c2> = v.at(1_sz);
+
+		if(u1 >= 0xDC00_c2 && u1 <= 0xDFFF_c2)
+		{
+			^ 2_sz;
+		}
+	}
+
+	^ 1_sz;
+}
+
+# Whole-string validation. Single-pass scan for orphan surrogates.
++ validate?(v<[c2, ()]>) -> atom
+{
+	let i<size> = 0_sz;
+
+	while(i < v.length)
+	{
+		let u<c2> = v.at(i);
+
+		if(u >= 0xD800_c2 && u <= 0xDBFF_c2)
+		{
+			# High surrogate. Must be followed by a low surrogate.
+			if(i + 1_sz >= v.length)
+			{
+				^ :false;
+			}
+
+			let next_unit<c2> = v.at(i + 1_sz);
+
+			if(next_unit < 0xDC00_c2 || next_unit > 0xDFFF_c2)
+			{
+				^ :false;
+			}
+
+			i = i + 2_sz;
+		}
+		else
+		{
+			if(u >= 0xDC00_c2 && u <= 0xDFFF_c2)
+			{
+				# Orphan low surrogate.
+				^ :false;
+			}
+
+			i = i + 1_sz;
+		}
+	}
+
+	^ :true;
+}
+
+# Count codepoints. Each non-low-surrogate code unit starts a new codepoint
+# (high surrogates count as the start of a 2-unit codepoint, low surrogates
+# don't add to the count).
++ count_codepoints(v<[c2, ()]>) -> size
+{
+	let count<size> = 0_sz;
+
+	for(let i<size> = 0_sz; i < v.length; i += 1_sz)
+	{
+		let u<c2> = v.at(i);
+
+		if(u < 0xDC00_c2 || u > 0xDFFF_c2)
+		{
+			count = count + 1_sz;
+		}
+	}
+
+	^ count;
+}
+
+# Bulk convert UTF-16 to UTF-8. Loops decode_char, then calls
+# utf8proc_encode_char per codepoint into a stack buffer (avoids depending
+# on core.unicode.utf8 — keeps utf8/utf16 sibling-acyclic). Malformed input
+# is dropped from the output and the cursor advances by 1 to recover.
+++ to_utf8(v<[c2, ()]>) -> [c1, :dynamic]
+{
+	let result<[c1, :dynamic]> = make_array(c1, v.length);
+	let i<size> = 0_sz;
+
+	while(i < v.length)
+	{
+		let tail<[c2, ()]> = v.advance(i);
+		let cp<c4> = decode_char(tail);
+
+		if(cp != decode_invalid)
+		{
+			let buf<[c1, 4_sz]>;
+			let written<up.utf8proc_ssize_t> = up.utf8proc_encode_char(cp, &buf[0_sz]);
+
+			if(written > 0_s8)
+			{
+				let n<size> = (written ~> u8) ~~> size;
+
+				for(let j<size> = 0_sz; j < n; j += 1_sz)
+				{
+					result.append!(buf[j]);
+				}
+			}
+		}
+
+		i = i + next_size(tail);
+	}
+
+	^ result;
+}
+
+# Bulk convert UTF-16 to UTF-32. One c4 element per codepoint.
+++ to_utf32(v<[c2, ()]>) -> [c4, :dynamic]
+{
+	let result<[c4, :dynamic]> = make_array(c4, v.length);
+	let i<size> = 0_sz;
+
+	while(i < v.length)
+	{
+		let tail<[c2, ()]> = v.advance(i);
+		let cp<c4> = decode_char(tail);
+
+		if(cp != decode_invalid)
+		{
+			result.append!(cp);
+		}
+
+		i = i + next_size(tail);
+	}
+
+	^ result;
+}
+
+# Unicode-aware case mapping. Allocates new units (length in code units can
+# change because the source codepoint and the lower/uppercase target may be
+# in different planes). Single-codepoint mapping only — multi-codepoint
+# expansions pass through unchanged. Malformed code units are preserved
+# verbatim (cursor advances by 1).
+++ to_lower(v<[c2, ()]>) -> [c2, :dynamic]
+{
+	let result<[c2, :dynamic]> = make_array(c2, v.length);
+	let i<size> = 0_sz;
+
+	while(i < v.length)
+	{
+		let tail<[c2, ()]> = v.advance(i);
+		let cp<c4> = decode_char(tail);
+
+		if(cp != decode_invalid)
+		{
+			let lowered<c4> = ucd.codepoint_to_lower(cp);
+			let enc<encoded_utf16_r> = encode_char(lowered);
+
+			for(let j<size> = 0_sz; j < enc.length; j += 1_sz)
+			{
+				result.append!(enc.units[j]);
+			}
+		}
+		else
+		{
+			result.append!(v.at(i));
+		}
+
+		i = i + next_size(tail);
+	}
+
+	^ result;
+}
+
+# Unicode-aware uppercase mapping. See to_lower for malformed-input contract.
+++ to_upper(v<[c2, ()]>) -> [c2, :dynamic]
+{
+	let result<[c2, :dynamic]> = make_array(c2, v.length);
+	let i<size> = 0_sz;
+
+	while(i < v.length)
+	{
+		let tail<[c2, ()]> = v.advance(i);
+		let cp<c4> = decode_char(tail);
+
+		if(cp != decode_invalid)
+		{
+			let uppered<c4> = ucd.codepoint_to_upper(cp);
+			let enc<encoded_utf16_r> = encode_char(uppered);
+
+			for(let j<size> = 0_sz; j < enc.length; j += 1_sz)
+			{
+				result.append!(enc.units[j]);
+			}
+		}
+		else
+		{
+			result.append!(v.at(i));
+		}
+
+		i = i + next_size(tail);
+	}
+
+	^ result;
+}
+
+# Trim leading whitespace codepoints. Returns a view sliced from v — no
+# allocation. Halts at the first non-whitespace codepoint OR malformed unit.
++ trim_start(v<[c2, ()]>) -> [c2, ()]
+{
+	let i<size> = 0_sz;
+
+	while(i < v.length)
+	{
+		let tail<[c2, ()]> = v.advance(i);
+		let cp<c4> = decode_char(tail);
+
+		if(cp == decode_invalid)
+		{
+			^ tail;
+		}
+
+		if(!ucd.codepoint_is_whitespace?(cp))
+		{
+			^ tail;
+		}
+
+		i = i + next_size(tail);
+	}
+
+	^ make_empty_view(c2, v.data());
+}
+
+# Trim trailing whitespace codepoints. Walks codepoints from the start,
+# tracking the position of the last non-whitespace codepoint's end.
++ trim_end(v<[c2, ()]>) -> [c2, ()]
+{
+	let last_non_ws_end<size> = 0_sz;
+	let i<size> = 0_sz;
+
+	while(i < v.length)
+	{
+		let tail<[c2, ()]> = v.advance(i);
+		let cp<c4> = decode_char(tail);
+		let step<size> = next_size(tail);
+
+		if(cp == decode_invalid)
+		{
+			last_non_ws_end = i + step;
+		}
+		else
+		{
+			if(!ucd.codepoint_is_whitespace?(cp))
+			{
+				last_non_ws_end = i + step;
+			}
+		}
+
+		i = i + step;
+	}
+
+	^ make_view(v.data(), last_non_ws_end);
+}
+
+# Trim both leading and trailing whitespace codepoints.
++ trim(v<[c2, ()]>) -> [c2, ()]
+{
+	let trimmed_start<[c2, ()]> = trim_start(v);
+	^ trim_end(trimmed_start);
+}

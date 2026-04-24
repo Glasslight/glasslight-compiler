@@ -1,0 +1,415 @@
+package utf8;
+require core.common ~> .;
+require core.array ~> .;
+require core.utf8proc ~> up;
+require core.unicode ~> ucd;
+
+# Sentinel returned by decode_char on invalid / truncated input. Outside the
+# valid Unicode range (max codepoint is U+10FFFF), so it cannot collide with
+# any legitimate codepoint. Constructed via bitcast since 0xFFFFFFFF cannot
+# be expressed as a c4 literal (the lexer rejects values above U+10FFFF).
++ decode_invalid -> c4 { ^ 0xFFFFFFFF_u4 ~~> c4; }
+
+# Result of encode_char: a fixed-size 4-byte buffer plus the actual byte
+# count written (0..4). Stack-allocated, no heap traffic per codepoint —
+# critical for hot paths like to_lower / to_upper / to_utf8 that encode
+# every codepoint of the input.
+record encoded_utf8_r
+{
+	let bytes<[c1, 4_sz]>;
+	let length<size> = 0_sz;
+}
+
+# How many UTF-8 bytes a given codepoint encodes to. 1..4 for valid
+# codepoints, 0 for invalid (surrogates and codepoints above U+10FFFF).
++ char_size(cp<c4>) -> size
+{
+	if(cp < 0x80_c4)
+	{
+		^ 1_sz;
+	}
+
+	if(cp < 0x800_c4)
+	{
+		^ 2_sz;
+	}
+
+	if(cp < 0x10000_c4)
+	{
+		# BMP, but reject surrogates.
+		if(cp >= 0xD800_c4 && cp <= 0xDFFF_c4)
+		{
+			^ 0_sz;
+		}
+
+		^ 3_sz;
+	}
+
+	# Anything above U+10FFFF is rejected by the c4 literal lexer, but a
+	# runtime cast can still construct one — guard explicitly.
+	if(!ucd.codepoint_is_valid?(cp))
+	{
+		^ 0_sz;
+	}
+
+	^ 4_sz;
+}
+
+# Encode one codepoint to its UTF-8 bytes. Returns an encoded_utf8_r — fixed
+# 4-byte stack buffer plus the actual byte count (1..4 for valid codepoints,
+# 0 for invalid). No allocation.
++ encode_char(cp<c4>) -> encoded_utf8_r
+{
+	let result<encoded_utf8_r>;
+
+	# Reject surrogates and out-of-range codepoints up front; utf8proc_encode_char
+	# itself does NOT validate, so calling it on a surrogate would happily emit a
+	# 3-byte UTF-8 sequence we don't want.
+	if(char_size(cp) == 0_sz)
+	{
+		^ result;
+	}
+
+	let written<up.utf8proc_ssize_t> = up.utf8proc_encode_char(cp, &result.bytes[0_sz]);
+
+	if(written > 0_s8)
+	{
+		result.length = (written ~> u8) ~~> size;
+	}
+
+	^ result;
+}
+
+# Decode the leading codepoint from a UTF-8 byte view. Returns
+# decode_invalid (0xFFFFFFFF_c4 via bitcast) on truncated or malformed input.
++ decode_char(v<[c1, ()]>) -> c4
+{
+	if(v.length == 0_sz)
+	{
+		^ decode_invalid;
+	}
+
+	let result<up.utf8proc_iterate_result_r> = up.iterate(v);
+
+	if(!result.ok)
+	{
+		^ decode_invalid;
+	}
+
+	^ result.codepoint;
+}
+
+# How many bytes the next decode_char(v) call would consume. Always >= 1
+# for non-empty input — on malformed or truncated input returns 1 (the
+# recovery advance). Pair with decode_char in iterator loops:
+#
+#   let i = 0_sz;
+#   while(i < v.length) {
+#       let tail = v.advance(i);
+#       let cp = decode_char(tail);
+#       # ... do something with cp (sentinel-safe) ...
+#       i = i + next_size(tail);
+#   }
+#
+# Returns 0 only for empty input. Distinct from char_size: char_size is
+# "how many bytes does THIS codepoint encode to" (0 for invalid); next_size
+# is "how many bytes to advance the cursor after this decode" (always >= 1
+# for non-empty input).
++ next_size(v<[c1, ()]>) -> size
+{
+	if(v.length == 0_sz)
+	{
+		^ 0_sz;
+	}
+
+	let b0<u1> = v.at(0_sz) ~> u1;
+
+	# ASCII lead → 1 byte.
+	if(b0 < 0x80_u1)
+	{
+		^ 1_sz;
+	}
+
+	# Continuation byte at the start = malformed → recovery advance 1.
+	if(b0 < 0xC2_u1)
+	{
+		^ 1_sz;
+	}
+
+	# 2-byte sequence lead (0xC2..0xDF). Need 2 bytes total.
+	if(b0 < 0xE0_u1)
+	{
+		if(v.length >= 2_sz)
+		{
+			^ 2_sz;
+		}
+
+		^ 1_sz;
+	}
+
+	# 3-byte sequence lead (0xE0..0xEF). Need 3 bytes total.
+	if(b0 < 0xF0_u1)
+	{
+		if(v.length >= 3_sz)
+		{
+			^ 3_sz;
+		}
+
+		^ 1_sz;
+	}
+
+	# 4-byte sequence lead (0xF0..0xF4). Need 4 bytes total.
+	if(b0 < 0xF5_u1)
+	{
+		if(v.length >= 4_sz)
+		{
+			^ 4_sz;
+		}
+
+		^ 1_sz;
+	}
+
+	# 0xF5..0xFF are invalid lead bytes → recovery advance 1.
+	^ 1_sz;
+}
+
+# Whole-string validation. Wraps utf8proc.iterate which strictly rejects
+# overlongs, malformed sequences, surrogate codepoints, and out-of-range
+# codepoints.
++ validate?(v<[c1, ()]>) -> atom
+{
+	let i<size> = 0_sz;
+
+	while(i < v.length)
+	{
+		let tail<[c1, ()]> = v.advance(i);
+		let result<up.utf8proc_iterate_result_r> = up.iterate(tail);
+
+		if(!result.ok)
+		{
+			^ :false;
+		}
+
+		i = i + ((result.bytes_read ~> u8) ~~> size);
+	}
+
+	^ :true;
+}
+
+# Count codepoints. A codepoint corresponds to each lead byte (any byte
+# whose high bits are not 10). Undefined for invalid UTF-8; callers should
+# validate? first.
++ count_codepoints(v<[c1, ()]>) -> size
+{
+	let count<size> = 0_sz;
+
+	for(let i<size> = 0_sz; i < v.length; i += 1_sz)
+	{
+		let b<u1> = v.at(i) ~> u1;
+
+		if((b & 0xC0_u1) != 0x80_u1)
+		{
+			count = count + 1_sz;
+		}
+	}
+
+	^ count;
+}
+
+# Bulk convert UTF-8 to UTF-16. Loops decode_char and inlines the UTF-16
+# surrogate-pair encoder (avoids a sibling dependency on core.unicode.utf16).
+# On malformed input, the offending byte is dropped from the output (decode
+# returned sentinel) and the cursor advances by next_size = 1 to recover.
+++ to_utf16(v<[c1, ()]>) -> [c2, :dynamic]
+{
+	let result<[c2, :dynamic]> = make_array(c2, v.length);
+	let i<size> = 0_sz;
+
+	while(i < v.length)
+	{
+		let tail<[c1, ()]> = v.advance(i);
+		let cp<c4> = decode_char(tail);
+
+		if(cp != decode_invalid)
+		{
+			# BMP non-surrogate: 1 unit. We know cp is valid since decode passed.
+			if(cp < 0x10000_c4)
+			{
+				result.append!((cp ~> u4) ~> c2);
+			}
+			else
+			{
+				# Supplementary plane: surrogate pair.
+				let offset<u4> = (cp ~> u4) - 0x10000_u4;
+				let high<c2> = ((offset >> 10_sz) + 0xD800_u4) ~> c2;
+				let low<c2> = ((offset & 0x3FF_u4) + 0xDC00_u4) ~> c2;
+				result.append!(high);
+				result.append!(low);
+			}
+		}
+
+		i = i + next_size(tail);
+	}
+
+	^ result;
+}
+
+# Bulk convert UTF-8 to UTF-32. One c4 element per codepoint.
+++ to_utf32(v<[c1, ()]>) -> [c4, :dynamic]
+{
+	let result<[c4, :dynamic]> = make_array(c4, v.length);
+	let i<size> = 0_sz;
+
+	while(i < v.length)
+	{
+		let tail<[c1, ()]> = v.advance(i);
+		let cp<c4> = decode_char(tail);
+
+		if(cp != decode_invalid)
+		{
+			result.append!(cp);
+		}
+
+		i = i + next_size(tail);
+	}
+
+	^ result;
+}
+
+# Unicode-aware case mapping. Allocates new bytes (length can change because
+# UTF-8 encoding width is codepoint-range-dependent). Single-codepoint
+# mapping only — multi-codepoint expansions (e.g. ß → SS) pass through
+# unchanged. On malformed input, the offending byte is preserved verbatim
+# and the cursor advances by 1 (recovery).
+++ to_lower(v<[c1, ()]>) -> [c1, :dynamic]
+{
+	let result<[c1, :dynamic]> = make_array(c1, v.length);
+	let i<size> = 0_sz;
+
+	while(i < v.length)
+	{
+		let tail<[c1, ()]> = v.advance(i);
+		let cp<c4> = decode_char(tail);
+
+		if(cp != decode_invalid)
+		{
+			let lowered<c4> = ucd.codepoint_to_lower(cp);
+			let enc<encoded_utf8_r> = encode_char(lowered);
+
+			for(let j<size> = 0_sz; j < enc.length; j += 1_sz)
+			{
+				result.append!(enc.bytes[j]);
+			}
+		}
+		else
+		{
+			# Pass the offending byte through verbatim.
+			result.append!(v.at(i));
+		}
+
+		i = i + next_size(tail);
+	}
+
+	^ result;
+}
+
+# Unicode-aware uppercase mapping. See to_lower for malformed-input contract.
+++ to_upper(v<[c1, ()]>) -> [c1, :dynamic]
+{
+	let result<[c1, :dynamic]> = make_array(c1, v.length);
+	let i<size> = 0_sz;
+
+	while(i < v.length)
+	{
+		let tail<[c1, ()]> = v.advance(i);
+		let cp<c4> = decode_char(tail);
+
+		if(cp != decode_invalid)
+		{
+			let uppered<c4> = ucd.codepoint_to_upper(cp);
+			let enc<encoded_utf8_r> = encode_char(uppered);
+
+			for(let j<size> = 0_sz; j < enc.length; j += 1_sz)
+			{
+				result.append!(enc.bytes[j]);
+			}
+		}
+		else
+		{
+			result.append!(v.at(i));
+		}
+
+		i = i + next_size(tail);
+	}
+
+	^ result;
+}
+
+# Trim leading whitespace codepoints. Returns a view sliced from v — no
+# allocation, no copy. Halts at the first non-whitespace codepoint OR
+# malformed sequence (a malformed lead is treated as non-whitespace).
++ trim_start(v<[c1, ()]>) -> [c1, ()]
+{
+	let i<size> = 0_sz;
+
+	while(i < v.length)
+	{
+		let tail<[c1, ()]> = v.advance(i);
+		let cp<c4> = decode_char(tail);
+
+		if(cp == decode_invalid)
+		{
+			^ tail;
+		}
+
+		if(!ucd.codepoint_is_whitespace?(cp))
+		{
+			^ tail;
+		}
+
+		i = i + next_size(tail);
+	}
+
+	^ make_empty_view(c1, v.data());
+}
+
+# Trim trailing whitespace codepoints. Returns a view sliced from v — no
+# allocation, no copy. Walks codepoints from the start (UTF-8 doesn't
+# support reverse iteration without scanning), tracking the position
+# of the last non-whitespace codepoint's end.
++ trim_end(v<[c1, ()]>) -> [c1, ()]
+{
+	let last_non_ws_end<size> = 0_sz;
+	let i<size> = 0_sz;
+
+	while(i < v.length)
+	{
+		let tail<[c1, ()]> = v.advance(i);
+		let cp<c4> = decode_char(tail);
+		let step<size> = next_size(tail);
+
+		if(cp == decode_invalid)
+		{
+			# Treat malformed bytes as non-whitespace; their end position counts.
+			last_non_ws_end = i + step;
+		}
+		else
+		{
+			if(!ucd.codepoint_is_whitespace?(cp))
+			{
+				last_non_ws_end = i + step;
+			}
+		}
+
+		i = i + step;
+	}
+
+	^ make_view(v.data(), last_non_ws_end);
+}
+
+# Trim both leading and trailing whitespace codepoints.
++ trim(v<[c1, ()]>) -> [c1, ()]
+{
+	let trimmed_start<[c1, ()]> = trim_start(v);
+	^ trim_end(trimmed_start);
+}
