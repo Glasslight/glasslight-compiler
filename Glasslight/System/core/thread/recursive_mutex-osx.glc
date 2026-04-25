@@ -1,0 +1,90 @@
+package thread;
+
+require core.basic ~> .;
+
+# On POSIX, a recursive mutex is the same pthread_mutex_t as a non-recursive one
+# -- only its init-time attribute differs. Weak-alias recursive_mutex_r to
+# mutex_r so the pthread_mutex_* FFI declared in mutex-osx.glc covers both.
+[[(:kind, :alias), (:alias, :weak)]] typecreate recursive_mutex_r ~> mutex_r;
+
+# _opaque_pthread_mutexattr_r on Darwin arm64: sig (s8) + 8 opaque bytes = 16 bytes.
+[[(:alignment, 8_sz)]]
+record pthread_mutexattr_r
+{
+	let _sig<s8>;
+	let _opaque<[u1, 8_sz]>;
+}
+
+# macOS PTHREAD_MUTEX_RECURSIVE type value from <pthread.h>.
+const PTHREAD_MUTEX_RECURSIVE<s4> = 2_s4;
+
+[[:system, :dynamic]]
+foreign "libSystem.B.tbd" ~> .
+{
+	# Initialize a mutex-attribute record. Returns 0 on success.
+	+ pthread_mutexattr_init(attr<pthread_mutexattr_r*>) -> s4;
+
+	# Release resources held by a mutex-attribute record. Returns 0 on success.
+	+ pthread_mutexattr_destroy(attr<pthread_mutexattr_r*>) -> s4;
+
+	# Set the mutex type (PTHREAD_MUTEX_RECURSIVE for recursive). Returns 0 on success.
+	+ pthread_mutexattr_settype(attr<pthread_mutexattr_r*>, type<s4>) -> s4;
+}
+
+# Initialize a recursive mutex in place. Returns :ok or :failed.
++ recursive_mutex_init(m<recursive_mutex_r*>) -> atom
+{
+	let attr<pthread_mutexattr_r>;
+	let ai_rc<s4> = pthread_mutexattr_init(&attr);
+
+	if(ai_rc != 0_s4)
+	{
+		^ :failed;
+	}
+
+	let at_rc<s4> = pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
+
+	if(at_rc != 0_s4)
+	{
+		let _ad<s4> = pthread_mutexattr_destroy(&attr);
+		^ :failed;
+	}
+
+	let mi_rc<s4> = pthread_mutex_init(m, &attr ~~> voidptr);
+	let _ad<s4> = pthread_mutexattr_destroy(&attr);
+
+	if(mi_rc == 0_s4)
+	{
+		^ :ok;
+	}
+
+	^ :failed;
+}
+
+# Release resources held by `*m`.
++ recursive_mutex_destroy(m<recursive_mutex_r*>) -> ()
+{
+	mutex_destroy(m);
+	^ ();
+}
+
+# Acquire `*m`. A thread that already owns `*m` increments the lock count.
++ recursive_mutex_lock(m<recursive_mutex_r*>) -> ()
+{
+	mutex_lock(m);
+	^ ();
+}
+
+# Attempt to acquire `*m` without blocking. Returns :locked (acquired or already
+# held by the calling thread, count incremented) or :busy (held by another thread).
++ recursive_mutex_trylock(m<recursive_mutex_r*>) -> atom
+{
+	^ mutex_trylock(m);
+}
+
+# Release one level of ownership of `*m`.
++ recursive_mutex_unlock(m<recursive_mutex_r*>) -> ()
+{
+	mutex_unlock(m);
+	^ ();
+}

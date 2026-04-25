@@ -1,0 +1,97 @@
+package thread;
+
+require core.basic ~> .;
+require core.c ~> c;
+require core.time ~> time;
+
+# _opaque_pthread_cond_t on Darwin arm64: sig (s8) + 40 opaque bytes = 48 bytes.
+[[(:alignment, 8_sz)]]
+record cond_r
+{
+	let _sig<s8>;
+	let _opaque<[u1, 40_sz]>;
+}
+
+[[:system, :dynamic]]
+foreign "libSystem.B.tbd" ~> .
+{
+	# Initialize `*cv` with default attributes. Returns 0 on success.
+	+ pthread_cond_init(cv<cond_r*>, attr<voidptr>) -> s4;
+
+	# Release resources held by `*cv`. Returns 0 on success.
+	+ pthread_cond_destroy(cv<cond_r*>) -> s4;
+
+	# Atomically unlock `*m` and block until signaled, then relock `*m`. Returns 0 on success.
+	+ pthread_cond_wait(cv<cond_r*>, m<mutex_r*>) -> s4;
+
+	# Darwin-only: atomically unlock `*m` and block up to `*reltime` on the
+	# monotonic-ish internal clock, then relock `*m`. Returns 0 on signal,
+	# ETIMEDOUT when the relative duration elapses. Avoids the
+	# pthread_condattr_setclock symbol, which is not exported by libSystem.
+	+ pthread_cond_timedwait_relative_np(cv<cond_r*>, m<mutex_r*>, reltime<c.timespec_r*>) -> s4;
+
+	# Wake one thread waiting on `*cv`. Returns 0 on success.
+	+ pthread_cond_signal(cv<cond_r*>) -> s4;
+
+	# Wake all threads waiting on `*cv`. Returns 0 on success.
+	+ pthread_cond_broadcast(cv<cond_r*>) -> s4;
+}
+
+# Initialize a condition variable in place. Returns :ok or :failed.
++ cond_init(cv<cond_r*>) -> atom
+{
+	let rc<s4> = pthread_cond_init(cv, nil);
+
+	if(rc == 0_s4)
+	{
+		^ :ok;
+	}
+
+	^ :failed;
+}
+
+# Release resources held by `*cv`.
++ cond_destroy(cv<cond_r*>) -> ()
+{
+	let _rc<s4> = pthread_cond_destroy(cv);
+	^ ();
+}
+
+# Atomically unlock `*m` and block until signaled, then relock `*m`.
++ cond_wait(cv<cond_r*>, m<mutex_r*>) -> ()
+{
+	let _rc<s4> = pthread_cond_wait(cv, m);
+	^ ();
+}
+
+# Wait until signaled or until `timeout_ns` elapses. Returns :signaled if the
+# cond was notified (or a spurious wake happened), :timedout if the duration
+# expired.
++ cond_wait_timeout(cv<cond_r*>, m<mutex_r*>, timeout_ns<s8>) -> atom
+{
+	let reltime<c.timespec_r>;
+	time.ns_to_timespec(timeout_ns, &reltime);
+
+	let rc<s4> = pthread_cond_timedwait_relative_np(cv, m, &reltime);
+
+	if(rc == 0_s4)
+	{
+		^ :signaled;
+	}
+
+	^ :timedout;
+}
+
+# Wake one thread waiting on `*cv`.
++ cond_signal(cv<cond_r*>) -> ()
+{
+	let _rc<s4> = pthread_cond_signal(cv);
+	^ ();
+}
+
+# Wake all threads waiting on `*cv`.
++ cond_broadcast(cv<cond_r*>) -> ()
+{
+	let _rc<s4> = pthread_cond_broadcast(cv);
+	^ ();
+}

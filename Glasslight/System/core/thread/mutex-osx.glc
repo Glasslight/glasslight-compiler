@@ -1,0 +1,77 @@
+package thread;
+
+require core.basic ~> .;
+
+# _opaque_pthread_mutex_t on Darwin arm64: sig (s8) + 56 opaque bytes = 64 bytes.
+[[(:alignment, 8_sz)]]
+record mutex_r
+{
+	let _sig<s8>;
+	let _opaque<[u1, 56_sz]>;
+}
+
+[[:system, :dynamic]]
+foreign "libSystem.B.tbd" ~> .
+{
+	# Initialize `*m` with default attributes (non-recursive). Returns 0 on success.
+	+ pthread_mutex_init(m<mutex_r*>, attr<voidptr>) -> s4;
+
+	# Release resources held by `*m`. Returns 0 on success.
+	+ pthread_mutex_destroy(m<mutex_r*>) -> s4;
+
+	# Block until `*m` is acquired. Returns 0 on success.
+	+ pthread_mutex_lock(m<mutex_r*>) -> s4;
+
+	# Attempt to acquire `*m`. Returns 0 on success, EBUSY if already locked.
+	+ pthread_mutex_trylock(m<mutex_r*>) -> s4;
+
+	# Release `*m`. Returns 0 on success.
+	+ pthread_mutex_unlock(m<mutex_r*>) -> s4;
+}
+
+# Initialize a non-recursive mutex in place. Returns :ok or :failed.
++ mutex_init(m<mutex_r*>) -> atom
+{
+	let rc<s4> = pthread_mutex_init(m, nil);
+
+	if(rc == 0_s4)
+	{
+		^ :ok;
+	}
+
+	^ :failed;
+}
+
+# Release resources held by `*m`.
++ mutex_destroy(m<mutex_r*>) -> ()
+{
+	let _rc<s4> = pthread_mutex_destroy(m);
+	^ ();
+}
+
+# Block until `*m` is acquired by the calling thread.
++ mutex_lock(m<mutex_r*>) -> ()
+{
+	let _rc<s4> = pthread_mutex_lock(m);
+	^ ();
+}
+
+# Attempt to acquire `*m` without blocking. Returns :locked or :busy.
++ mutex_trylock(m<mutex_r*>) -> atom
+{
+	let rc<s4> = pthread_mutex_trylock(m);
+
+	if(rc == 0_s4)
+	{
+		^ :locked;
+	}
+
+	^ :busy;
+}
+
+# Release `*m`.
++ mutex_unlock(m<mutex_r*>) -> ()
+{
+	let _rc<s4> = pthread_mutex_unlock(m);
+	^ ();
+}

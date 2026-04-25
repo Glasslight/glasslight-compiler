@@ -1,0 +1,78 @@
+package thread;
+
+require core.basic ~> .;
+
+# RTL_CRITICAL_SECTION on x64 (40 bytes, 8-byte aligned). Recursive by default
+# on Windows -- a thread may re-enter without deadlocking, as long as each
+# Enter is balanced by a Leave.
+[[(:alignment, 8_sz)]]
+record recursive_mutex_r
+{
+	let debug_info<voidptr>;
+	let lock_count<s4>;
+	let recursion_count<s4>;
+	let owning_thread<voidptr>;
+	let lock_semaphore<voidptr>;
+	let spin_count<u8>;
+}
+
+[[:system, :dynamic]]
+foreign "Kernel32" ~> .
+{
+	# Initialize `*m` to the unlocked state. Void on Win32.
+	+ InitializeCriticalSection(m<recursive_mutex_r*>) -> ();
+
+	# Release resources held by `*m`. Void on Win32.
+	+ DeleteCriticalSection(m<recursive_mutex_r*>) -> ();
+
+	# Acquire `*m`. A thread that already owns `*m` increments RecursionCount.
+	+ EnterCriticalSection(m<recursive_mutex_r*>) -> ();
+
+	# Attempt to acquire `*m` without blocking. Returns non-zero on success (BOOLEAN).
+	+ TryEnterCriticalSection(m<recursive_mutex_r*>) -> u1;
+
+	# Release one level of ownership of `*m`.
+	+ LeaveCriticalSection(m<recursive_mutex_r*>) -> ();
+}
+
+# Initialize a recursive mutex in place. Always returns :ok on Windows.
++ recursive_mutex_init(m<recursive_mutex_r*>) -> atom
+{
+	InitializeCriticalSection(m);
+	^ :ok;
+}
+
+# Release resources held by `*m`.
++ recursive_mutex_destroy(m<recursive_mutex_r*>) -> ()
+{
+	DeleteCriticalSection(m);
+	^ ();
+}
+
+# Acquire `*m`. A thread that already owns `*m` increments the lock count.
++ recursive_mutex_lock(m<recursive_mutex_r*>) -> ()
+{
+	EnterCriticalSection(m);
+	^ ();
+}
+
+# Attempt to acquire `*m` without blocking. Returns :locked (acquired by or already
+# held by the calling thread, count incremented) or :busy (held by another thread).
++ recursive_mutex_trylock(m<recursive_mutex_r*>) -> atom
+{
+	let rc<u1> = TryEnterCriticalSection(m);
+
+	if(rc != 0_u1)
+	{
+		^ :locked;
+	}
+
+	^ :busy;
+}
+
+# Release one level of ownership of `*m`.
++ recursive_mutex_unlock(m<recursive_mutex_r*>) -> ()
+{
+	LeaveCriticalSection(m);
+	^ ();
+}

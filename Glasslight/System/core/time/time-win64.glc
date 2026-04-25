@@ -1,6 +1,7 @@
 package time;
 require core.basic ~> basic;
 require core.c ~> c;
+require core.platform.win.kernel32 ~> kernel32;
 
 # Nanoseconds per second, used by the timespec conversions and split multiplies.
 const NS_PER_SEC<basic.s8> = 1000000000_s8;
@@ -8,9 +9,6 @@ const NS_PER_SEC<basic.s8> = 1000000000_s8;
 # 100-ns ticks between 1601-01-01 UTC (FILETIME epoch) and 1970-01-01 UTC
 # (Unix epoch): 11644473600 seconds * 10_000_000 ticks/second.
 const FILETIME_UNIX_EPOCH_100NS<basic.s8> = 116444736000000000_s8;
-
-# Largest Sleep-safe DWORD (avoids INFINITE = 0xFFFFFFFF).
-const SLEEP_MAX_MS<basic.s8> = 4294967294_s8;
 
 # Win32 LARGE_INTEGER (8 bytes). We treat it as a single 64-bit signed quantity.
 [[(:alignment, 8_sz)]]
@@ -103,7 +101,7 @@ foreign "Kernel32" ~> .
 
 # Sleep for at least `ns` nanoseconds. Non-positive values return immediately.
 # Windows Sleep is millisecond-granular; ns rounds up to the nearest whole ms.
-# Chunks beyond SLEEP_MAX_MS are looped so that `ns` can exceed ~49.7 days
+# Chunks beyond kernel32.MAX_FINITE_MS are looped so that `ns` can exceed ~49.7 days
 # without wrapping into INFINITE.
 + sleep_ns(ns<basic.s8>) -> ()
 {
@@ -118,9 +116,9 @@ foreign "Kernel32" ~> .
 	{
 		let chunk<basic.s8> = remaining_ms;
 	
-		if(chunk > SLEEP_MAX_MS)
+		if(chunk > kernel32.MAX_FINITE_MS)
 		{
-			chunk = SLEEP_MAX_MS;
+			chunk = kernel32.MAX_FINITE_MS;
 		}
 	
 		Sleep(chunk ~> basic.u4);

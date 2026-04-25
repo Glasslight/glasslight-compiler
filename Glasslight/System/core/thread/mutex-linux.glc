@@ -1,0 +1,105 @@
+package thread;
+
+require core.basic ~> .;
+require core.builtin ~> .;
+
+constif(__glc_arch == :x64)
+{
+	# glibc __pthread_mutex_s on x86_64 (40 bytes, 8-byte aligned).
+	[[(:alignment, 8_sz)]]
+	record mutex_r
+	{
+		let _lock<s4>;
+		let _count<u4>;
+		let _owner<s4>;
+		let _nusers<u4>;
+		let _kind<s4>;
+		let _spins<s2>;
+		let _elision<s2>;
+		let _list_prev<voidptr>;
+		let _list_next<voidptr>;
+	}
+}
+elif(__glc_arch == :arm64)
+{
+	# glibc __pthread_mutex_s on aarch64 (48 bytes, 8-byte aligned).
+	[[(:alignment, 8_sz)]]
+	record mutex_r
+	{
+		let _lock<s4>;
+		let _count<u4>;
+		let _owner<s4>;
+		let _nusers<u4>;
+		let _kind<s4>;
+		let _spins<s4>;
+		let _list_prev<voidptr>;
+		let _list_next<voidptr>;
+		let _reserved<[u1, 8_sz]>;
+	}
+}
+
+[[:system, :dynamic]]
+foreign "c" ~> .
+{
+	# Initialize `*m` with default attributes (non-recursive). Returns 0 on success.
+	+ pthread_mutex_init(m<mutex_r*>, attr<voidptr>) -> s4;
+
+	# Release resources held by `*m`. Returns 0 on success.
+	+ pthread_mutex_destroy(m<mutex_r*>) -> s4;
+
+	# Block until `*m` is acquired. Returns 0 on success.
+	+ pthread_mutex_lock(m<mutex_r*>) -> s4;
+
+	# Attempt to acquire `*m`. Returns 0 on success, EBUSY if already locked.
+	+ pthread_mutex_trylock(m<mutex_r*>) -> s4;
+
+	# Release `*m`. Returns 0 on success.
+	+ pthread_mutex_unlock(m<mutex_r*>) -> s4;
+}
+
+# Initialize a non-recursive mutex in place. Returns :ok or :failed.
++ mutex_init(m<mutex_r*>) -> atom
+{
+	let rc<s4> = pthread_mutex_init(m, nil);
+
+	if(rc == 0_s4)
+	{
+		^ :ok;
+	}
+
+	^ :failed;
+}
+
+# Release resources held by `*m`.
++ mutex_destroy(m<mutex_r*>) -> ()
+{
+	let _rc<s4> = pthread_mutex_destroy(m);
+	^ ();
+}
+
+# Block until `*m` is acquired by the calling thread.
++ mutex_lock(m<mutex_r*>) -> ()
+{
+	let _rc<s4> = pthread_mutex_lock(m);
+	^ ();
+}
+
+# Attempt to acquire `*m` without blocking. Returns :locked or :busy.
++ mutex_trylock(m<mutex_r*>) -> atom
+{
+	let rc<s4> = pthread_mutex_trylock(m);
+
+	if(rc == 0_s4)
+	{
+		^ :locked;
+	}
+
+	^ :busy;
+}
+
+# Release `*m`.
++ mutex_unlock(m<mutex_r*>) -> ()
+{
+	let _rc<s4> = pthread_mutex_unlock(m);
+	^ ();
+}

@@ -1,0 +1,66 @@
+package thread;
+
+require core.basic ~> .;
+
+record tls_key_r
+{
+	let native<u8>;
+}
+
+# TlsAlloc returns this DWORD sentinel when no slots are available.
+const TLS_OUT_OF_INDEXES<u4> = 0xFFFFFFFF_u4;
+
+[[:system, :dynamic]]
+foreign "Kernel32" ~> .
+{
+	# Allocate a new TLS slot. Returns TLS_OUT_OF_INDEXES on failure.
+	+ TlsAlloc -> u4;
+
+	# Release the TLS slot. Returns non-zero on success.
+	+ TlsFree(index<u4>) -> cbool ->> atom;
+
+	# Return the calling thread's value for `index`, or nil if never set.
+	+ TlsGetValue(index<u4>) -> voidptr;
+
+	# Set the calling thread's value for `index`. Returns non-zero on success.
+	+ TlsSetValue(index<u4>, value<voidptr>) -> cbool ->> atom;
+}
+
+# Allocate a new TLS slot. Returns (:ok, key) or (:failed, zeroed-key).
+++ tls_key_make -> (atom, tls_key_r)
+{
+	let index<u4> = TlsAlloc;
+
+	if(index == TLS_OUT_OF_INDEXES)
+	{
+		let failed<tls_key_r>;
+		^ (:failed, failed);
+	}
+
+	let k<tls_key_r>;
+	k.native = index ~> u8;
+	^ (:ok, k);
+}
+
+# Release the TLS slot.
++ tls_key_destroy(k<tls_key_r>) -> ()
+{
+	let index<u4> = k.native ~> u4;
+	let _freed<atom> = TlsFree(index);
+	^ ();
+}
+
+# Return the calling thread's value for `k`, or nil if never set.
++ tls_get(k<tls_key_r>) -> voidptr
+{
+	let index<u4> = k.native ~> u4;
+	^ TlsGetValue(index);
+}
+
+# Set the calling thread's value for `k`.
++ tls_set(k<tls_key_r>, v<voidptr>) -> ()
+{
+	let index<u4> = k.native ~> u4;
+	let _set<atom> = TlsSetValue(index, v);
+	^ ();
+}

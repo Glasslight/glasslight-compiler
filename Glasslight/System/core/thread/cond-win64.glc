@@ -1,0 +1,95 @@
+package thread;
+
+require core.basic ~> .;
+require core.time ~> time;
+require core.platform.win.kernel32 ~> kernel32;
+
+# CONDITION_VARIABLE is a single pointer on x64.
+[[(:alignment, 8_sz)]]
+record cond_r
+{
+	let ptr<voidptr>;
+}
+
+[[:system, :dynamic]]
+foreign "Kernel32" ~> .
+{
+	# Initialize `*cv` to the not-signaled state. Void on Win32.
+	+ InitializeConditionVariable(cv<cond_r*>) -> ();
+
+	# Atomically release `*m` and block on `*cv` until signaled or timeout.
+	# Flags=0 means exclusive acquire on SRWLOCK (to match our mutex_r usage).
+	# Returns non-zero on signal, zero on timeout.
+	+ SleepConditionVariableSRW(cv<cond_r*>, m<mutex_r*>, dwMs<u4>, flags<u4>) -> cbool ->> atom;
+
+	# Wake one thread waiting on `*cv`.
+	+ WakeConditionVariable(cv<cond_r*>) -> ();
+
+	# Wake all threads waiting on `*cv`.
+	+ WakeAllConditionVariable(cv<cond_r*>) -> ();
+}
+
+# Initialize a condition variable in place. Always returns :ok on Windows.
++ cond_init(cv<cond_r*>) -> atom
+{
+	InitializeConditionVariable(cv);
+	^ :ok;
+}
+
+# No-op on Windows: CONDITION_VARIABLE has no cleanup.
++ cond_destroy(cv<cond_r*>) -> ()
+{
+	^ ();
+}
+
+# Atomically unlock `*m` and block until signaled, then relock `*m`.
++ cond_wait(cv<cond_r*>, m<mutex_r*>) -> ()
+{
+	let _rc<atom> = SleepConditionVariableSRW(cv, m, kernel32.INFINITE, 0_u4);
+	^ ();
+}
+
+# Wait until signaled or until `timeout_ns` elapses on the monotonic clock.
+# Returns :signaled if the cond was notified (or a spurious wake happened),
+# :timedout if the deadline expired.
++ cond_wait_timeout(cv<cond_r*>, m<mutex_r*>, timeout_ns<s8>) -> atom
+{
+	let deadline<s8> = time.deadline_from_timeout_ns(timeout_ns);
+	let remaining_ns<s8> = time.nanos_until(deadline);
+
+	if(remaining_ns <= 0_s8)
+	{
+		^ :timedout;
+	}
+
+	# Round up to the nearest whole ms. Cap at MAX_FINITE_MS to avoid INFINITE.
+	let remaining_ms<s8> = ((remaining_ns - 1_s8) / 1000000_s8) + 1_s8;
+
+	if(remaining_ms > kernel32.MAX_FINITE_MS)
+	{
+		remaining_ms = kernel32.MAX_FINITE_MS;
+	}
+
+	let rc<atom> = SleepConditionVariableSRW(cv, m, remaining_ms ~> u4, 0_u4);
+
+	if(rc == :true)
+	{
+		^ :signaled;
+	}
+
+	^ :timedout;
+}
+
+# Wake one thread waiting on `*cv`.
++ cond_signal(cv<cond_r*>) -> ()
+{
+	WakeConditionVariable(cv);
+	^ ();
+}
+
+# Wake all threads waiting on `*cv`.
++ cond_broadcast(cv<cond_r*>) -> ()
+{
+	WakeAllConditionVariable(cv);
+	^ ();
+}

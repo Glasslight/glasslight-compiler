@@ -167,13 +167,13 @@ record utf8proc_iterate_result_r
 }
 
 # Return the utf8proc API version string.
-+ version() -> cstring
++ version -> cstring
 {
 	^ utf8proc_version() ~~> cstring;
 }
 
 # Return the supported Unicode version string.
-+ unicode_version() -> cstring
++ unicode_version -> cstring
 {
 	^ utf8proc_unicode_version() ~~> cstring;
 }

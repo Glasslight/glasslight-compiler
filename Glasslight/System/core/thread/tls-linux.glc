@@ -1,0 +1,68 @@
+package thread;
+
+require core.basic ~> .;
+
+record tls_key_r
+{
+	let native<u8>;
+}
+
+# pthread_key_t on Linux glibc: unsigned int, 4 bytes.
+[[(:kind, :alias), (:alias, :weak)]] typecreate pthread_key_t ~> u4;
+
+[[:system, :dynamic]]
+foreign "c" ~> .
+{
+	# Allocate a new per-thread key. `destructor` is a function called at thread
+	# exit with the thread's value; pass nil for no destructor. Returns 0 on success.
+	+ pthread_key_create(key<pthread_key_t*>, destructor<voidptr>) -> s4;
+
+	# Release the key and free any resources associated with it. Returns 0 on success.
+	+ pthread_key_delete(key<pthread_key_t>) -> s4;
+
+	# Return the calling thread's value for `key`, or nil if never set.
+	+ pthread_getspecific(key<pthread_key_t>) -> voidptr;
+
+	# Set the calling thread's value for `key`. Returns 0 on success.
+	+ pthread_setspecific(key<pthread_key_t>, value<voidptr>) -> s4;
+}
+
+# Allocate a new TLS key. Returns (:ok, key) or (:failed, zeroed-key).
+++ tls_key_make -> (atom, tls_key_r)
+{
+	let key<pthread_key_t>;
+	let rc<s4> = pthread_key_create(&key, nil);
+
+	if(rc != 0_s4)
+	{
+		let failed<tls_key_r>;
+		^ (:failed, failed);
+	}
+
+	let k<tls_key_r>;
+	k.native = key ~> u8;
+	^ (:ok, k);
+}
+
+# Release the TLS key.
++ tls_key_destroy(k<tls_key_r>) -> ()
+{
+	let key<pthread_key_t> = k.native ~> pthread_key_t;
+	let _rc<s4> = pthread_key_delete(key);
+	^ ();
+}
+
+# Return the calling thread's value for `k`, or nil if never set.
++ tls_get(k<tls_key_r>) -> voidptr
+{
+	let key<pthread_key_t> = k.native ~> pthread_key_t;
+	^ pthread_getspecific(key);
+}
+
+# Set the calling thread's value for `k`.
++ tls_set(k<tls_key_r>, v<voidptr>) -> ()
+{
+	let key<pthread_key_t> = k.native ~> pthread_key_t;
+	let _rc<s4> = pthread_setspecific(key, v);
+	^ ();
+}

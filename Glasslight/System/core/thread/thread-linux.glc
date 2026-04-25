@@ -26,10 +26,10 @@ record thread_args_r
 
 [[(:kind, :alias), (:alias, :weak)]] typecreate pthread_t ~> u8;
 
-# glibc pthread_attr_t: 56 bytes on x86_64, 64 on aarch64. Sized to the max so
+# glibc pthread_attr_r: 56 bytes on x86_64, 64 on aarch64. Sized to the max so
 # the same record compiles on both.
 [[(:alignment, 8_sz)]]
-record pthread_attr_t
+record pthread_attr_r
 {
 	let _opaque<[u1, 64_sz]>;
 }
@@ -45,7 +45,7 @@ record cpu_set_t
 foreign "c" ~> .
 {
 	# Create a new thread running `start(arg)`. Returns 0 on success.
-	+ pthread_create(tid<pthread_t*>, attr<pthread_attr_t*>, start<fptr>, arg<voidptr>) -> s4;
+	+ pthread_create(tid<pthread_t*>, attr<pthread_attr_r*>, start<fptr>, arg<voidptr>) -> s4;
 
 	# Block until `tid` exits; receive its return value via `*retval`.
 	+ pthread_join(tid<pthread_t>, retval<voidptr*>) -> s4;
@@ -60,13 +60,13 @@ foreign "c" ~> .
 	+ pthread_exit(retval<voidptr>) -> ();
 
 	# Initialize a thread-attribute record to default values.
-	+ pthread_attr_init(attr<pthread_attr_t*>) -> s4;
+	+ pthread_attr_init(attr<pthread_attr_r*>) -> s4;
 
 	# Release resources held by a thread-attribute record.
-	+ pthread_attr_destroy(attr<pthread_attr_t*>) -> s4;
+	+ pthread_attr_destroy(attr<pthread_attr_r*>) -> s4;
 
 	# Set the stack size (in bytes) for threads created with this attribute.
-	+ pthread_attr_setstacksize(attr<pthread_attr_t*>, bytes<size>) -> s4;
+	+ pthread_attr_setstacksize(attr<pthread_attr_r*>, bytes<size>) -> s4;
 
 	# Yield the CPU to any other ready thread.
 	+ sched_yield -> s4;
@@ -114,7 +114,7 @@ foreign "c" ~> .
 	args.user_data = user_data;
 	args.args_alloc = a;
 
-	let attr<pthread_attr_t>;
+	let attr<pthread_attr_r>;
 	let has_attr<atom> = :false;
 
 	if(config.stack_bytes > 0_sz)
@@ -125,7 +125,7 @@ foreign "c" ~> .
 	}
 
 	let tid<pthread_t>;
-	let attr_arg<pthread_attr_t*> = nil;
+	let attr_arg<pthread_attr_r*> = nil;
 
 	if(has_attr)
 	{

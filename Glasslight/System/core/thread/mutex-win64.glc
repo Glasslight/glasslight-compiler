@@ -1,0 +1,67 @@
+package thread;
+
+require core.basic ~> .;
+
+# SRWLOCK is a single pointer. Strictly non-recursive, smaller and faster than
+# CRITICAL_SECTION on the uncontended path, and pairs with SleepConditionVariableSRW.
+[[(:alignment, 8_sz)]]
+record mutex_r
+{
+	let ptr<voidptr>;
+}
+
+[[:system, :dynamic]]
+foreign "Kernel32" ~> .
+{
+	# Initialize `*m` to the unlocked state. Void on Win32.
+	+ InitializeSRWLock(m<mutex_r*>) -> ();
+
+	# Block until `*m` is acquired exclusively. Void on Win32.
+	+ AcquireSRWLockExclusive(m<mutex_r*>) -> ();
+
+	# Attempt to acquire `*m` exclusively. Returns non-zero on success (BOOLEAN).
+	+ TryAcquireSRWLockExclusive(m<mutex_r*>) -> u1;
+
+	# Release `*m` (exclusive).
+	+ ReleaseSRWLockExclusive(m<mutex_r*>) -> ();
+}
+
+# Initialize a non-recursive mutex in place. Always returns :ok on Windows.
++ mutex_init(m<mutex_r*>) -> atom
+{
+	InitializeSRWLock(m);
+	^ :ok;
+}
+
+# No-op on Windows: SRWLOCK has no cleanup.
++ mutex_destroy(m<mutex_r*>) -> ()
+{
+	^ ();
+}
+
+# Block until `*m` is acquired by the calling thread.
++ mutex_lock(m<mutex_r*>) -> ()
+{
+	AcquireSRWLockExclusive(m);
+	^ ();
+}
+
+# Attempt to acquire `*m` without blocking. Returns :locked or :busy.
++ mutex_trylock(m<mutex_r*>) -> atom
+{
+	let rc<u1> = TryAcquireSRWLockExclusive(m);
+
+	if(rc != 0_u1)
+	{
+		^ :locked;
+	}
+
+	^ :busy;
+}
+
+# Release `*m`.
++ mutex_unlock(m<mutex_r*>) -> ()
+{
+	ReleaseSRWLockExclusive(m);
+	^ ();
+}

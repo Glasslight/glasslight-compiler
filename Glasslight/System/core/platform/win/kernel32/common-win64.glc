@@ -15,6 +15,11 @@ const WAIT_OBJECT_0<u4> = 0_u4;
 # Sentinel timeout for WaitForSingleObject meaning "wait forever".
 const INFINITE<u4> = 0xFFFFFFFF_u4;
 
+# Largest finite millisecond value that fits in a DWORD without aliasing
+# INFINITE. Used by any Win32 API that takes a `DWORD dwMilliseconds`
+# timeout (Sleep, SleepConditionVariableSRW, WaitForSingleObject, ...).
+const MAX_FINITE_MS<s8> = 4294967294_s8;
+
 # LPSYSTEM_INFO record matching Win32's SYSTEM_INFO layout (48 bytes on x64).
 [[(:alignment, 8_sz)]]
 record SYSTEM_INFO_r

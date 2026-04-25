@@ -1,0 +1,136 @@
+package thread;
+
+require core.basic ~> .;
+require core.c ~> c;
+require core.time ~> time;
+
+# glibc __pthread_cond_s: 48 bytes on both x86_64 and aarch64, 8-byte aligned.
+# Internal glibc fields (dual-group signaling algorithm) transcribed by name.
+[[(:alignment, 8_sz)]]
+record cond_r
+{
+	let _wseq<u8>;
+	let _g1_start<u8>;
+	let _g_refs<[u4, 2_sz]>;
+	let _g_size<[u4, 2_sz]>;
+	let _g1_orig_size<u4>;
+	let _wrefs<u4>;
+	let _g_signals<[u4, 2_sz]>;
+}
+
+# glibc pthread_condattr_r: 4 bytes, 4-byte aligned.
+[[(:alignment, 4_sz)]]
+record pthread_condattr_r
+{
+	let _opaque<[u1, 4_sz]>;
+}
+
+[[:system, :dynamic]]
+foreign "c" ~> .
+{
+	# Initialize `*cv` with the given (possibly nil) attributes. Returns 0 on success.
+	+ pthread_cond_init(cv<cond_r*>, attr<voidptr>) -> s4;
+
+	# Release resources held by `*cv`. Returns 0 on success.
+	+ pthread_cond_destroy(cv<cond_r*>) -> s4;
+
+	# Atomically unlock `*m` and block until signaled, then relock `*m`. Returns 0 on success.
+	+ pthread_cond_wait(cv<cond_r*>, m<mutex_r*>) -> s4;
+
+	# Atomically unlock `*m` and block until signaled or the absolute deadline is
+	# reached, then relock `*m`. Returns 0 on success, ETIMEDOUT on deadline.
+	+ pthread_cond_timedwait(cv<cond_r*>, m<mutex_r*>, abstime<c.timespec_r*>) -> s4;
+
+	# Wake one thread waiting on `*cv`. Returns 0 on success.
+	+ pthread_cond_signal(cv<cond_r*>) -> s4;
+
+	# Wake all threads waiting on `*cv`. Returns 0 on success.
+	+ pthread_cond_broadcast(cv<cond_r*>) -> s4;
+
+	# Initialize a condition-variable-attribute record. Returns 0 on success.
+	+ pthread_condattr_init(attr<pthread_condattr_r*>) -> s4;
+
+	# Release resources held by a condition-variable-attribute record. Returns 0 on success.
+	+ pthread_condattr_destroy(attr<pthread_condattr_r*>) -> s4;
+
+	# Set the clock used by pthread_cond_timedwait for the attribute. Returns 0 on success.
+	+ pthread_condattr_setclock(attr<pthread_condattr_r*>, clock<s4>) -> s4;
+}
+
+# Initialize a condition variable in place, bound to CLOCK_MONOTONIC so
+# cond_wait_timeout deadlines are immune to wall-clock jumps. Returns :ok or :failed.
++ cond_init(cv<cond_r*>) -> atom
+{
+	let attr<pthread_condattr_r>;
+	let ai_rc<s4> = pthread_condattr_init(&attr);
+
+	if(ai_rc != 0_s4)
+	{
+		^ :failed;
+	}
+
+	let cl_rc<s4> = pthread_condattr_setclock(&attr, time.CLOCK_MONOTONIC);
+
+	if(cl_rc != 0_s4)
+	{
+		let _ad<s4> = pthread_condattr_destroy(&attr);
+		^ :failed;
+	}
+
+	let ci_rc<s4> = pthread_cond_init(cv, &attr ~~> voidptr);
+	let _ad<s4> = pthread_condattr_destroy(&attr);
+
+	if(ci_rc == 0_s4)
+	{
+		^ :ok;
+	}
+
+	^ :failed;
+}
+
+# Release resources held by `*cv`.
++ cond_destroy(cv<cond_r*>) -> ()
+{
+	let _rc<s4> = pthread_cond_destroy(cv);
+	^ ();
+}
+
+# Atomically unlock `*m` and block until signaled, then relock `*m`.
++ cond_wait(cv<cond_r*>, m<mutex_r*>) -> ()
+{
+	let _rc<s4> = pthread_cond_wait(cv, m);
+	^ ();
+}
+
+# Wait until signaled or until `timeout_ns` (measured on CLOCK_MONOTONIC) elapses.
+# Returns :signaled if the cond was notified (or a spurious wake happened),
+# :timedout if the deadline expired.
++ cond_wait_timeout(cv<cond_r*>, m<mutex_r*>, timeout_ns<s8>) -> atom
+{
+	let deadline<s8> = time.deadline_from_timeout_ns(timeout_ns);
+	let abstime<c.timespec_r>;
+	time.ns_to_timespec(deadline, &abstime);
+
+	let rc<s4> = pthread_cond_timedwait(cv, m, &abstime);
+
+	if(rc == 0_s4)
+	{
+		^ :signaled;
+	}
+
+	^ :timedout;
+}
+
+# Wake one thread waiting on `*cv`.
++ cond_signal(cv<cond_r*>) -> ()
+{
+	let _rc<s4> = pthread_cond_signal(cv);
+	^ ();
+}
+
+# Wake all threads waiting on `*cv`.
++ cond_broadcast(cv<cond_r*>) -> ()
+{
+	let _rc<s4> = pthread_cond_broadcast(cv);
+	^ ();
+}
