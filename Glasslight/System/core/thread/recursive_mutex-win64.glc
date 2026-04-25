@@ -20,19 +20,19 @@ record recursive_mutex_r
 foreign "Kernel32" ~> .
 {
 	# Initialize `*m` to the unlocked state. Void on Win32.
-	+ InitializeCriticalSection(m<recursive_mutex_r*>) -> ();
+	+ InitializeCriticalSection(m<recursive_mutex_r*>) -> cvoid ->> ();
 
 	# Release resources held by `*m`. Void on Win32.
-	+ DeleteCriticalSection(m<recursive_mutex_r*>) -> ();
+	+ DeleteCriticalSection(m<recursive_mutex_r*>) -> cvoid ->> ();
 
 	# Acquire `*m`. A thread that already owns `*m` increments RecursionCount.
-	+ EnterCriticalSection(m<recursive_mutex_r*>) -> ();
+	+ EnterCriticalSection(m<recursive_mutex_r*>) -> cvoid ->> ();
 
 	# Attempt to acquire `*m` without blocking. Returns non-zero on success (BOOLEAN).
 	+ TryEnterCriticalSection(m<recursive_mutex_r*>) -> u1;
 
 	# Release one level of ownership of `*m`.
-	+ LeaveCriticalSection(m<recursive_mutex_r*>) -> ();
+	+ LeaveCriticalSection(m<recursive_mutex_r*>) -> cvoid ->> ();
 }
 
 # Initialize a recursive mutex in place. Always returns :ok on Windows.

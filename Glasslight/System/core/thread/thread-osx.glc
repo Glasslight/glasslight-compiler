@@ -50,7 +50,7 @@ foreign "libSystem.B.tbd" ~> .
 	+ pthread_self -> pthread_t;
 
 	# Terminate the calling thread with the given return value.
-	+ pthread_exit(retval<voidptr>) -> ();
+	+ pthread_exit(retval<voidptr>) -> cvoid ->> ();
 
 	# Initialize a thread-attribute record to default values.
 	+ pthread_attr_init(attr<pthread_attr_r*>) -> s4;

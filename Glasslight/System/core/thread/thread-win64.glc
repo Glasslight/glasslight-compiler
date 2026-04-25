@@ -36,7 +36,7 @@ foreign "Kernel32" ~> .
 	+ GetCurrentThread -> kernel32.handle_t;
 
 	# Terminate the calling thread with the given exit code.
-	+ ExitThread(dwExitCode<u4>) -> ();
+	+ ExitThread(dwExitCode<u4>) -> cvoid ->> ();
 
 	# Yield to another ready thread on the same processor.
 	+ SwitchToThread -> cbool ->> atom;

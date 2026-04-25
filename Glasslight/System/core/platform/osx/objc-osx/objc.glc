@@ -11,7 +11,7 @@ foreign "libobjc.A.tbd" ~> .
 	+ objc_allocateClassPair(superclass<basic.voidptr>, name<[basic.c1, :c]>, extra_bytes<basic.size>) -> basic.voidptr;
 
 	# Register a class pair created with objc_allocateClassPair.
-	+ objc_registerClassPair(cls<basic.voidptr>) -> ();
+	+ objc_registerClassPair(cls<basic.voidptr>) -> basic.cvoid ->> ();
 
 	# Register a selector name and return the selector.
 	+ sel_registerName(name<[basic.c1, :c]>) -> basic.voidptr;
@@ -35,5 +35,5 @@ foreign "libobjc.A.tbd" ~> .
 	+ object_getIvar(obj<basic.voidptr>, ivar<basic.voidptr>) -> basic.voidptr;
 
 	# Set the value of an instance variable.
-	+ object_setIvar(obj<basic.voidptr>, ivar<basic.voidptr>, value<basic.voidptr>) -> ();
+	+ object_setIvar(obj<basic.voidptr>, ivar<basic.voidptr>, value<basic.voidptr>) -> basic.cvoid ->> ();
 }

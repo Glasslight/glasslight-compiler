@@ -36,10 +36,10 @@ foreign "Kernel32" ~> .
 	+ QueryPerformanceFrequency(freq<LARGE_INTEGER_r*>) -> basic.cbool ->> basic.atom;
 
 	# System wall-clock with ~100 ns resolution. Win8+.
-	+ GetSystemTimePreciseAsFileTime(ft<FILETIME_r*>) -> ();
+	+ GetSystemTimePreciseAsFileTime(ft<FILETIME_r*>) -> basic.cvoid ->> ();
 
 	# Sleep for at least `milliseconds` ms. 0 yields; 0xFFFFFFFF is INFINITE.
-	+ Sleep(milliseconds<basic.u4>) -> ();
+	+ Sleep(milliseconds<basic.u4>) -> basic.cvoid ->> ();
 }
 
 # Monotonic nanoseconds derived from QueryPerformanceCounter. QPC is cached by

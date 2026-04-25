@@ -6,7 +6,7 @@ foreign "AppKit" ~> .
 {
 	+ NSApplicationLoad() -> basic.cbool ->> basic.atom;
 	+ NSApplicationMain(argc<basic.s4>, argv<basic.voidptr>) -> basic.s4;
-	+ NSRectFill(rect<ns_rect_r>) -> ();
+	+ NSRectFill(rect<ns_rect_r>) -> basic.cvoid ->> ();
 }
 
 # Load the AppKit framework into the current process.

@@ -14,16 +14,16 @@ record mutex_r
 foreign "Kernel32" ~> .
 {
 	# Initialize `*m` to the unlocked state. Void on Win32.
-	+ InitializeSRWLock(m<mutex_r*>) -> ();
+	+ InitializeSRWLock(m<mutex_r*>) -> cvoid ->> ();
 
 	# Block until `*m` is acquired exclusively. Void on Win32.
-	+ AcquireSRWLockExclusive(m<mutex_r*>) -> ();
+	+ AcquireSRWLockExclusive(m<mutex_r*>) -> cvoid ->> ();
 
 	# Attempt to acquire `*m` exclusively. Returns non-zero on success (BOOLEAN).
 	+ TryAcquireSRWLockExclusive(m<mutex_r*>) -> u1;
 
 	# Release `*m` (exclusive).
-	+ ReleaseSRWLockExclusive(m<mutex_r*>) -> ();
+	+ ReleaseSRWLockExclusive(m<mutex_r*>) -> cvoid ->> ();
 }
 
 # Initialize a non-recursive mutex in place. Always returns :ok on Windows.

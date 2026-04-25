@@ -41,5 +41,5 @@ foreign "Kernel32" ~> .
 	+ GetProcessAffinityMask(hProcess<handle_t>, pProcessAffinityMask<size*>, pSystemAffinityMask<size*>) -> cbool ->> atom;
 
 	# Fill `*lpSystemInfo` with system configuration (number of CPUs, page size, etc.).
-	+ GetSystemInfo(lpSystemInfo<SYSTEM_INFO_r*>) -> ();
+	+ GetSystemInfo(lpSystemInfo<SYSTEM_INFO_r*>) -> cvoid ->> ();
 }

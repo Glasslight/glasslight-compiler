@@ -15,7 +15,7 @@ record cond_r
 foreign "Kernel32" ~> .
 {
 	# Initialize `*cv` to the not-signaled state. Void on Win32.
-	+ InitializeConditionVariable(cv<cond_r*>) -> ();
+	+ InitializeConditionVariable(cv<cond_r*>) -> cvoid ->> ();
 
 	# Atomically release `*m` and block on `*cv` until signaled or timeout.
 	# Flags=0 means exclusive acquire on SRWLOCK (to match our mutex_r usage).
@@ -23,10 +23,10 @@ foreign "Kernel32" ~> .
 	+ SleepConditionVariableSRW(cv<cond_r*>, m<mutex_r*>, dwMs<u4>, flags<u4>) -> cbool ->> atom;
 
 	# Wake one thread waiting on `*cv`.
-	+ WakeConditionVariable(cv<cond_r*>) -> ();
+	+ WakeConditionVariable(cv<cond_r*>) -> cvoid ->> ();
 
 	# Wake all threads waiting on `*cv`.
-	+ WakeAllConditionVariable(cv<cond_r*>) -> ();
+	+ WakeAllConditionVariable(cv<cond_r*>) -> cvoid ->> ();
 }
 
 # Initialize a condition variable in place. Always returns :ok on Windows.
