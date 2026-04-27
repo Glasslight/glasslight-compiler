@@ -1,28 +1,59 @@
 package stat;
 require core.basic ~> basic;
+require core.builtin ~> .;
 
-# Linux x86_64 struct stat (144 bytes).
-# glc records use C-like natural alignment — no explicit padding needed.
-record stat_t
+constif(__glc_arch == :x64)
 {
-	let st_dev<basic.u8>;
-	let st_ino<basic.u8>;
-	let st_nlink<basic.u8>;
-	let st_mode<basic.u4>;
-	let st_uid<basic.u4>;
-	let st_gid<basic.u4>;
-	let _pad0<basic.u4>;
-	let st_rdev<basic.u8>;
-	let st_size<basic.s8>;
-	let st_blksize<basic.s8>;
-	let st_blocks<basic.s8>;
-	let st_atim_sec<basic.s8>;
-	let st_atim_nsec<basic.s8>;
-	let st_mtim_sec<basic.s8>;
-	let st_mtim_nsec<basic.s8>;
-	let st_ctim_sec<basic.s8>;
-	let st_ctim_nsec<basic.s8>;
-	let _reserved<[basic.u1, 24_sz]>;
+	# Linux x86_64 struct stat (144 bytes).
+	# glc records use C-like natural alignment — no explicit padding needed.
+	record stat_t
+	{
+		let st_dev<basic.u8>;
+		let st_ino<basic.u8>;
+		let st_nlink<basic.u8>;
+		let st_mode<basic.u4>;
+		let st_uid<basic.u4>;
+		let st_gid<basic.u4>;
+		let _pad0<basic.u4>;
+		let st_rdev<basic.u8>;
+		let st_size<basic.s8>;
+		let st_blksize<basic.s8>;
+		let st_blocks<basic.s8>;
+		let st_atim_sec<basic.s8>;
+		let st_atim_nsec<basic.s8>;
+		let st_mtim_sec<basic.s8>;
+		let st_mtim_nsec<basic.s8>;
+		let st_ctim_sec<basic.s8>;
+		let st_ctim_nsec<basic.s8>;
+		let _reserved<[basic.u1, 24_sz]>;
+	}
+}
+elif(__glc_arch == :arm64)
+{
+	# Linux aarch64 glibc struct stat (128 bytes).
+	# Mirrors /usr/include/aarch64-linux-gnu/bits/struct_stat.h.
+	record stat_t
+	{
+		let st_dev<basic.u8>;
+		let st_ino<basic.u8>;
+		let st_mode<basic.u4>;
+		let st_nlink<basic.u4>;
+		let st_uid<basic.u4>;
+		let st_gid<basic.u4>;
+		let st_rdev<basic.u8>;
+		let _pad1<basic.u8>;
+		let st_size<basic.s8>;
+		let st_blksize<basic.s4>;
+		let _pad2<basic.s4>;
+		let st_blocks<basic.s8>;
+		let st_atim_sec<basic.s8>;
+		let st_atim_nsec<basic.u8>;
+		let st_mtim_sec<basic.s8>;
+		let st_mtim_nsec<basic.u8>;
+		let st_ctim_sec<basic.s8>;
+		let st_ctim_nsec<basic.u8>;
+		let _reserved<[basic.s4, 2_sz]>;
+	}
 }
 
 const s_ifmt<basic.u4>  = 0xF000_u4;

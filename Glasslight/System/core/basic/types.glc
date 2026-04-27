@@ -9,15 +9,12 @@ package basic;
 
 # Size type, 64 bit, unsigned.
 [[(:kind, :size), (:suffix, :sz), :integral, (:compare, :value), (:order, :value)]] typecreate size;
-[[(:kind, :size), :integral, :atomic]] typecreate atomic_size;
 
 # Hash type, 64 bit, integral.
 [[(:kind, :hash), (:suffix, :hs), :integral, (:compare, :value), (:order, :value)]] typecreate hash;
-[[(:kind, :hash), :integral, :atomic]] typecreate atomic_hash;
 
 # Atom type, 64 bit, unsigned.
 [[(:kind, :atom), (:compare, :value)]] typecreate atom;
-[[(:kind, :atom), :atomic]] typecreate atomic_atom;
 
 # Float types.
 [[(:kind, :float), (:bits, 16_sz), (:compare, :value), (:order, :value)]] typecreate f2;
@@ -29,20 +26,12 @@ package basic;
 [[(:kind, :unsigned), (:bits, 16_sz), :integral, (:compare, :value), (:order, :value)]] typecreate u2;
 [[(:kind, :unsigned), (:bits, 32_sz), :integral, (:compare, :value), (:order, :value)]] typecreate u4;
 [[(:kind, :unsigned), (:bits, 64_sz), :integral, (:compare, :value), (:order, :value)]] typecreate u8;
-[[(:kind, :unsigned), (:bits, 8_sz), :integral, :atomic]] typecreate atomic_u1;
-[[(:kind, :unsigned), (:bits, 16_sz), :integral, :atomic]] typecreate atomic_u2;
-[[(:kind, :unsigned), (:bits, 32_sz), :integral, :atomic]] typecreate atomic_u4;
-[[(:kind, :unsigned), (:bits, 64_sz), :integral, :atomic]] typecreate atomic_u8;
 
 # Signed integers.
 [[(:kind, :signed), (:bits, 8_sz), :integral, (:compare, :value), (:order, :value)]] typecreate s1;
 [[(:kind, :signed), (:bits, 16_sz), :integral, (:compare, :value), (:order, :value)]] typecreate s2;
 [[(:kind, :signed), (:bits, 32_sz), :integral, (:compare, :value), (:order, :value)]] typecreate s4;
 [[(:kind, :signed), (:bits, 64_sz), :integral, (:compare, :value), (:order, :value)]] typecreate s8;
-[[(:kind, :signed), (:bits, 8_sz), :integral, :atomic]] typecreate atomic_s1;
-[[(:kind, :signed), (:bits, 16_sz), :integral, :atomic]] typecreate atomic_s2;
-[[(:kind, :signed), (:bits, 32_sz), :integral, :atomic]] typecreate atomic_s4;
-[[(:kind, :signed), (:bits, 64_sz), :integral, :atomic]] typecreate atomic_s8;
 
 # Character types.
 [[(:kind, :character), (:bits, 8_sz), :integral, (:compare, :value), (:order, :value)]] typecreate c1;
@@ -83,7 +72,6 @@ package basic;
 
 # Opaque (void*) type.
 [[(:kind, :voidptr), (:compare, :value)]] typecreate voidptr;
-[[(:kind, :voidptr), :atomic]] typecreate atomic_voidptr;
 
 # Opaque function pointer type.
 [[(:kind, :fptr), (:compare, :value)]] typecreate fptr;

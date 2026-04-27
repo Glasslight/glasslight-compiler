@@ -1,0 +1,167 @@
+package atomic;
+require core.basic;
+
+# Atomic size type, 64 bit, unsigned.
+[[(:kind, :size), :integral, :atomic]] typecreate atomic_size;
+
+# Atomic hash type, 64 bit, integral.
+[[(:kind, :hash), :integral, :atomic]] typecreate atomic_hash;
+
+# Atomic atom type, 64 bit, unsigned.
+[[(:kind, :atom), :atomic]] typecreate atomic_atom;
+
+# Atomic unsigned integers.
+[[(:kind, :unsigned), (:bits, 8_sz), :integral, :atomic]] typecreate atomic_u1;
+[[(:kind, :unsigned), (:bits, 16_sz), :integral, :atomic]] typecreate atomic_u2;
+[[(:kind, :unsigned), (:bits, 32_sz), :integral, :atomic]] typecreate atomic_u4;
+[[(:kind, :unsigned), (:bits, 64_sz), :integral, :atomic]] typecreate atomic_u8;
+
+# Atomic signed integers.
+[[(:kind, :signed), (:bits, 8_sz), :integral, :atomic]] typecreate atomic_s1;
+[[(:kind, :signed), (:bits, 16_sz), :integral, :atomic]] typecreate atomic_s2;
+[[(:kind, :signed), (:bits, 32_sz), :integral, :atomic]] typecreate atomic_s4;
+[[(:kind, :signed), (:bits, 64_sz), :integral, :atomic]] typecreate atomic_s8;
+
+# Atomic opaque pointer type.
+[[(:kind, :voidptr), :atomic]] typecreate atomic_voidptr;
+
+# Memory orderings for atomic operations.
+atomenum atomic_ordering_e
+{
+	:relaxed,
+	:acquire,
+	:release,
+	:acq_rel,
+	:seq_cst
+}
+
+intrinsic
+{
+	# Atomic loads for all atomic primitive types.
+	+ load(p<atomic_u1*>, ord<atomic_ordering_e>) -> u1;
+	+ load(p<atomic_u2*>, ord<atomic_ordering_e>) -> u2;
+	+ load(p<atomic_u4*>, ord<atomic_ordering_e>) -> u4;
+	+ load(p<atomic_u8*>, ord<atomic_ordering_e>) -> u8;
+	+ load(p<atomic_s1*>, ord<atomic_ordering_e>) -> s1;
+	+ load(p<atomic_s2*>, ord<atomic_ordering_e>) -> s2;
+	+ load(p<atomic_s4*>, ord<atomic_ordering_e>) -> s4;
+	+ load(p<atomic_s8*>, ord<atomic_ordering_e>) -> s8;
+	+ load(p<atomic_size*>, ord<atomic_ordering_e>) -> size;
+	+ load(p<atomic_hash*>, ord<atomic_ordering_e>) -> hash;
+	+ load(p<atomic_voidptr*>, ord<atomic_ordering_e>) -> voidptr;
+	+ load(p<atomic_atom*>, ord<atomic_ordering_e>) -> atom;
+
+	# Atomic stores for all atomic primitive types.
+	+ store(p<atomic_u1*>, v<u1>, ord<atomic_ordering_e>) -> ();
+	+ store(p<atomic_u2*>, v<u2>, ord<atomic_ordering_e>) -> ();
+	+ store(p<atomic_u4*>, v<u4>, ord<atomic_ordering_e>) -> ();
+	+ store(p<atomic_u8*>, v<u8>, ord<atomic_ordering_e>) -> ();
+	+ store(p<atomic_s1*>, v<s1>, ord<atomic_ordering_e>) -> ();
+	+ store(p<atomic_s2*>, v<s2>, ord<atomic_ordering_e>) -> ();
+	+ store(p<atomic_s4*>, v<s4>, ord<atomic_ordering_e>) -> ();
+	+ store(p<atomic_s8*>, v<s8>, ord<atomic_ordering_e>) -> ();
+	+ store(p<atomic_size*>, v<size>, ord<atomic_ordering_e>) -> ();
+	+ store(p<atomic_hash*>, v<hash>, ord<atomic_ordering_e>) -> ();
+	+ store(p<atomic_voidptr*>, v<voidptr>, ord<atomic_ordering_e>) -> ();
+	+ store(p<atomic_atom*>, v<atom>, ord<atomic_ordering_e>) -> ();
+
+	# Atomic exchanges for all atomic primitive types.
+	+ exchange(p<atomic_u1*>, v<u1>, ord<atomic_ordering_e>) -> u1;
+	+ exchange(p<atomic_u2*>, v<u2>, ord<atomic_ordering_e>) -> u2;
+	+ exchange(p<atomic_u4*>, v<u4>, ord<atomic_ordering_e>) -> u4;
+	+ exchange(p<atomic_u8*>, v<u8>, ord<atomic_ordering_e>) -> u8;
+	+ exchange(p<atomic_s1*>, v<s1>, ord<atomic_ordering_e>) -> s1;
+	+ exchange(p<atomic_s2*>, v<s2>, ord<atomic_ordering_e>) -> s2;
+	+ exchange(p<atomic_s4*>, v<s4>, ord<atomic_ordering_e>) -> s4;
+	+ exchange(p<atomic_s8*>, v<s8>, ord<atomic_ordering_e>) -> s8;
+	+ exchange(p<atomic_size*>, v<size>, ord<atomic_ordering_e>) -> size;
+	+ exchange(p<atomic_hash*>, v<hash>, ord<atomic_ordering_e>) -> hash;
+	+ exchange(p<atomic_voidptr*>, v<voidptr>, ord<atomic_ordering_e>) -> voidptr;
+	+ exchange(p<atomic_atom*>, v<atom>, ord<atomic_ordering_e>) -> atom;
+
+	# Atomic fetch-adds for integer atomic primitive types.
+	+ fetch_add(p<atomic_u1*>, v<u1>, ord<atomic_ordering_e>) -> u1;
+	+ fetch_add(p<atomic_u2*>, v<u2>, ord<atomic_ordering_e>) -> u2;
+	+ fetch_add(p<atomic_u4*>, v<u4>, ord<atomic_ordering_e>) -> u4;
+	+ fetch_add(p<atomic_u8*>, v<u8>, ord<atomic_ordering_e>) -> u8;
+	+ fetch_add(p<atomic_s1*>, v<s1>, ord<atomic_ordering_e>) -> s1;
+	+ fetch_add(p<atomic_s2*>, v<s2>, ord<atomic_ordering_e>) -> s2;
+	+ fetch_add(p<atomic_s4*>, v<s4>, ord<atomic_ordering_e>) -> s4;
+	+ fetch_add(p<atomic_s8*>, v<s8>, ord<atomic_ordering_e>) -> s8;
+	+ fetch_add(p<atomic_size*>, v<size>, ord<atomic_ordering_e>) -> size;
+
+	# Atomic fetch-subs for integer atomic primitive types.
+	+ fetch_sub(p<atomic_u1*>, v<u1>, ord<atomic_ordering_e>) -> u1;
+	+ fetch_sub(p<atomic_u2*>, v<u2>, ord<atomic_ordering_e>) -> u2;
+	+ fetch_sub(p<atomic_u4*>, v<u4>, ord<atomic_ordering_e>) -> u4;
+	+ fetch_sub(p<atomic_u8*>, v<u8>, ord<atomic_ordering_e>) -> u8;
+	+ fetch_sub(p<atomic_s1*>, v<s1>, ord<atomic_ordering_e>) -> s1;
+	+ fetch_sub(p<atomic_s2*>, v<s2>, ord<atomic_ordering_e>) -> s2;
+	+ fetch_sub(p<atomic_s4*>, v<s4>, ord<atomic_ordering_e>) -> s4;
+	+ fetch_sub(p<atomic_s8*>, v<s8>, ord<atomic_ordering_e>) -> s8;
+	+ fetch_sub(p<atomic_size*>, v<size>, ord<atomic_ordering_e>) -> size;
+
+	# Atomic fetch-ands for integer atomic primitive types.
+	+ fetch_and(p<atomic_u1*>, v<u1>, ord<atomic_ordering_e>) -> u1;
+	+ fetch_and(p<atomic_u2*>, v<u2>, ord<atomic_ordering_e>) -> u2;
+	+ fetch_and(p<atomic_u4*>, v<u4>, ord<atomic_ordering_e>) -> u4;
+	+ fetch_and(p<atomic_u8*>, v<u8>, ord<atomic_ordering_e>) -> u8;
+	+ fetch_and(p<atomic_s1*>, v<s1>, ord<atomic_ordering_e>) -> s1;
+	+ fetch_and(p<atomic_s2*>, v<s2>, ord<atomic_ordering_e>) -> s2;
+	+ fetch_and(p<atomic_s4*>, v<s4>, ord<atomic_ordering_e>) -> s4;
+	+ fetch_and(p<atomic_s8*>, v<s8>, ord<atomic_ordering_e>) -> s8;
+	+ fetch_and(p<atomic_size*>, v<size>, ord<atomic_ordering_e>) -> size;
+
+	# Atomic fetch-ors for integer atomic primitive types.
+	+ fetch_or(p<atomic_u1*>, v<u1>, ord<atomic_ordering_e>) -> u1;
+	+ fetch_or(p<atomic_u2*>, v<u2>, ord<atomic_ordering_e>) -> u2;
+	+ fetch_or(p<atomic_u4*>, v<u4>, ord<atomic_ordering_e>) -> u4;
+	+ fetch_or(p<atomic_u8*>, v<u8>, ord<atomic_ordering_e>) -> u8;
+	+ fetch_or(p<atomic_s1*>, v<s1>, ord<atomic_ordering_e>) -> s1;
+	+ fetch_or(p<atomic_s2*>, v<s2>, ord<atomic_ordering_e>) -> s2;
+	+ fetch_or(p<atomic_s4*>, v<s4>, ord<atomic_ordering_e>) -> s4;
+	+ fetch_or(p<atomic_s8*>, v<s8>, ord<atomic_ordering_e>) -> s8;
+	+ fetch_or(p<atomic_size*>, v<size>, ord<atomic_ordering_e>) -> size;
+
+	# Atomic fetch-xors for integer atomic primitive types.
+	+ fetch_xor(p<atomic_u1*>, v<u1>, ord<atomic_ordering_e>) -> u1;
+	+ fetch_xor(p<atomic_u2*>, v<u2>, ord<atomic_ordering_e>) -> u2;
+	+ fetch_xor(p<atomic_u4*>, v<u4>, ord<atomic_ordering_e>) -> u4;
+	+ fetch_xor(p<atomic_u8*>, v<u8>, ord<atomic_ordering_e>) -> u8;
+	+ fetch_xor(p<atomic_s1*>, v<s1>, ord<atomic_ordering_e>) -> s1;
+	+ fetch_xor(p<atomic_s2*>, v<s2>, ord<atomic_ordering_e>) -> s2;
+	+ fetch_xor(p<atomic_s4*>, v<s4>, ord<atomic_ordering_e>) -> s4;
+	+ fetch_xor(p<atomic_s8*>, v<s8>, ord<atomic_ordering_e>) -> s8;
+	+ fetch_xor(p<atomic_size*>, v<size>, ord<atomic_ordering_e>) -> size;
+
+	# Atomic strong compare-exchanges for all atomic primitive types.
+	+ compare_exchange(p<atomic_u1*>, expected<u1>, desired<u1>, succ<atomic_ordering_e>, fail<atomic_ordering_e>) -> (atom, u1);
+	+ compare_exchange(p<atomic_u2*>, expected<u2>, desired<u2>, succ<atomic_ordering_e>, fail<atomic_ordering_e>) -> (atom, u2);
+	+ compare_exchange(p<atomic_u4*>, expected<u4>, desired<u4>, succ<atomic_ordering_e>, fail<atomic_ordering_e>) -> (atom, u4);
+	+ compare_exchange(p<atomic_u8*>, expected<u8>, desired<u8>, succ<atomic_ordering_e>, fail<atomic_ordering_e>) -> (atom, u8);
+	+ compare_exchange(p<atomic_s1*>, expected<s1>, desired<s1>, succ<atomic_ordering_e>, fail<atomic_ordering_e>) -> (atom, s1);
+	+ compare_exchange(p<atomic_s2*>, expected<s2>, desired<s2>, succ<atomic_ordering_e>, fail<atomic_ordering_e>) -> (atom, s2);
+	+ compare_exchange(p<atomic_s4*>, expected<s4>, desired<s4>, succ<atomic_ordering_e>, fail<atomic_ordering_e>) -> (atom, s4);
+	+ compare_exchange(p<atomic_s8*>, expected<s8>, desired<s8>, succ<atomic_ordering_e>, fail<atomic_ordering_e>) -> (atom, s8);
+	+ compare_exchange(p<atomic_size*>, expected<size>, desired<size>, succ<atomic_ordering_e>, fail<atomic_ordering_e>) -> (atom, size);
+	+ compare_exchange(p<atomic_hash*>, expected<hash>, desired<hash>, succ<atomic_ordering_e>, fail<atomic_ordering_e>) -> (atom, hash);
+	+ compare_exchange(p<atomic_voidptr*>, expected<voidptr>, desired<voidptr>, succ<atomic_ordering_e>, fail<atomic_ordering_e>) -> (atom, voidptr);
+	+ compare_exchange(p<atomic_atom*>, expected<atom>, desired<atom>, succ<atomic_ordering_e>, fail<atomic_ordering_e>) -> (atom, atom);
+
+	# Atomic weak compare-exchanges for all atomic primitive types.
+	+ compare_exchange_weak(p<atomic_u1*>, expected<u1>, desired<u1>, succ<atomic_ordering_e>, fail<atomic_ordering_e>) -> (atom, u1);
+	+ compare_exchange_weak(p<atomic_u2*>, expected<u2>, desired<u2>, succ<atomic_ordering_e>, fail<atomic_ordering_e>) -> (atom, u2);
+	+ compare_exchange_weak(p<atomic_u4*>, expected<u4>, desired<u4>, succ<atomic_ordering_e>, fail<atomic_ordering_e>) -> (atom, u4);
+	+ compare_exchange_weak(p<atomic_u8*>, expected<u8>, desired<u8>, succ<atomic_ordering_e>, fail<atomic_ordering_e>) -> (atom, u8);
+	+ compare_exchange_weak(p<atomic_s1*>, expected<s1>, desired<s1>, succ<atomic_ordering_e>, fail<atomic_ordering_e>) -> (atom, s1);
+	+ compare_exchange_weak(p<atomic_s2*>, expected<s2>, desired<s2>, succ<atomic_ordering_e>, fail<atomic_ordering_e>) -> (atom, s2);
+	+ compare_exchange_weak(p<atomic_s4*>, expected<s4>, desired<s4>, succ<atomic_ordering_e>, fail<atomic_ordering_e>) -> (atom, s4);
+	+ compare_exchange_weak(p<atomic_s8*>, expected<s8>, desired<s8>, succ<atomic_ordering_e>, fail<atomic_ordering_e>) -> (atom, s8);
+	+ compare_exchange_weak(p<atomic_size*>, expected<size>, desired<size>, succ<atomic_ordering_e>, fail<atomic_ordering_e>) -> (atom, size);
+	+ compare_exchange_weak(p<atomic_hash*>, expected<hash>, desired<hash>, succ<atomic_ordering_e>, fail<atomic_ordering_e>) -> (atom, hash);
+	+ compare_exchange_weak(p<atomic_voidptr*>, expected<voidptr>, desired<voidptr>, succ<atomic_ordering_e>, fail<atomic_ordering_e>) -> (atom, voidptr);
+	+ compare_exchange_weak(p<atomic_atom*>, expected<atom>, desired<atom>, succ<atomic_ordering_e>, fail<atomic_ordering_e>) -> (atom, atom);
+
+	# Atomic thread fence.
+	+ thread_fence(ord<atomic_ordering_e>) -> ();
+}
