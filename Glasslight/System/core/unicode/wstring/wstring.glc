@@ -1,5 +1,6 @@
 package wstring;
 require core.common ~> .;
+require core.array ~> .;
 require core.wstring ~> wstr;
 require core.unicode.utf8 ~> utf8;
 require core.unicode.utf16 ~> utf16;

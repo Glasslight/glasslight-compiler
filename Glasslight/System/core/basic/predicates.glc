@@ -72,6 +72,18 @@ package basic;
 + stack?($t<typeid>) when typeinfo(t, :kind) == :stack -> atom { ^ :true; }
 + stack?($t<typeid>) -> atom { ^ :false; }
 
+# Return true if the type is a view.
++ view?($t<typeid>) when typeinfo(t, :kind) == :view_unsized || typeinfo(t, :kind) == :view_sized -> atom { ^ true; }
++ view?($t<typeid>) -> atom { ^ :false; }
+
+# Return true if the type is a string.
++ string?($t<typeid>) when typeinfo(t, :kind) == :string -> atom { ^ true; }
++ string?($t<typeid>) -> atom { ^ :false; }
+
+# Return true if the type is a wstring.
++ wstring?($t<typeid>) when typeinfo(t, :kind) == :wstring -> atom { ^ true; }
++ wstring?($t<typeid>) -> atom { ^ :false; }
+
 # Return true if type supports equality comparison.
 + comparable?($t<typeid>) when typeinfo(t, :compare) != :none -> atom { ^ :true; }
 + comparable?($t<typeid>) -> atom { ^ :false; }
@@ -79,6 +91,10 @@ package basic;
 # Return true if type supports relational ordering.
 + orderable?($t<typeid>) when typeinfo(t, :order) != :none -> atom { ^ :true; }
 + orderable?($t<typeid>) -> atom { ^ :false; }
+
+# Return true if the type is atomic.
++ atomic?($t<typeid>) when typeinfo(t, :atomic) -> atom { ^ true; }
++ atomic?($t<typeid>) -> atom { ^ :false; }
 
 # Return type size in bits.
 + type_bits($t<typeid>) -> size { ^ typeinfo(t, :bits); }

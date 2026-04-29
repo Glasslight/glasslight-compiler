@@ -379,7 +379,7 @@ record atomset_r
 }
 
 # Create a new atomset with zero reserved capacity.
-++ make_atomset() -> atomset_r
+++ make_atomset -> atomset_r
 {
 	^ make_atomset(0_sz);
 }

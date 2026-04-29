@@ -1,6 +1,7 @@
 package hash;
 require core.common ~> .;
 require core.atom ~> .;
+require core.string ~> .;
 require core.math ~> math;
 
 + hash_zero -> hash { ^ 0_hs; }
