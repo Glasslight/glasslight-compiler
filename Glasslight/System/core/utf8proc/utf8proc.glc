@@ -167,22 +167,22 @@ record utf8proc_iterate_result_r
 }
 
 # Return the utf8proc API version string.
-+ version -> cstring
++ version -> [c1, :c]
 {
-	^ utf8proc_version() ~~> cstring;
+	^ utf8proc_version() ~~> [c1, :c];
 }
 
 # Return the supported Unicode version string.
-+ unicode_version -> cstring
++ unicode_version -> [c1, :c]
 {
-	^ utf8proc_unicode_version() ~~> cstring;
+	^ utf8proc_unicode_version() ~~> [c1, :c];
 }
 
 # Return the error message for a utf8proc error code.
-+ error_message(err<utf8proc_error_e>) -> cstring
++ error_message(err<utf8proc_error_e>) -> [c1, :c]
 {
 	let errcode<utf8proc_ssize_t> = err ~> s4 ~> s8;
-	^ utf8proc_errmsg(errcode) ~~> cstring;
+	^ utf8proc_errmsg(errcode) ~~> [c1, :c];
 }
 
 # Return :true when the codepoint is uppercase according to utf8proc.
