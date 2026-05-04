@@ -1,0 +1,81 @@
+package io;
+require core.common ~> .;
+
+# Operations accepted by a writer dispatch function.
+atomenum writer_op_e
+{
+	:write,
+	:flush,
+	:close
+}
+
+# Byte writer transport: dispatch function plus user data.
+record writer_r
+{
+	let func<(writer_op_e, voidptr, voidptr, size) -> (size, io_error_e)> = nil;
+	let user_data<voidptr> = nil;
+}
+
+# Write a byte view through the writer.
++ write(w<writer_r>, buf<[u1, ()]>) -> (size, io_error_e)
+{
+	^ w.func(:write, w.user_data, buf.data() ~~> voidptr, buf.length());
+}
+
+# Write a character byte view through the writer.
++ write(w<writer_r>, s<[c1, ()]>) -> (size, io_error_e)
+{
+	^ write(w, make_view(u1, s.data() ~~> u1*, s.length()));
+}
+
+# Write all bytes, retrying partial writes until complete or failed.
++ write_all(w<writer_r>, buf<[u1, ()]>) -> io_error_e
+{
+	let ptr<u1*> = buf.data();
+	let remaining<size> = buf.length();
+
+	while(remaining > 0_sz)
+	{
+		let (written<size>, err<io_error_e>) = w.func(:write, w.user_data, ptr ~~> voidptr, remaining);
+
+		if(err != :ok)
+		{
+			^ err;
+		}
+
+		if(written == 0_sz)
+		{
+			^ :write_zero;
+		}
+
+		if(written > remaining)
+		{
+			^ :invalid_input;
+		}
+
+		ptr += written;
+		remaining -= written;
+	}
+
+	^ :ok;
+}
+
+# Write all character bytes, retrying partial writes until complete or failed.
++ write_all(w<writer_r>, s<[c1, ()]>) -> io_error_e
+{
+	^ write_all(w, make_view(u1, s.data() ~~> u1*, s.length()));
+}
+
+# Flush buffered writer state.
++ flush(w<writer_r>) -> io_error_e
+{
+	let (_<size>, err<io_error_e>) = w.func(:flush, w.user_data, nil, 0_sz);
+	^ err;
+}
+
+# Close resources owned by the writer backend.
++ close!(w<writer_r>) -> io_error_e
+{
+	let (_<size>, err<io_error_e>) = w.func(:close, w.user_data, nil, 0_sz);
+	^ err;
+}

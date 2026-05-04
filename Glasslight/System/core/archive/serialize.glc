@@ -1,0 +1,9 @@
+package archive;
+require core.common ~> .;
+require core.io ~> io;
+
+# Serialize a single byte value by pointer for read/write symmetry.
++ serialize(ar<archive_r*>, value<u1*>) -> io.io_error_e
+{
+	^ archive_bytes(ar, make_view(u1, value, 1_sz));
+}

@@ -1,0 +1,65 @@
+package io;
+require core.common ~> .;
+require core.mem ~> .;
+
+record bytes_view_reader_state_r
+{
+	let data<u1*> = nil;
+	let length<size> = 0_sz;
+	let offset<size> = 0_sz;
+	let alloc<allocator_r>;
+}
+
+# Dispatch function for readers over a fixed byte view.
++ bytes_view_reader_func(op<reader_op_e>, user_data<voidptr>, buf<voidptr>, count<size>) -> (size, io_error_e)
+{
+	let state<bytes_view_reader_state_r*> = user_data ~~> bytes_view_reader_state_r*;
+
+	match(op)
+	{
+		case :read =>
+		{
+			let available<size> = state.length - state.offset;
+			let read_count<size> = count;
+
+			if(read_count > available)
+			{
+				read_count = available;
+			}
+
+			if(read_count > 0_sz)
+			{
+				__glc_mem_copy(buf, (state.data + state.offset) ~~> voidptr, read_count);
+				state.offset += read_count;
+			}
+
+			^ (read_count, :ok);
+		}
+
+		case :close =>
+		{
+			let a<allocator_r> = state.alloc;
+			allocator_free(a, state ~~> voidptr);
+			^ (0_sz, :ok);
+		}
+	}
+
+	^ (0_sz, :invalid_input);
+}
+
+# Create a reader over a fixed byte view.
++ bytes_view_reader(input<[u1, ()]>) -> reader_r
+{
+	let raw<voidptr> = allocator_alloc(ctx.main, typeinfo(bytes_view_reader_state_r, :bytes));
+	let state<bytes_view_reader_state_r*> = raw ~~> bytes_view_reader_state_r*;
+	state.data = input.data();
+	state.length = input.length();
+	state.offset = 0_sz;
+	state.alloc = ctx.main;
+
+	let r<reader_r>;
+	r.func = &bytes_view_reader_func;
+	r.user_data = state ~~> voidptr;
+
+	^ r;
+}

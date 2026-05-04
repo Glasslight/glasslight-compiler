@@ -1,0 +1,88 @@
+package io;
+require core.common ~> .;
+require core.array ~> .;
+
+# Operations accepted by a reader dispatch function.
+atomenum reader_op_e
+{
+	:read,
+	:close
+}
+
+# Byte reader transport: dispatch function plus user data.
+record reader_r
+{
+	let func<(reader_op_e, voidptr, voidptr, size) -> (size, io_error_e)> = nil;
+	let user_data<voidptr> = nil;
+}
+
+# Read up to buf.length bytes into a byte view.
++ read(r<reader_r>, buf<[u1, ()]>) -> (size, io_error_e)
+{
+	^ r.func(:read, r.user_data, buf.data() ~~> voidptr, buf.length());
+}
+
+# Fill the full byte view or return :unexpected_eof.
++ read_all(r<reader_r>, buf<[u1, ()]>) -> io_error_e
+{
+	let ptr<u1*> = buf.data();
+	let remaining<size> = buf.length();
+
+	while(remaining > 0_sz)
+	{
+		let (read_count<size>, err<io_error_e>) = r.func(:read, r.user_data, ptr ~~> voidptr, remaining);
+
+		if(err != :ok)
+		{
+			^ err;
+		}
+
+		if(read_count == 0_sz)
+		{
+			^ :unexpected_eof;
+		}
+
+		if(read_count > remaining)
+		{
+			^ :invalid_input;
+		}
+
+		ptr += read_count;
+		remaining -= read_count;
+	}
+
+	^ :ok;
+}
+
+# Read until EOF, appending all bytes to a dynamic byte array.
++ read_to_end(r<reader_r>, out<[u1, :dynamic]*>) -> io_error_e
+{
+	let scratch<[u1, 256_sz]>;
+	let scratch_view<[u1, ()]> = make_view(u1, &scratch[0_sz], 256_sz);
+
+	while(:true)
+	{
+		let (read_count<size>, err<io_error_e>) = read(r, scratch_view);
+
+		if(err != :ok)
+		{
+			^ err;
+		}
+
+		if(read_count == 0_sz)
+		{
+			^ :ok;
+		}
+
+		out.append!(make_view(u1, &scratch[0_sz], read_count));
+	}
+
+	^ :ok;
+}
+
+# Close resources owned by the reader backend.
++ close!(r<reader_r>) -> io_error_e
+{
+	let (_<size>, err<io_error_e>) = r.func(:close, r.user_data, nil, 0_sz);
+	^ err;
+}

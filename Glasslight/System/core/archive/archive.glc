@@ -1,0 +1,76 @@
+package archive;
+require core.common ~> .;
+require core.io ~> io;
+
+# Archive direction for symmetric serialization helpers.
+atomenum archive_mode_e
+{
+	:read,
+	:write
+}
+
+# Structured serialization state layered over byte readers and writers.
+record archive_r
+{
+	let mode<archive_mode_e> = :read;
+	let reader<io.reader_r>;
+	let writer<io.writer_r>;
+	let alloc<allocator_r>;
+	let endian<endian_e> = :little;
+	let version<u4> = 0_u4;
+	let err<io.io_error_e> = :ok;
+}
+
+# Create a write archive over a byte writer.
+++ make_write_archive(w<io.writer_r>, endian<endian_e>, version<u4>) -> archive_r
+{
+	let ar<archive_r>;
+	ar.mode = :write;
+	ar.writer = w;
+	ar.alloc = ctx.main;
+	ar.endian = endian;
+	ar.version = version;
+	ar.err = :ok;
+	^ ar;
+}
+
+# Create a read archive over a byte reader.
+++ make_read_archive(r<io.reader_r>, endian<endian_e>, version<u4>) -> archive_r
+{
+	let ar<archive_r>;
+	ar.mode = :read;
+	ar.reader = r;
+	ar.alloc = ctx.main;
+	ar.endian = endian;
+	ar.version = version;
+	ar.err = :ok;
+	^ ar;
+}
+
+# Return true after the archive records any error.
++ failed?(ar<archive_r*>) when ar.err != :ok -> atom { ^ :true; }
++ failed?(ar<archive_r*>) -> atom { ^ :false; }
+
+# Set the archive sticky error when the operation failed.
++ set_error(ar<archive_r*>, err<io.io_error_e>) when ar.err != :ok -> io.io_error_e { ^ ar.err; }
++ set_error(ar<archive_r*>, err<io.io_error_e>) when err != :ok -> io.io_error_e
+{
+	ar.err = err;
+	^ err;
+}
++ set_error(ar<archive_r*>, err<io.io_error_e>) -> io.io_error_e { ^ :ok; }
+
+# Archive raw bytes through the active reader or writer.
++ archive_bytes(ar<archive_r*>, bytes<[u1, ()]>) when ar.err != :ok -> io.io_error_e { ^ ar.err; }
++ archive_bytes(ar<archive_r*>, bytes<[u1, ()]>) when ar.mode == :write -> io.io_error_e
+{
+	^ set_error(ar, io.write_all(ar.writer, bytes));
+}
++ archive_bytes(ar<archive_r*>, bytes<[u1, ()]>) when ar.mode == :read -> io.io_error_e
+{
+	^ set_error(ar, io.read_all(ar.reader, bytes));
+}
++ archive_bytes(ar<archive_r*>, bytes<[u1, ()]>) -> io.io_error_e
+{
+	^ set_error(ar, :invalid_input);
+}

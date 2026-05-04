@@ -1,0 +1,45 @@
+package math;
+require core.common ~> .;
+
+# Return true when a type supports endian byte swapping.
++ endian_swappable?($t<typeid>) when t == typeof u1 -> atom { ^ :true; }
++ endian_swappable?($t<typeid>) when t == typeof u2 -> atom { ^ :true; }
++ endian_swappable?($t<typeid>) when t == typeof u4 -> atom { ^ :true; }
++ endian_swappable?($t<typeid>) when t == typeof u8 -> atom { ^ :true; }
++ endian_swappable?($t<typeid>) when t == typeof s1 -> atom { ^ :true; }
++ endian_swappable?($t<typeid>) when t == typeof s2 -> atom { ^ :true; }
++ endian_swappable?($t<typeid>) when t == typeof s4 -> atom { ^ :true; }
++ endian_swappable?($t<typeid>) when t == typeof s8 -> atom { ^ :true; }
++ endian_swappable?($t<typeid>) when t == typeof size -> atom { ^ :true; }
++ endian_swappable?($t<typeid>) when t == typeof hash -> atom { ^ :true; }
++ endian_swappable?($t<typeid>) when t == typeof atom -> atom { ^ :true; }
++ endian_swappable?($t<typeid>) when t == typeof c1 -> atom { ^ :true; }
++ endian_swappable?($t<typeid>) when t == typeof c2 -> atom { ^ :true; }
++ endian_swappable?($t<typeid>) when t == typeof c4 -> atom { ^ :true; }
++ endian_swappable?($t<typeid>) -> atom { ^ :false; }
+
+# Convert a value between two explicit endian layouts.
++ endian_swap($t<typeid>, $from<endian_e>, $to<endian_e>, v<t>) when typeinfo(t, :bytes) == 1_sz && endian_swappable?(t) -> t
+{
+	^ v;
+}
++ endian_swap($t<typeid>, $from<endian_e>, $to<endian_e>, v<t>) when from == to && endian_swappable?(t) -> t
+{
+	^ v;
+}
++ endian_swap($t<typeid>, $from<endian_e>, $to<endian_e>, v<t>) when from != to && endian_swappable?(t) -> t
+{
+	^ bswap(v);
+}
+
+# Convert a native-endian value to the requested endian layout.
++ to_endian($t<typeid>, $to<endian_e>, v<t>) -> t
+{
+	^ endian_swap(t, __glc_endianness, to, v);
+}
+
+# Convert a value from the source endian layout to native endian.
++ from_endian($t<typeid>, $from<endian_e>, v<t>) -> t
+{
+	^ endian_swap(t, from, __glc_endianness, v);
+}

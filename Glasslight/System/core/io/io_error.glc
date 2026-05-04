@@ -1,0 +1,19 @@
+package io;
+require core.common ~> .;
+
+# Error codes shared by core I/O transports.
+atomenum io_error_e
+{
+	:ok,
+	:not_found,
+	:permission_denied,
+	:already_exists,
+	:invalid_input,
+	:would_block,
+	:interrupted,
+	:broken_pipe,
+	:closed,
+	:unexpected_eof,
+	:write_zero,
+	:other
+}

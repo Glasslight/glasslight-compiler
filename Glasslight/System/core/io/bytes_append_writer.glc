@@ -1,0 +1,39 @@
+package io;
+require core.common ~> .;
+require core.array ~> .;
+
+# Dispatch function for writers that append into a dynamic byte array.
++ bytes_append_writer_func(op<writer_op_e>, user_data<voidptr>, buf<voidptr>, count<size>) -> (size, io_error_e)
+{
+	match(op)
+	{
+		case :write =>
+		{
+			let out<[u1, :dynamic]*> = user_data ~~> [u1, :dynamic]*;
+			out.append!(make_view(u1, buf ~~> u1*, count));
+			^ (count, :ok);
+		}
+
+		case :flush =>
+		{
+			^ (0_sz, :ok);
+		}
+
+		case :close =>
+		{
+			^ (0_sz, :ok);
+		}
+	}
+
+	^ (0_sz, :invalid_input);
+}
+
+# Create a writer that appends bytes into a dynamic byte array.
++ bytes_append_writer(out<[u1, :dynamic]*>) -> writer_r
+{
+	let w<writer_r>;
+	w.func = &bytes_append_writer_func;
+	w.user_data = out ~~> voidptr;
+
+	^ w;
+}

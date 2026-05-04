@@ -1,0 +1,16 @@
+package math;
+require core.common ~> .;
+
+# Byte-swap overloads. Unsigned and named scalar overloads are implemented
+# through the signed bswap intrinsics where needed.
++ bswap(v<u1>) -> u1 { ^ v; }
++ bswap(v<u2>) -> u2 { ^ bswap(v ~~> s2) ~~> u2; }
++ bswap(v<u4>) -> u4 { ^ bswap(v ~~> s4) ~~> u4; }
++ bswap(v<u8>) -> u8 { ^ bswap(v ~~> s8) ~~> u8; }
++ bswap(v<s1>) -> s1 { ^ v; }
++ bswap(v<size>) -> size { ^ bswap(v ~~> u8) ~~> size; }
++ bswap(v<hash>) -> hash { ^ bswap(v ~~> u8) ~~> hash; }
++ bswap(v<atom>) -> atom { ^ bswap(v ~~> u8) ~~> atom; }
++ bswap(v<c1>) -> c1 { ^ v; }
++ bswap(v<c2>) -> c2 { ^ bswap(v ~~> u2) ~~> c2; }
++ bswap(v<c4>) -> c4 { ^ bswap(v ~~> u4) ~~> c4; }
