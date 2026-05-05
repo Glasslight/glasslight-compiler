@@ -51,6 +51,14 @@ record archive_r
 + failed?(ar<archive_r*>) when ar.err != :ok -> atom { ^ :true; }
 + failed?(ar<archive_r*>) -> atom { ^ :false; }
 
+# Return true when the archive is in read mode.
++ reader?(ar<archive_r*>) when ar.mode == :read -> atom { ^ :true; }
++ reader?(ar<archive_r*>) -> atom { ^ :false; }
+
+# Return true when the archive is in write mode.
++ writer?(ar<archive_r*>) when ar.mode == :write -> atom { ^ :true; }
++ writer?(ar<archive_r*>) -> atom { ^ :false; }
+
 # Set the archive sticky error when the operation failed.
 + set_error(ar<archive_r*>, err<io.io_error_e>) when ar.err != :ok -> io.io_error_e { ^ ar.err; }
 + set_error(ar<archive_r*>, err<io.io_error_e>) when err != :ok -> io.io_error_e

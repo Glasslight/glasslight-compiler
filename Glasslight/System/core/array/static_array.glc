@@ -19,6 +19,9 @@ typemix static_array
 	[[:constfold]]
 	- length($t<typeid>, $n<size>) -> size { ^ n; }
 
+	# Return true if empty (always false).
+	- empty?($t<typeid>, $n<size>) -> atom { ^ :false; }
+
 	# Return pointer to data.
 	- data($t<typeid>, $n<size>) -> t* { ^ __glc_static_array_data(t, n, self); }
 

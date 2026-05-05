@@ -8,8 +8,14 @@ package basic;
 + nil?($t<typeid>, x<t*>) when nil?(x ~~> voidptr) -> atom { ^ :true; }
 + nil?($t<typeid>, x<t*>) -> atom { ^ :false; }
 
-# Return true if value length is zero.
-+ empty?($t<typeid>, x<t>) -> atom { ^ len(x) == 0_sz; }
+# Return true if length is zero.
++ empty?($t<typeid>, x<t>) when tuple?(x) -> atom { ^ empty_tuple?(t); }
++ empty?($t<typeid>, x<t>) when view?(x) -> atom { ^ x.empty?; }
++ empty?($t<typeid>, x<t>) when array?(x) -> atom { ^ x.empty?; }
++ empty?($t<typeid>, x<t>) when stack?(x) -> atom { ^ x.empty?; }
++ empty?($t<typeid>, x<t>) when atomset?(x) -> atom { ^ x.empty?; }
++ empty?($t<typeid>, x<t>) when string?(x) -> atom { ^ x.empty?; }
++ empty?($t<typeid>, x<t>) when wstring?(x) -> atom { ^ x.empty?; }
 
 # Return true if two typeids reference the same type.
 + same_types?($a<typeid>, $b<typeid>) when a == b -> atom { ^ :true; }

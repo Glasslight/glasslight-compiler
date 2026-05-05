@@ -1,13 +1,15 @@
 package math;
 require core.common ~> .;
 
-# Byte-swap overloads. Unsigned and named scalar overloads are implemented
-# through the signed bswap intrinsics where needed.
+# Byte-swap overloads. Signed s2/s4/s8 overloads are declared as intrinsics.
 + bswap(v<u1>) -> u1 { ^ v; }
 + bswap(v<u2>) -> u2 { ^ bswap(v ~~> s2) ~~> u2; }
 + bswap(v<u4>) -> u4 { ^ bswap(v ~~> s4) ~~> u4; }
 + bswap(v<u8>) -> u8 { ^ bswap(v ~~> s8) ~~> u8; }
 + bswap(v<s1>) -> s1 { ^ v; }
++ bswap(v<f2>) -> f2 { ^ bswap(v ~~> s2) ~~> f2; }
++ bswap(v<f4>) -> f4 { ^ bswap(v ~~> s4) ~~> f4; }
++ bswap(v<f8>) -> f8 { ^ bswap(v ~~> s8) ~~> f8; }
 + bswap(v<size>) -> size { ^ bswap(v ~~> u8) ~~> size; }
 + bswap(v<hash>) -> hash { ^ bswap(v ~~> u8) ~~> hash; }
 + bswap(v<atom>) -> atom { ^ bswap(v ~~> u8) ~~> atom; }

@@ -1,9 +1,53 @@
 package archive;
 require core.common ~> .;
 require core.io ~> io;
+require core.math ~> math;
 
-# Serialize a single byte value by pointer for read/write symmetry.
-+ serialize(ar<archive_r*>, value<u1*>) -> io.io_error_e
+# Return true when a type can be serialized through the scalar archive path.
++ serializeable?($t<typeid>) when math.endian_swappable?(t) -> atom { ^ :true; }
++ serializeable?($t<typeid>) -> atom { ^ :false; }
+
+# Write a scalar value to the archive.
++ serialize($t<typeid>, ar<archive_r*>, value<t>) when writer?(ar) && serializeable?(t) -> io.io_error_e
 {
-	^ archive_bytes(ar, make_view(u1, value, 1_sz));
+	if(ar.err != :ok)
+	{
+		^ ar.err;
+	}
+
+	let stored<t> = math.endian_swap(t, __glc_endianness, ar.endian, value);
+	let ptr<u1*> = &stored ~~> u1*;
+	^ set_error(ar, io.write_all(ar.writer, make_view(u1, ptr, typeinfo(t, :bytes))));
+}
+
++ serialize($t<typeid>, ar<archive_r*>, value<t>) -> io.io_error_e
+{
+	^ set_error(ar, :invalid_input);
+}
+
+# Read a scalar value from the archive.
++ serialize($t<typeid>, ar<archive_r*>) when reader?(ar) && serializeable?(t) -> (io.io_error_e, t)
+{
+	let stored<t>;
+
+	if(ar.err != :ok)
+	{
+		^ (ar.err, stored);
+	}
+
+	let ptr<u1*> = &stored ~~> u1*;
+	let err<io.io_error_e> = set_error(ar, io.read_all(ar.reader, make_view(u1, ptr, typeinfo(t, :bytes))));
+
+	if(err != :ok)
+	{
+		^ (err, stored);
+	}
+
+	^ (err, math.endian_swap(t, ar.endian, __glc_endianness, stored));
+}
+
++ serialize($t<typeid>, ar<archive_r*>) -> (io.io_error_e, t)
+{
+	let value<t>;
+	^ (set_error(ar, :invalid_input), value);
 }
