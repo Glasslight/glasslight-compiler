@@ -51,6 +51,9 @@ record archive_r
 + failed?(ar<archive_r*>) when ar.err != :ok -> atom { ^ :true; }
 + failed?(ar<archive_r*>) -> atom { ^ :false; }
 
+# Return the archive sticky error.
++ result(ar<archive_r*>) -> io.io_error_e { ^ ar.err; }
+
 # Return true when the archive is in read mode.
 + reader?(ar<archive_r*>) when ar.mode == :read -> atom { ^ :true; }
 + reader?(ar<archive_r*>) -> atom { ^ :false; }

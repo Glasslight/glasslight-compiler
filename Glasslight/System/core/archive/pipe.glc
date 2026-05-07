@@ -1,0 +1,44 @@
+package archive;
+require core.common ~> .;
+require core.io ~> io;
+
+# Serialize a value and return the archive so writes can be chained with |>.
++ write($t<typeid>, ar<archive_r*>, value<t>) when serializeable?(t) -> archive_r*
+{
+	serialize(t, ar, value);
+	^ ar;
+}
++ write($t<typeid>, ar<archive_r*>, value<t>) -> archive_r*
+{
+	set_error(ar, :invalid_input);
+	^ ar;
+}
+
+# Deserialize a value into an output pointer so reads can be chained with |>.
++ read($t<typeid>, ar<archive_r*>, out<t*>) when serializeable?(t) -> archive_r*
+{
+	constif(record?(t))
+	{
+		let record_err<io.io_error_e> = out.serialize(ar);
+		set_error(ar, record_err);
+	}
+	else
+	{
+		let (read_err<io.io_error_e>, value<t>) = serialize(t, ar);
+		if(read_err != :ok)
+		{
+			set_error(ar, read_err);
+		}
+		else
+		{
+			*out = value;
+		}
+	}
+
+	^ ar;
+}
++ read($t<typeid>, ar<archive_r*>, out<t*>) -> archive_r*
+{
+	set_error(ar, :invalid_input);
+	^ ar;
+}
