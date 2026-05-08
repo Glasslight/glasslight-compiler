@@ -1,13 +1,40 @@
 package string;
 require core.common ~> .;
 require core.array ~> .;
+require core.archive ~> archive;
 require core.mem ~> .;
 require core.c ~> c;
 require core.error ~> error;
+require core.io ~> io;
 
+[[:serializeable, :hashable]]
 record string_r
 {
 	let buf<[c1, :dynamic]>;
+
+	# Archive strings as their logical bytes only: a size-prefixed dynamic array
+	# excluding the trailing null terminator. On read, re-terminate the backing
+	# buffer so string_r keeps its in-memory null-terminated invariant.
+	- serialize(ar<archive.archive_r*>) -> io.io_error_e
+	{
+		if(archive.writer?(ar))
+		{
+			^ archive.serialize([c1, :dynamic], ar, self.buf);
+		}
+		elif(archive.reader?(ar))
+		{
+			let err<io.io_error_e> = archive.serialize(ar, &self.buf);
+			if(err == :ok || !nil?(self.buf.data))
+			{
+				self.buf.ensure_capacity(self.buf.length + 1_sz);
+				*(self.buf.data + self.buf.length) = 0_c1;
+			}
+
+			^ err;
+		}
+
+		^ :invalid_input;
+	}
 
 	# Returns the current number of bytes.
 	- length() -> size { ^ self.buf.length; }
@@ -556,4 +583,3 @@ record string_r
 
 	^ result;
 }
-

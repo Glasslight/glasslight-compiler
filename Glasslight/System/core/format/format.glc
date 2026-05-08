@@ -153,7 +153,7 @@ require core.ffi.format ~> ffi;
 	^ ();
 }
 
-+ format_args($t<typeid>, fmt<[c1, ()]>, args<t>, out<[c1]*>) when empty_tuple?(t) -> ()
++ format_args($t<typeid>, fmt<[c1, ()]>, args<t>, out<[c1]*>) when empty?(t) -> ()
 {
 	if(fmt.length() > 0_sz)
 	{
@@ -163,7 +163,7 @@ require core.ffi.format ~> ffi;
 	^ ();
 }
 
-+ format_args($t<typeid>, fmt<[c1, ()]>, args<t>, out<[c1]*>) when tuple?(t) && !empty_tuple?(t) -> ()
++ format_args($t<typeid>, fmt<[c1, ()]>, args<t>, out<[c1]*>) when tuple?(t) && !empty?(t) -> ()
 {
 	let (found<atom>, idx<size>) = fmt.index_of("{}");
 

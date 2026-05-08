@@ -6,3 +6,6 @@ require core.basic ~> .;
 
 # Largest finite positive.
 + max($t<typeid>) when t == typeof size -> size { ^ 0xffffffffffffffff_sz; }
+
+# Size value used to designate invalid size.
++ invalid($t<typeid>) when t == typeof size -> size { ^ 0xffffffffffffffff_sz; }

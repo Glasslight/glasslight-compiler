@@ -8,35 +8,35 @@ package basic;
 [[(:kind, :atomenum), (:compare, :value)]] typecreate _;
 
 # Size type, 64 bit, unsigned.
-[[(:kind, :size), (:suffix, :sz), :integral, :serializable, (:compare, :value), (:order, :value)]] typecreate size;
+[[(:kind, :size), (:suffix, :sz), :integral, :hashable, :serializeable, (:compare, :value), (:order, :value)]] typecreate size;
 
 # Hash type, 64 bit, integral.
-[[(:kind, :hash), (:suffix, :hs), :integral, :serializable, (:compare, :value), (:order, :value)]] typecreate hash;
+[[(:kind, :hash), (:suffix, :hs), :integral, :hashable, :serializeable, (:compare, :value), (:order, :value)]] typecreate hash;
 
 # Atom type, 64 bit, unsigned.
-[[(:kind, :atom), :serializable, (:compare, :value)]] typecreate atom;
+[[(:kind, :atom), :hashable, :serializeable, (:compare, :value)]] typecreate atom;
 
 # Float types.
-[[(:kind, :float), (:bits, 16_sz), :serializable, (:compare, :value), (:order, :value)]] typecreate f2;
-[[(:kind, :float), (:bits, 32_sz), :serializable, (:compare, :value), (:order, :value)]] typecreate f4;
-[[(:kind, :float), (:bits, 64_sz), :serializable, (:compare, :value), (:order, :value)]] typecreate f8;
+[[(:kind, :float), (:bits, 16_sz), :hashable, :serializeable, (:compare, :value), (:order, :value)]] typecreate f2;
+[[(:kind, :float), (:bits, 32_sz), :hashable, :serializeable, (:compare, :value), (:order, :value)]] typecreate f4;
+[[(:kind, :float), (:bits, 64_sz), :hashable, :serializeable, (:compare, :value), (:order, :value)]] typecreate f8;
 
 # Unsigned integers.
-[[(:kind, :unsigned), (:bits, 8_sz), :integral, :serializable, (:compare, :value), (:order, :value)]] typecreate u1;
-[[(:kind, :unsigned), (:bits, 16_sz), :integral, :serializable, (:compare, :value), (:order, :value)]] typecreate u2;
-[[(:kind, :unsigned), (:bits, 32_sz), :integral, :serializable, (:compare, :value), (:order, :value)]] typecreate u4;
-[[(:kind, :unsigned), (:bits, 64_sz), :integral, :serializable, (:compare, :value), (:order, :value)]] typecreate u8;
+[[(:kind, :unsigned), (:bits, 8_sz), :integral, :hashable, :serializeable, (:compare, :value), (:order, :value)]] typecreate u1;
+[[(:kind, :unsigned), (:bits, 16_sz), :integral, :hashable, :serializeable, (:compare, :value), (:order, :value)]] typecreate u2;
+[[(:kind, :unsigned), (:bits, 32_sz), :integral, :hashable, :serializeable, (:compare, :value), (:order, :value)]] typecreate u4;
+[[(:kind, :unsigned), (:bits, 64_sz), :integral, :hashable, :serializeable, (:compare, :value), (:order, :value)]] typecreate u8;
 
 # Signed integers.
-[[(:kind, :signed), (:bits, 8_sz), :integral, :serializable, (:compare, :value), (:order, :value)]] typecreate s1;
-[[(:kind, :signed), (:bits, 16_sz), :integral, :serializable, (:compare, :value), (:order, :value)]] typecreate s2;
-[[(:kind, :signed), (:bits, 32_sz), :integral, :serializable, (:compare, :value), (:order, :value)]] typecreate s4;
-[[(:kind, :signed), (:bits, 64_sz), :integral, :serializable, (:compare, :value), (:order, :value)]] typecreate s8;
+[[(:kind, :signed), (:bits, 8_sz), :integral, :hashable, :serializeable, (:compare, :value), (:order, :value)]] typecreate s1;
+[[(:kind, :signed), (:bits, 16_sz), :integral, :hashable, :serializeable, (:compare, :value), (:order, :value)]] typecreate s2;
+[[(:kind, :signed), (:bits, 32_sz), :integral, :hashable, :serializeable, (:compare, :value), (:order, :value)]] typecreate s4;
+[[(:kind, :signed), (:bits, 64_sz), :integral, :hashable, :serializeable, (:compare, :value), (:order, :value)]] typecreate s8;
 
 # Character types.
-[[(:kind, :character), (:bits, 8_sz), :integral, :serializable, (:compare, :value), (:order, :value)]] typecreate c1;
-[[(:kind, :character), (:bits, 16_sz), :integral, :serializable, (:compare, :value), (:order, :value)]] typecreate c2;
-[[(:kind, :character), (:bits, 32_sz), :integral, :serializable, (:compare, :value), (:order, :value)]] typecreate c4;
+[[(:kind, :character), (:bits, 8_sz), :integral, :hashable, :serializeable, (:compare, :value), (:order, :value)]] typecreate c1;
+[[(:kind, :character), (:bits, 16_sz), :integral, :hashable, :serializeable, (:compare, :value), (:order, :value)]] typecreate c2;
+[[(:kind, :character), (:bits, 32_sz), :integral, :hashable, :serializeable, (:compare, :value), (:order, :value)]] typecreate c4;
 
 # Vector types — half (f2) element.
 [[(:kind, :vector), (:dim, 2_sz), (:element, :f2), :mixable, (:compare, :value)]] typecreate v2f2;
@@ -71,7 +71,7 @@ package basic;
 [[(:kind, :wstrlit), :const_only]] typecreate wstrlit;
 
 # Opaque (void*) type.
-[[(:kind, :voidptr), (:compare, :value)]] typecreate voidptr;
+[[(:kind, :voidptr), :hashable, (:compare, :value)]] typecreate voidptr;
 
 # Opaque function pointer type.
 [[(:kind, :fptr), (:compare, :value)]] typecreate fptr;
@@ -173,25 +173,27 @@ atomenum typekind_e
 }
 
 # All keys accepted by the `typeinfo(T, :key)` builtin.
-# Order matches the user-facing "supported keys" error message in
-# AstNodeTypeInfo.cpp (size/layout, then semantic, then flags, then callable).
+# Alphabetical order matches the user-facing "supported keys" error message in AstNodeTypeInfo.cpp.
 atomenum typeinfo_key_e
 {
-	:bytes,				# Size in bytes (size).
-	:bits,				# Bit width (size).
+	:abi,				# Callable ABI classification (abi_e).
 	:alignment,			# Required byte alignment (size).
-	:stride,			# Element stride in bytes (size).
-	:kind,				# Type kind classification (typekind_e).
-	:compare,			# Comparison mode (type_compare_mode_e).
-	:order,				# Ordering mode (type_compare_mode_e).
-	:element,			# Element type of containers/vectors (typeid).
-	:dim,				# Vector component count (size).
-	:mixable,			# Participates in typemix expressions (atom).
-	:serializable,		# Supports archive scalar serialization (atom).
-	:integral,			# Is an integer type (atom).
 	:atomic,			# Type itself is atomic (atom).
+	:bits,				# Bit width (size).
+	:bytes,				# Size in bytes (size).
+	:collection,		# Type is considered to be a collection (atom).
+	:compare,			# Comparison mode (type_compare_mode_e).
 	:contains_atomic,	# Has an atomic-typed field (atom).
+	:dim,				# Vector component count (size).
+	:element,			# Element type of containers/vectors (typeid).
 	:foreign,			# Foreign/FFI type (atom).
+	:hashable,			# Supports hash metadata (atom).
 	:immutable,			# Const-only type (atom).
-	:abi				# Callable ABI classification (abi_e).
+	:integral,			# Is an integer type (atom).
+	:kind,				# Type kind classification (typekind_e).
+	:length,			# Compile-time element count or string-literal length (size).
+	:mixable,			# Participates in typemix expressions (atom).
+	:order,				# Ordering mode (type_compare_mode_e).
+	:serializeable,		# Supports archive serialization (atom).
+	:stride				# Element stride in bytes (size).
 }

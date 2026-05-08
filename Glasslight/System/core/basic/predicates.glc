@@ -36,17 +36,13 @@ package basic;
 + numeric?($t<typeid>) when float?(t) || integer?(t) -> atom { ^ :true; }
 + numeric?($t<typeid>) -> atom { ^ :false; }
 
-# Return true if type is an empty tuple.
-+ empty_tuple?($t<typeid>) when typeof () == t -> atom { ^ :true; }
-+ empty_tuple?($t<typeid>) -> atom { ^ :false; }
+# Return true if type is a vector.
++ vector?($t<typeid>) when typeinfo(t, :kind) == :vector -> atom { ^ :true; }
++ vector?($t<typeid>) -> atom { ^ :false; }
 
 # Return true if type is a tuple.
 + tuple?($t<typeid>) when typeinfo(t, :kind) == :tuple -> atom { ^ :true; }
 + tuple?($t<typeid>) -> atom { ^ :false; }
-
-# Return true if type is a static array type.
-+ static_array?($t<typeid>) when typeinfo(t, :kind) == :static_array -> atom { ^ :true; }
-+ static_array?($t<typeid>) -> atom { ^ :false; }
 
 # Return true if type is a function.
 + function?($t<typeid>) when typeinfo(t, :kind) == :function -> atom { ^ :true; }
@@ -54,11 +50,18 @@ package basic;
 
 # Return true if type is a record type.
 + record?($t<typeid>) when typeinfo(t, :kind) == :record -> atom { ^ :true; }
++ record?($t<typeid>) when typeinfo(t, :kind) == :string -> atom { ^ :true; }
++ record?($t<typeid>) when typeinfo(t, :kind) == :wstring -> atom { ^ :true; }
++ record?($t<typeid>) when typeinfo(t, :kind) == :stack -> atom { ^ :true; }
 + record?($t<typeid>) -> atom { ^ :false; }
 
 # Return true if type is a typeid.
 + typeid?($t<typeid>) when typeinfo(t, :kind) == :typeid -> atom { ^ :true; }
 + typeid?($t<typeid>) -> atom { ^ :false; }
+
+# Return true if type is a static array type.
++ static_array?($t<typeid>) when typeinfo(t, :kind) == :static_array -> atom { ^ :true; }
++ static_array?($t<typeid>) -> atom { ^ :false; }
 
 # Return true if type is a managed/dynamic array.
 + dynamic_array?($t<typeid>) when typeinfo(t, :kind) == :dynamic_array -> atom { ^ :true; }
@@ -76,8 +79,16 @@ package basic;
 + stack?($t<typeid>) when typeinfo(t, :kind) == :stack -> atom { ^ :true; }
 + stack?($t<typeid>) -> atom { ^ :false; }
 
+# Return true if the type is a sized view.
++ view_sized?($t<typeid>) when typeinfo(t, :kind) == :view_sized -> atom { ^ :true; }
++ view_sized?($t<typeid>) -> atom { ^ :false; }
+
+# Return true if the type is an unsized view.
++ view_unsized?($t<typeid>) when typeinfo(t, :kind) == :view_unsized -> atom { ^ :true; }
++ view_unsized?($t<typeid>) -> atom { ^ :false; }
+
 # Return true if the type is a view.
-+ view?($t<typeid>) when typeinfo(t, :kind) == :view_unsized || typeinfo(t, :kind) == :view_sized -> atom { ^ :true; }
++ view?($t<typeid>) when view_sized?(t) || view_unsized?(t) -> atom { ^ :true; }
 + view?($t<typeid>) -> atom { ^ :false; }
 
 # Return true if the type is a string.
@@ -87,6 +98,22 @@ package basic;
 # Return true if the type is a wstring.
 + wstring?($t<typeid>) when typeinfo(t, :kind) == :wstring -> atom { ^ :true; }
 + wstring?($t<typeid>) -> atom { ^ :false; }
+
+# Return true if the type is a strlit.
++ strlit?($t<typeid>) when typeinfo(t, :kind) == :strlit -> atom { ^ :true; }
++ strlit?($t<typeid>) -> atom { ^ :false; }
+
+# Return true if the type is a wstrlit.
++ wstrlit?($t<typeid>) when typeinfo(t, :kind) == :wstrlit -> atom { ^ :true; }
++ wstrlit?($t<typeid>) -> atom { ^ :false; }
+
+# Return true if type is a cstring.
++ cstring?($t<typeid>) when typeinfo(t, :kind) == :cstring -> atom { ^ :true; }
++ cstring?($t<typeid>) -> atom { ^ :false; }
+
+# Return true if type is a wcstring.
++ wcstring?($t<typeid>) when typeinfo(t, :kind) == :wcstring -> atom { ^ :true; }
++ wcstring?($t<typeid>) -> atom { ^ :false; }
 
 # Return true if type supports equality comparison.
 + comparable?($t<typeid>) when typeinfo(t, :compare) != :none -> atom { ^ :true; }
@@ -100,12 +127,18 @@ package basic;
 + atomic?($t<typeid>) when typeinfo(t, :atomic) -> atom { ^ :true; }
 + atomic?($t<typeid>) -> atom { ^ :false; }
 
+# Return true if type supports serialization.
++ serializeable?($t<typeid>) when typeinfo(t, :serializeable) -> atom { ^ :true; }
++ serializeable?($t<typeid>) -> atom { ^ :false; }
+
+# Return true if type supports hashing.
++ hashable?($t<typeid>) when typeinfo(t, :hashable) -> atom { ^ :true; }
++ hashable?($t<typeid>) -> atom { ^ :false; }
+
+# Return true if type is considered to be a collection.
++ collection?($t<typeid>) when typeinfo(t, :collection) -> atom { ^ :true; }
++ collection?($t<typeid>) -> atom { ^ :false; }
+
 # Return true if the type is scalar.
 + scalar?($t<typeid>) when numeric?(t) -> atom { ^ :true; }
 + scalar?($t<typeid>) -> atom { ^ :false; }
-
-# Return type size in bits.
-+ type_bits($t<typeid>) -> size { ^ typeinfo(t, :bits); }
-
-# Return type size in bytes.
-+ type_bytes($t<typeid>) -> size { ^ typeinfo(t, :bytes); }

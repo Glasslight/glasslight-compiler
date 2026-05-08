@@ -3,6 +3,12 @@ require core.common ~> .;
 require core.io ~> io;
 
 # Serialize a value and return the archive so writes can be chained with |>.
++ write($e<typeid>, $n<size>, ar<archive_r*>, value<[e, n]>) when serializeable?(e) -> archive_r*
+{
+	let array_err<io.io_error_e> = serialize([e, n], ar, value);
+	set_error(ar, array_err);
+	^ ar;
+}
 + write($t<typeid>, ar<archive_r*>, value<t>) when serializeable?(t) -> archive_r*
 {
 	serialize(t, ar, value);
@@ -15,12 +21,23 @@ require core.io ~> io;
 }
 
 # Deserialize a value into an output pointer so reads can be chained with |>.
++ read($e<typeid>, $n<size>, ar<archive_r*>, out<[e, n]*>) when serializeable?(e) -> archive_r*
+{
+	let array_err<io.io_error_e> = serialize(ar, out);
+	set_error(ar, array_err);
+	^ ar;
+}
 + read($t<typeid>, ar<archive_r*>, out<t*>) when serializeable?(t) -> archive_r*
 {
 	constif(record?(t))
 	{
 		let record_err<io.io_error_e> = out.serialize(ar);
 		set_error(ar, record_err);
+	}
+	elif(dynamic_array?(t))
+	{
+		let array_err<io.io_error_e> = serialize(ar, out);
+		set_error(ar, array_err);
 	}
 	else
 	{

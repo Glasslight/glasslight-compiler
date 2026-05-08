@@ -1,13 +1,145 @@
 package archive;
 require core.common ~> .;
+require core.array ~> .;
 require core.io ~> io;
 require core.math ~> math;
 
-# Return true when a type can be serialized through the archive path.
-+ serializeable?($t<typeid>) when typeinfo(t, :serializable) -> atom { ^ :true; }
-+ serializeable?($t<typeid>) -> atom { ^ :false; }
++ serialize_dynamic_array($e<typeid>, ar<archive_r*>, value<[e, :dynamic]>) when serializeable?(e) -> io.io_error_e
+{
+	let err<io.io_error_e> = serialize(size, ar, value.length);
+	if(err != :ok)
+	{
+		^ err;
+	}
 
-# Write a serializable value to the archive.
+	for(let idx<size> = 0_sz; idx < value.length; idx += 1_sz)
+	{
+		err = serialize(e, ar, *(value.data + idx));
+		if(err != :ok)
+		{
+			^ err;
+		}
+	}
+
+	^ :ok;
+}
+
++ serialize_static_array($e<typeid>, $n<size>, ar<archive_r*>, value<[e, n]>) when serializeable?(e) -> io.io_error_e
+{
+	let err<io.io_error_e> = :ok;
+	for(let idx<size> = 0_sz; idx < n; idx += 1_sz)
+	{
+		err = serialize(e, ar, value[idx]);
+		if(err != :ok)
+		{
+			^ err;
+		}
+	}
+
+	^ :ok;
+}
+
++ serialize_tuple($t<typeid>, ar<archive_r*>, value<t>) when tuple?(t) && serializeable?(t) && empty?(t) -> io.io_error_e { ^ :ok; }
++ serialize_tuple($t<typeid>, ar<archive_r*>, value<t>) when tuple?(t) && serializeable?(t) && !empty?(t) -> io.io_error_e
+{
+	let err<io.io_error_e> = serialize(ar, car(value));
+	if(err != :ok)
+	{
+		^ err;
+	}
+
+	^ serialize_tuple(ar, cdr(value));
+}
+
++ serialize_tuple($t<typeid>, ar<archive_r*>) when tuple?(t) && serializeable?(t) && empty?(t) -> (io.io_error_e, t)
+{
+	let value<t>;
+	^ (:ok, value);
+}
++ serialize_tuple($t<typeid>, ar<archive_r*>) when tuple?(t) && serializeable?(t) && !empty?(t) -> (io.io_error_e, t)
+{
+	let value<t>;
+	const head_t<typeid> = typeof car(value);
+	let (head_err<io.io_error_e>, head<head_t>) = serialize(head_t, ar);
+	if(head_err != :ok)
+	{
+		^ (head_err, value);
+	}
+
+	const tail_t<typeid> = typeof cdr(value);
+	let (tail_err<io.io_error_e>, tail<tail_t>) = serialize_tuple(tail_t, ar);
+	if(tail_err != :ok)
+	{
+		^ (tail_err, value);
+	}
+
+	value = cons((head,), tail);
+	^ (:ok, value);
+}
++ serialize_tuple($t<typeid>, ar<archive_r*>) -> (io.io_error_e, t)
+{
+	let value<t>;
+	^ (set_error(ar, :invalid_input), value);
+}
+
++ serialize($e<typeid>, ar<archive_r*>, out<[e, :dynamic]*>) when serializeable?(e) && reader?(ar) -> io.io_error_e
+{
+	if(ar.err != :ok)
+	{
+		^ ar.err;
+	}
+
+	let (len_err<io.io_error_e>, count<size>) = serialize(size, ar);
+	if(len_err != :ok)
+	{
+		^ len_err;
+	}
+
+	if(nil?(out.data))
+	{
+		out.alloc = ar.alloc;
+	}
+
+	out.set_num_zeroed(count);
+	for(let idx<size> = 0_sz; idx < count; idx += 1_sz)
+	{
+		read(e, ar, out.data + idx);
+		if(ar.err != :ok)
+		{
+			^ ar.err;
+		}
+	}
+
+	^ :ok;
+}
++ serialize($e<typeid>, ar<archive_r*>, out<[e, :dynamic]*>) -> io.io_error_e
+{
+	^ set_error(ar, :invalid_input);
+}
+
++ serialize($e<typeid>, $n<size>, ar<archive_r*>, out<[e, n]*>) when serializeable?(e) && reader?(ar) -> io.io_error_e
+{
+	if(ar.err != :ok)
+	{
+		^ ar.err;
+	}
+
+	for(let idx<size> = 0_sz; idx < n; idx += 1_sz)
+	{
+		read(e, ar, &(*out)[idx]);
+		if(ar.err != :ok)
+		{
+			^ ar.err;
+		}
+	}
+
+	^ :ok;
+}
++ serialize($e<typeid>, $n<size>, ar<archive_r*>, out<[e, n]*>) -> io.io_error_e
+{
+	^ set_error(ar, :invalid_input);
+}
+# Write a serializeable value to the archive.
 + serialize($t<typeid>, ar<archive_r*>, value<t>) when serializeable?(t) && writer?(ar) -> io.io_error_e
 {
 	if(ar.err != :ok)
@@ -15,7 +147,19 @@ require core.math ~> math;
 		^ ar.err;
 	}
 
-	constif(record?(t))
+	constif(dynamic_array?(t))
+	{
+		^ serialize_dynamic_array(ar, value);
+	}
+	elif(tuple?(t))
+	{
+		^ serialize_tuple(ar, value);
+	}
+	elif(static_array?(t))
+	{
+		^ serialize_static_array(ar, value);
+	}
+	elif(record?(t))
 	{
 		^ value.serialize(ar);
 	}
@@ -37,7 +181,7 @@ require core.math ~> math;
 	^ set_error(ar, :invalid_input);
 }
 
-# Read a serializable value from the archive.
+# Read a serializeable value from the archive.
 + serialize($t<typeid>, ar<archive_r*>) when serializeable?(t) && reader?(ar) -> (io.io_error_e, t)
 {
 	let stored<t>;
@@ -47,7 +191,21 @@ require core.math ~> math;
 		^ (ar.err, stored);
 	}
 
-	constif(record?(t))
+	constif(dynamic_array?(t))
+	{
+		let err<io.io_error_e> = serialize(ar, &stored);
+		^ (err, stored);
+	}
+	elif(tuple?(t))
+	{
+		^ serialize_tuple(t, ar);
+	}
+	elif(static_array?(t))
+	{
+		let err<io.io_error_e> = serialize(ar, &stored);
+		^ (err, stored);
+	}
+	elif(record?(t))
 	{
 		let err<io.io_error_e> = stored.serialize(ar);
 		^ (err, stored);

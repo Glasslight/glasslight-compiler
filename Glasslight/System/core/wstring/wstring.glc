@@ -1,13 +1,40 @@
 package wstring;
 require core.common ~> .;
 require core.array ~> .;
+require core.archive ~> archive;
 require core.mem ~> .;
 require core.error ~> error;
+require core.io ~> io;
 require core.unicode.utf16 ~> utf16;
 
+[[:serializeable]]
 record wstring_r
 {
 	let buf<[c2, :dynamic]>;
+
+	# Archive wide strings as their logical UTF-16 code units only: a size-prefixed
+	# dynamic array excluding the trailing null terminator. On read, re-terminate
+	# the backing buffer so wstring_r keeps its in-memory null-terminated invariant.
+	- serialize(ar<archive.archive_r*>) -> io.io_error_e
+	{
+		if(archive.writer?(ar))
+		{
+			^ archive.serialize([c2, :dynamic], ar, self.buf);
+		}
+		elif(archive.reader?(ar))
+		{
+			let err<io.io_error_e> = archive.serialize(ar, &self.buf);
+			if(err == :ok || !nil?(self.buf.data))
+			{
+				self.buf.ensure_capacity(self.buf.length + 1_sz);
+				*(self.buf.data + self.buf.length) = 0_c2;
+			}
+
+			^ err;
+		}
+
+		^ :invalid_input;
+	}
 
 	# Returns the current number of elements.
 	- length() -> size { ^ self.buf.length; }
