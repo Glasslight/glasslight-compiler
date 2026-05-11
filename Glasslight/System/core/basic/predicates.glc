@@ -44,6 +44,10 @@ package basic;
 + tuple?($t<typeid>) when typeinfo(t, :kind) == :tuple -> atom { ^ :true; }
 + tuple?($t<typeid>) -> atom { ^ :false; }
 
+# Return true if type is a variant.
++ variant?($t<typeid>) when typeinfo(t, :kind) == :variant -> atom { ^ :true; }
++ variant?($t<typeid>) -> atom { ^ :false; }
+
 # Return true if type is a function.
 + function?($t<typeid>) when typeinfo(t, :kind) == :function -> atom { ^ :true; }
 + function?($t<typeid>) -> atom { ^ :false; }
@@ -70,6 +74,10 @@ package basic;
 # Return true if this is an array.
 + array?($t<typeid>) when static_array?(t) || dynamic_array?(t) -> atom { ^ :true; }
 + array?($t<typeid>) -> atom { ^ :false; }
+
+# Return true if type is an atomenum.
++ atomenum?($t<typeid>) when typeinfo(t, :kind) == :atomenum -> atom { ^ :true; }
++ atomenum?($t<typeid>) -> atom { ^ :false; }
 
 # Return true if type is an atomset.
 + atomset?($t<typeid>) when typeinfo(t, :kind) == :atomset -> atom { ^ :true; }

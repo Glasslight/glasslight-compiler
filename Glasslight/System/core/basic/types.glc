@@ -151,6 +151,7 @@ atomenum typekind_e
 	:pointer,
 	:tuple,
 	:record,
+	:variant,
 	:vector,
 	:enum,
 	:atom,
