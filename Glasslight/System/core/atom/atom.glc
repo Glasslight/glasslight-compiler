@@ -1,6 +1,5 @@
 package atom;
 require core.common ~> .;
-require core.string ~> .;
 
 intrinsic
 {

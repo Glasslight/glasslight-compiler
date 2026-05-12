@@ -1,6 +1,5 @@
 package hash;
 require core.common ~> .;
-require core.string ~> .;
 
 + hash_bits(bits<hash>) -> hash { ^ bits; }
 
@@ -17,5 +16,3 @@ require core.string ~> .;
 + hash_bits(bits<f8>) -> hash { ^ hash_bits(bits ~~> u8); }
 
 + hash_bits(bytes<[c1, ()]>) -> hash { ^ hash_fnv1(bytes); }
-
-+ hash_bits(s<[c1]>) -> hash { ^ hash_bits(s.view); }

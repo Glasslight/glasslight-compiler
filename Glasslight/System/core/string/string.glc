@@ -2,6 +2,7 @@ package string;
 require core.common ~> .;
 require core.array ~> .;
 require core.archive ~> archive;
+require core.hash ~> hash;
 require core.mem ~> .;
 require core.c ~> c;
 require core.error ~> error;
@@ -36,15 +37,21 @@ record string_r
 		^ :invalid_input;
 	}
 
+	# Returns a semantic hash of the current byte contents.
+	- hashing -> hash
+	{
+		^ hash.hashing(self.view);
+	}
+
 	# Returns the current number of bytes.
-	- length() -> size { ^ self.buf.length; }
+	- length -> size { ^ self.buf.length; }
 
 	# Returns the current allocated capacity (excluding null terminator).
-	- capacity() when self.buf.capacity == 0_sz -> size { ^ 0_sz; }
-	- capacity() -> size { ^ self.buf.capacity - 1_sz; }
+	- capacity when self.buf.capacity == 0_sz -> size { ^ 0_sz; }
+	- capacity -> size { ^ self.buf.capacity - 1_sz; }
 
 	# Returns the raw data pointer.
-	- data() -> c1* { ^ self.buf.data; }
+	- data -> c1* { ^ self.buf.data; }
 
 	# Returns the byte at idx.
 	- at(idx<size>) -> c1 { ^ self.buf.at(idx); }

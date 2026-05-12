@@ -135,6 +135,10 @@ package basic;
 + atomic?($t<typeid>) when typeinfo(t, :atomic) -> atom { ^ :true; }
 + atomic?($t<typeid>) -> atom { ^ :false; }
 
+# Return true if the type is foreign.
++ foreign?($t<typeid>) when typeinfo(t, :foreign) -> atom { ^ :true; }
++ foreign?($t<typeid>) -> atom { ^ :false; }
+
 # Return true if type supports serialization.
 + serializeable?($t<typeid>) when typeinfo(t, :serializeable) -> atom { ^ :true; }
 + serializeable?($t<typeid>) -> atom { ^ :false; }

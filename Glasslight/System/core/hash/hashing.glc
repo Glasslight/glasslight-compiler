@@ -1,7 +1,6 @@
 package hash;
 require core.common ~> .;
 require core.atom ~> .;
-require core.string ~> .;
 require core.math ~> math;
 
 + hash_zero -> hash { ^ 0_hs; }
@@ -32,8 +31,6 @@ require core.math ~> math;
 
 + hashing(v<[c1, ()]>) -> hash { ^ hash_bits(v); }
 
-+ hashing(v<[c1]>) -> hash { ^ hash_bits(v); }
-
 + hashing(v<f2>) when math.nan?(v) -> hash { ^ hash_bits(0x7e00_u2); }
 + hashing(v<f2>) when v == 0.0_f2 -> hash { ^ hash_zero; }
 + hashing(v<f2>) -> hash { ^ hash_bits(v); }
@@ -45,3 +42,25 @@ require core.math ~> math;
 + hashing(v<f8>) when math.nan?(v) -> hash { ^ hash_bits(0x7ff8000000000000_u8); }
 + hashing(v<f8>) when v == 0.0_f8 -> hash { ^ hash_zero; }
 + hashing(v<f8>) -> hash { ^ hash_bits(v); }
+
++ hashing($t<typeid>, v<t>) when tuple?(t) && hashable?(t) && empty?(t) -> hash { ^ hash_zero; }
++ hashing($t<typeid>, v<t>) when tuple?(t) && hashable?(t) && !empty?(t) -> hash
+{
+	let head<hash> = hashing(car(v));
+	let tail<hash> = hashing(cdr(v));
+	^ hash_combine(head, tail);
+}
+
++ hashing($e<typeid>, $n<size>, v<[e, n]>) when hashable?(e) -> hash
+{
+	let result<hash> = hash_zero;
+	for(let idx<size> = 0_sz; idx < n; idx += 1_sz)
+	{
+		let element_hash<hash> = hashing(v[idx]);
+		result = result |> hash_combine(element_hash);
+	}
+
+	^ result;
+}
+
++ hashing($t<typeid>, v<t>) when record?(t) && hashable?(t) -> hash { ^ v.hashing; }
