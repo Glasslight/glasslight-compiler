@@ -196,5 +196,6 @@ atomenum typeinfo_key_e
 	:mixable,			# Participates in typemix expressions (atom).
 	:order,				# Ordering mode (type_compare_mode_e).
 	:serializeable,		# Supports archive serialization (atom).
-	:stride				# Element stride in bytes (size).
+	:stride,			# Element stride in bytes (size).
+	:viewable			# Can produce an unsized view (atom).
 }

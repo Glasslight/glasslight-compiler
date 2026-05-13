@@ -5,6 +5,7 @@ require core.allocator ~> .;
 require core.mem ~> .;
 require core.error ~> error;
 
+[[:collection, :viewable]]
 record dynamic_array_r<$t<typeid> >
 {
 	let data<t*> = nil;

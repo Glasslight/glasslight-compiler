@@ -16,6 +16,7 @@ require core.ffi.wstring ~> .;
 	^ __glc_wcs_nlen(s, n);
 }
 
+[[(:element, :c2), :collection, :viewable]]
 typemix wcstring
 {
 	# Return the length of the wcstring in c2 elements.

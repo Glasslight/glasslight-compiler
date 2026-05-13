@@ -2,6 +2,7 @@ package string;
 require core.common ~> .;
 require core.c ~> c;
 
+[[(:element, :c1), :collection, :viewable]]
 typemix cstring
 {
 	# Return the length of cstring.

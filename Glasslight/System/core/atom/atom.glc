@@ -3,5 +3,6 @@ require core.common ~> .;
 
 intrinsic
 {
+	# Intrinsic which returns a string view name for a given atom.
 	+ __glc_atom_to_view(a<atom>) -> [c1, ()];
 }

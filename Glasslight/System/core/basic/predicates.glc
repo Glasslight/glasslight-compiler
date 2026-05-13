@@ -147,6 +147,10 @@ package basic;
 + hashable?($t<typeid>) when typeinfo(t, :hashable) -> atom { ^ :true; }
 + hashable?($t<typeid>) -> atom { ^ :false; }
 
+# Return true if type can produce an unsized view.
++ viewable?($t<typeid>) when typeinfo(t, :viewable) -> atom { ^ :true; }
++ viewable?($t<typeid>) -> atom { ^ :false; }
+
 # Return true if type is considered to be a collection.
 + collection?($t<typeid>) when typeinfo(t, :collection) -> atom { ^ :true; }
 + collection?($t<typeid>) -> atom { ^ :false; }

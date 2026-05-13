@@ -13,6 +13,7 @@ intrinsic
 	+ __glc_static_array_valid_index($t<typeid>, $n<size>, a<[t, n]*>, idx<size>) -> atom;
 }
 
+[[:collection, :viewable]]
 typemix static_array
 {
 	# Return element count.

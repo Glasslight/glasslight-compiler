@@ -7,7 +7,7 @@ require core.error ~> error;
 require core.io ~> io;
 require core.unicode.utf16 ~> utf16;
 
-[[:serializeable]]
+[[:serializeable, :collection, :viewable, (:element, :c2)]]
 record wstring_r
 {
 	let buf<[c2, :dynamic]>;
@@ -37,14 +37,14 @@ record wstring_r
 	}
 
 	# Returns the current number of elements.
-	- length() -> size { ^ self.buf.length; }
+	- length -> size { ^ self.buf.length; }
 
 	# Returns the current allocated capacity (excluding null terminator).
-	- capacity() when self.buf.capacity == 0_sz -> size { ^ 0_sz; }
-	- capacity() -> size { ^ self.buf.capacity - 1_sz; }
+	- capacity when self.buf.capacity == 0_sz -> size { ^ 0_sz; }
+	- capacity -> size { ^ self.buf.capacity - 1_sz; }
 
 	# Returns the raw data pointer.
-	- data() -> c2* { ^ self.buf.data; }
+	- data -> c2* { ^ self.buf.data; }
 
 	# Returns the element at idx.
 	- at(idx<size>) -> c2 { ^ self.buf.at(idx); }
@@ -154,12 +154,12 @@ record wstring_r
 
 	# Return :true iff the underlying c2 buffer is valid UTF-16 (no orphan
 	# surrogates). Pure query, no allocation.
-	- validate?() -> atom { ^ utf16.validate?(self.view); }
+	- validate? -> atom { ^ utf16.validate?(self.view); }
 
 	# Return the number of Unicode codepoints represented by the buffer.
 	# For pure-BMP content this equals self.length; surrogate pairs count
 	# as a single codepoint spanning two code units.
-	- count_codepoints() -> size { ^ utf16.count_codepoints(self.view); }
+	- count_codepoints -> size { ^ utf16.count_codepoints(self.view); }
 }
 
 # Create a wide string with initial capacity.

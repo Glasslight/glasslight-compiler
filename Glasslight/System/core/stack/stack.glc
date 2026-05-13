@@ -5,6 +5,7 @@ require core.archive ~> archive;
 require core.error ~> error;
 require core.io ~> io;
 
+[[:collection, :viewable]]
 record stack_r<$t<typeid> >
 {
 	let buf<[t, :dynamic]>;
@@ -28,10 +29,10 @@ record stack_r<$t<typeid> >
 	- serialize(ar<archive.archive_r*>) -> io.io_error_e { ^ :invalid_input; }
 
 	# Returns the current number of elements.
-	- length() -> size { ^ self.buf.length; }
+	- length -> size { ^ self.buf.length; }
 
 	# Returns the current allocated capacity.
-	- capacity() -> size { ^ self.buf.capacity; }
+	- capacity -> size { ^ self.buf.capacity; }
 
 	# Returns :true when empty and :false otherwise.
 	- empty? -> atom { ^ self.buf.empty?; }
