@@ -1,0 +1,504 @@
+package hashmap;
+require core.common ~> .;
+require core.context ~> .;
+require core.allocator ~> .;
+require core.array ~> .;
+require core.hash ~> .;
+require core.mem ~> .;
+require core.error ~> error;
+
+# Hashmap storage mode. Dense is reserved for a follow-up implementation.
+atomenum hashmap_mode_e
+{
+	:dense,
+	:chained
+}
+
+record hashmap_r<$k<typeid>, $v<typeid>, $mode<hashmap_mode_e> >
+	when mode == :dense
+{
+	# Dense implementation to be added.
+}
+
+# Node used in chained hashmap implementation.
+record hashmap_chained_node_r<$k<typeid>, $v<typeid> >
+{
+	let key<k>;
+	let value<v>;
+	let next_node<hashmap_chained_node_r<k, v>*> = nil;
+}
+
+# Round bucket count up to the next power of two, with a small minimum.
++ hashmap_chained_round_bucket_count(requested<size>) when requested <= 8_sz -> size { ^ 8_sz; }
++ hashmap_chained_round_bucket_count(requested<size>) -> size
+{
+	let count<size> = 8_sz;
+
+	while(count < requested)
+	{
+		count *= 2_sz;
+	}
+
+	^ count;
+}
+
+# Map a key to a bucket index using the canonical hashing API.
++ hashmap_chained_bucket($k<typeid>, key<k>, count<size>) when hashable?(k) -> size
+{
+	let key_hash<hash> = hashing(key);
+	^ (key_hash ~~> size) % count;
+}
+
+record hashmap_r<$k<typeid>, $v<typeid>, $mode<hashmap_mode_e> >
+	when mode == :chained && hashable?(k) && comparable?(k)
+{
+	let alloc<allocator_r>;
+	let alloc_initialized<atom> = :false;
+	let buckets<hashmap_chained_node_r<k, v>**> = nil;
+	let bucket_count<size> = 0_sz;
+	let length<size> = 0_sz;
+
+	# Ensure this map has an allocator before allocating storage.
+	- ensure_allocator! -> ()
+	{
+		if(!self.alloc_initialized)
+		{
+			let ctx<context_r> = get_default_ctx;
+			self.alloc = ctx.main;
+			self.alloc_initialized = :true;
+		}
+
+		^ ();
+	}
+
+	# Return the number of live key/value pairs.
+	- length() -> size { ^ self.length; }
+
+	# Return :true when this map has no live key/value pairs.
+	- empty? -> atom { ^ self.length == 0_sz; }
+
+	# Return the current bucket count.
+	- capacity -> size { ^ self.bucket_count; }
+
+	# Return a dynamic array containing copies of all keys, using this map's allocator.
+	- keys -> [k, :dynamic]
+	{
+		self.ensure_allocator!;
+
+		let result<[k, :dynamic]>;
+		result.alloc = self.alloc;
+		result.reserve(self.length);
+
+		for(let idx<size> = 0_sz; idx < self.bucket_count; idx += 1_sz)
+		{
+			let node<hashmap_chained_node_r<k, v>*> = *(self.buckets + idx);
+
+			while(!nil?(node))
+			{
+				result.append!(node.key);
+				node = node.next_node;
+			}
+		}
+
+		^ result;
+	}
+
+	# Find the node for a key, or nil when absent.
+	- find_node(key<k>) when self.bucket_count == 0_sz -> hashmap_chained_node_r<k, v>* { ^ nil; }
+	- find_node(key<k>) -> hashmap_chained_node_r<k, v>*
+	{
+		let idx<size> = hashmap_chained_bucket(key, self.bucket_count);
+		let node<hashmap_chained_node_r<k, v>*> = *(self.buckets + idx);
+
+		while(!nil?(node))
+		{
+			if(node.key == key)
+			{
+				^ node;
+			}
+
+			node = node.next_node;
+		}
+
+		^ nil;
+	}
+
+	# Rebuild the bucket array and relink all existing nodes.
+	- rehash!(requested<size>) -> ()
+	{
+		let target<size> = hashmap_chained_round_bucket_count(requested);
+		let bytes<size> = target * typeinfo(voidptr, :bytes);
+
+		self.ensure_allocator!;
+
+		let new_raw<voidptr> = allocator_alloc(self.alloc, bytes);
+
+		if(nil?(new_raw))
+		{
+			error.runtime_error("hashmap_r.rehash!: out of memory");
+		}
+
+		__glc_mem_set(new_raw, 0_u1, bytes);
+
+		let old_buckets<hashmap_chained_node_r<k, v>**> = self.buckets;
+		let old_bucket_count<size> = self.bucket_count;
+
+		self.buckets = new_raw ~~> hashmap_chained_node_r<k, v>**;
+		self.bucket_count = target;
+
+		for(let old_idx<size> = 0_sz; old_idx < old_bucket_count; old_idx += 1_sz)
+		{
+			let node<hashmap_chained_node_r<k, v>*> = *(old_buckets + old_idx);
+
+			while(!nil?(node))
+			{
+				let next_link<hashmap_chained_node_r<k, v>*> = node.next_node;
+				let new_idx<size> = hashmap_chained_bucket(node.key, self.bucket_count);
+				node.next_node = *(self.buckets + new_idx);
+				*(self.buckets + new_idx) = node;
+				node = next_link;
+			}
+		}
+
+		allocator_free(self.alloc, old_buckets ~~> voidptr);
+		^ ();
+	}
+
+	# Ensure capacity for at least cap key/value pairs.
+	- reserve!(cap<size>) when cap <= self.bucket_count -> () { ^ (); }
+	- reserve!(cap<size>) -> ()
+	{
+		self.rehash!(cap);
+		^ ();
+	}
+
+	# Insert or overwrite a key/value pair. Returns (:true, old value) on overwrite.
+	- set!(key<k>, value<v>) -> (atom, v)
+	{
+		let existing<hashmap_chained_node_r<k, v>*> = self.find_node(key);
+
+		if(!nil?(existing))
+		{
+			let old_value<v> = existing.value;
+			existing.value = value;
+			^ (:true, old_value);
+		}
+
+		if(self.bucket_count == 0_sz)
+		{
+			self.rehash!(8_sz);
+		}
+		elif(self.length + 1_sz > self.bucket_count)
+		{
+			self.rehash!(self.bucket_count * 2_sz);
+		}
+
+		let raw<voidptr> = allocator_alloc(self.alloc, typeinfo(hashmap_chained_node_r<k, v>, :bytes));
+
+		if(nil?(raw))
+		{
+			error.runtime_error("hashmap_r.set!: out of memory");
+		}
+
+		let node<hashmap_chained_node_r<k, v>*> = raw ~~> hashmap_chained_node_r<k, v>*;
+		let idx<size> = hashmap_chained_bucket(key, self.bucket_count);
+
+		node.key = key;
+		node.value = value;
+		node.next_node = *(self.buckets + idx);
+		*(self.buckets + idx) = node;
+		self.length += 1_sz;
+
+		let default_value<v>;
+		^ (:false, default_value);
+	}
+
+	# Insert or overwrite, running cleanup on the old entry before replacement.
+	- set!(key<k>, value<v>, cleanup<(context_r, k, v, voidptr) -> ()>, user_data<voidptr>) -> ()
+	{
+		let existing<hashmap_chained_node_r<k, v>*> = self.find_node(key);
+		let ctx<context_r> = get_default_ctx;
+
+		if(!nil?(existing))
+		{
+			cleanup(existing.key, existing.value, user_data);
+			existing.value = value;
+			^ ();
+		}
+
+		if(self.bucket_count == 0_sz)
+		{
+			self.rehash!(8_sz);
+		}
+		elif(self.length + 1_sz > self.bucket_count)
+		{
+			self.rehash!(self.bucket_count * 2_sz);
+		}
+
+		let raw<voidptr> = allocator_alloc(self.alloc, typeinfo(hashmap_chained_node_r<k, v>, :bytes));
+
+		if(nil?(raw))
+		{
+			error.runtime_error("hashmap_r.set!: out of memory");
+		}
+
+		let node<hashmap_chained_node_r<k, v>*> = raw ~~> hashmap_chained_node_r<k, v>*;
+		let idx<size> = hashmap_chained_bucket(key, self.bucket_count);
+
+		node.key = key;
+		node.value = value;
+		node.next_node = *(self.buckets + idx);
+		*(self.buckets + idx) = node;
+		self.length += 1_sz;
+
+		^ ();
+	}
+
+	# Return :true when this map contains key.
+	- has_key?(key<k>) -> atom
+	{
+		^ !nil?(self.find_node(key));
+	}
+
+	# Safe lookup. Returns (:false, default value) when key is absent.
+	- get(key<k>) -> (atom, v)
+	{
+		let node<hashmap_chained_node_r<k, v>*> = self.find_node(key);
+
+		if(!nil?(node))
+		{
+			^ (:true, node.value);
+		}
+
+		let default_value<v>;
+		^ (:false, default_value);
+	}
+
+	# Remove key if present. Returns (:true, value) when removed, otherwise (:false, default value).
+	- remove!(key<k>) when self.bucket_count == 0_sz -> (atom, v)
+	{
+		let default_value<v>;
+		^ (:false, default_value);
+	}
+	- remove!(key<k>) -> (atom, v)
+	{
+		let idx<size> = hashmap_chained_bucket(key, self.bucket_count);
+		let previous<hashmap_chained_node_r<k, v>*> = nil;
+		let node<hashmap_chained_node_r<k, v>*> = *(self.buckets + idx);
+
+		while(!nil?(node))
+		{
+			if(node.key == key)
+			{
+				let removed_value<v> = node.value;
+
+				if(nil?(previous))
+				{
+					*(self.buckets + idx) = node.next_node;
+				}
+				else
+				{
+					previous.next_node = node.next_node;
+				}
+
+				allocator_free(self.alloc, node ~~> voidptr);
+				self.length -= 1_sz;
+
+				^ (:true, removed_value);
+			}
+
+			previous = node;
+			node = node.next_node;
+		}
+
+		let default_value<v>;
+		^ (:false, default_value);
+	}
+
+	# Remove key if present and run context-aware cleanup for the removed entry.
+	- remove!(key<k>, cleanup<(context_r, k, v, voidptr) -> ()>, user_data<voidptr>) when self.bucket_count == 0_sz -> () { ^ (); }
+	- remove!(key<k>, cleanup<(context_r, k, v, voidptr) -> ()>, user_data<voidptr>) -> ()
+	{
+		let idx<size> = hashmap_chained_bucket(key, self.bucket_count);
+		let previous<hashmap_chained_node_r<k, v>*> = nil;
+		let node<hashmap_chained_node_r<k, v>*> = *(self.buckets + idx);
+		let ctx<context_r> = get_default_ctx;
+
+		while(!nil?(node))
+		{
+			if(node.key == key)
+			{
+				if(nil?(previous))
+				{
+					*(self.buckets + idx) = node.next_node;
+				}
+				else
+				{
+					previous.next_node = node.next_node;
+				}
+
+				cleanup(node.key, node.value, user_data);
+				allocator_free(self.alloc, node ~~> voidptr);
+				self.length -= 1_sz;
+
+				^ ();
+			}
+
+			previous = node;
+			node = node.next_node;
+		}
+
+		^ ();
+	}
+
+	# Remove all entries while keeping bucket storage.
+	- clear! -> ()
+	{
+		for(let idx<size> = 0_sz; idx < self.bucket_count; idx += 1_sz)
+		{
+			let node<hashmap_chained_node_r<k, v>*> = *(self.buckets + idx);
+
+			while(!nil?(node))
+			{
+				let next_link<hashmap_chained_node_r<k, v>*> = node.next_node;
+				allocator_free(self.alloc, node ~~> voidptr);
+				node = next_link;
+			}
+
+			*(self.buckets + idx) = nil;
+		}
+
+		self.length = 0_sz;
+		^ ();
+	}
+
+	# Remove all entries with context-aware cleanup, while keeping bucket storage.
+	- clear!(cleanup<(context_r, k, v, voidptr) -> ()>, user_data<voidptr>) -> ()
+	{
+		let ctx<context_r> = get_default_ctx;
+
+		for(let idx<size> = 0_sz; idx < self.bucket_count; idx += 1_sz)
+		{
+			let node<hashmap_chained_node_r<k, v>*> = *(self.buckets + idx);
+
+			while(!nil?(node))
+			{
+				let next_link<hashmap_chained_node_r<k, v>*> = node.next_node;
+				cleanup(node.key, node.value, user_data);
+				allocator_free(self.alloc, node ~~> voidptr);
+				node = next_link;
+			}
+
+			*(self.buckets + idx) = nil;
+		}
+
+		self.length = 0_sz;
+		^ ();
+	}
+
+	# Release all storage and reset to zero-initialized state.
+	- delete -> ()
+	{
+		if(self.alloc_initialized)
+		{
+			self.clear!;
+			allocator_free(self.alloc, self.buckets ~~> voidptr);
+		}
+
+		self.buckets = nil;
+		self.bucket_count = 0_sz;
+		self.length = 0_sz;
+		self.alloc_initialized = :false;
+
+		let reset_alloc<allocator_r>;
+		self.alloc = reset_alloc;
+
+		^ ();
+	}
+
+	# Release all storage after running context-aware cleanup for each live entry.
+	- delete(cleanup<(context_r, k, v, voidptr) -> ()>, user_data<voidptr>) -> ()
+	{
+		if(self.alloc_initialized)
+		{
+			self.clear!(cleanup, user_data);
+			allocator_free(self.alloc, self.buckets ~~> voidptr);
+		}
+
+		self.buckets = nil;
+		self.bucket_count = 0_sz;
+		self.length = 0_sz;
+		self.alloc_initialized = :false;
+
+		let reset_alloc<allocator_r>;
+		self.alloc = reset_alloc;
+
+		^ ();
+	}
+}
+
+# Create a hashmap with explicit mode and requested capacity.
+++ make_hashmap_with_capacity($k<typeid>, $v<typeid>, $mode<hashmap_mode_e>, cap<size>) when mode == :chained && hashable?(k) && comparable?(k) -> [k => v, :chained]
+{
+	let result<[k => v, :chained]>;
+	result.alloc = ctx.main;
+	result.alloc_initialized = :true;
+
+	if(cap > 0_sz)
+	{
+		result.reserve!(cap);
+	}
+
+	^ result;
+}
+
+# Create a hashmap with explicit mode, allocator, and requested capacity.
+++ make_hashmap($k<typeid>, $v<typeid>, $mode<hashmap_mode_e>, alloc<allocator_r>, cap<size>) when mode == :chained && hashable?(k) && comparable?(k) -> [k => v, :chained]
+{
+	let result<[k => v, :chained]>;
+	result.alloc = alloc;
+	result.alloc_initialized = :true;
+
+	if(cap > 0_sz)
+	{
+		result.reserve!(cap);
+	}
+
+	^ result;
+}
+
+# Create a hashmap with explicit mode.
+++ make_hashmap($k<typeid>, $v<typeid>, $mode<hashmap_mode_e>) when mode == :chained && hashable?(k) && comparable?(k) -> [k => v, :chained]
+{
+	^ make_hashmap_with_capacity(k, v, mode, 0_sz);
+}
+
+# Create a hashmap with explicit mode and allocator.
+++ make_hashmap($k<typeid>, $v<typeid>, $mode<hashmap_mode_e>, alloc<allocator_r>) when mode == :chained && hashable?(k) && comparable?(k) -> [k => v, :chained]
+{
+	^ make_hashmap(k, v, mode, alloc, 0_sz);
+}
+
+# Create a chained hashmap with requested capacity.
+++ make_hashmap_with_capacity($k<typeid>, $v<typeid>, cap<size>) when hashable?(k) && comparable?(k) -> [k => v]
+{
+	^ make_hashmap_with_capacity(k, v, :chained, cap);
+}
+
+# Create a chained hashmap with allocator and requested capacity.
+++ make_hashmap($k<typeid>, $v<typeid>, alloc<allocator_r>, cap<size>) when hashable?(k) && comparable?(k) -> [k => v]
+{
+	^ make_hashmap(k, v, :chained, alloc, cap);
+}
+
+# Create a chained hashmap.
+++ make_hashmap($k<typeid>, $v<typeid>) when hashable?(k) && comparable?(k) -> [k => v]
+{
+	^ make_hashmap_with_capacity(k, v, 0_sz);
+}
+
+# Create a chained hashmap with allocator.
+++ make_hashmap($k<typeid>, $v<typeid>, alloc<allocator_r>) when hashable?(k) && comparable?(k) -> [k => v]
+{
+	^ make_hashmap(k, v, alloc, 0_sz);
+}
