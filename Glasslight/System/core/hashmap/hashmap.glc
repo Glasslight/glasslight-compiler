@@ -7,19 +7,6 @@ require core.hash ~> .;
 require core.mem ~> .;
 require core.error ~> error;
 
-# Hashmap storage mode. Dense is reserved for a follow-up implementation.
-atomenum hashmap_mode_e
-{
-	:dense,
-	:chained
-}
-
-record hashmap_r<$k<typeid>, $v<typeid>, $mode<hashmap_mode_e> >
-	when mode == :dense
-{
-	# Dense implementation to be added.
-}
-
 # Node used in chained hashmap implementation.
 record hashmap_chained_node_r<$k<typeid>, $v<typeid> >
 {
@@ -49,8 +36,7 @@ record hashmap_chained_node_r<$k<typeid>, $v<typeid> >
 	^ (key_hash ~~> size) % count;
 }
 
-record hashmap_r<$k<typeid>, $v<typeid>, $mode<hashmap_mode_e> >
-	when mode == :chained && hashable?(k) && comparable?(k)
+record hashmap_r<$k<typeid>, $v<typeid> > when hashable?(k) && comparable?(k)
 {
 	let alloc<allocator_r>;
 	let alloc_initialized<atom> = :false;
@@ -437,10 +423,10 @@ record hashmap_r<$k<typeid>, $v<typeid>, $mode<hashmap_mode_e> >
 	}
 }
 
-# Create a hashmap with explicit mode and requested capacity.
-++ make_hashmap_with_capacity($k<typeid>, $v<typeid>, $mode<hashmap_mode_e>, cap<size>) when mode == :chained && hashable?(k) && comparable?(k) -> [k => v, :chained]
+# Create a chained hashmap with requested capacity.
+++ make_hashmap_with_capacity($k<typeid>, $v<typeid>, cap<size>) when hashable?(k) && comparable?(k) -> [k => v]
 {
-	let result<[k => v, :chained]>;
+	let result<[k => v]>;
 	result.alloc = ctx.main;
 	result.alloc_initialized = :true;
 
@@ -452,10 +438,10 @@ record hashmap_r<$k<typeid>, $v<typeid>, $mode<hashmap_mode_e> >
 	^ result;
 }
 
-# Create a hashmap with explicit mode, allocator, and requested capacity.
-++ make_hashmap($k<typeid>, $v<typeid>, $mode<hashmap_mode_e>, alloc<allocator_r>, cap<size>) when mode == :chained && hashable?(k) && comparable?(k) -> [k => v, :chained]
+# Create a chained hashmap with allocator and requested capacity.
+++ make_hashmap($k<typeid>, $v<typeid>, alloc<allocator_r>, cap<size>) when hashable?(k) && comparable?(k) -> [k => v]
 {
-	let result<[k => v, :chained]>;
+	let result<[k => v]>;
 	result.alloc = alloc;
 	result.alloc_initialized = :true;
 
@@ -465,30 +451,6 @@ record hashmap_r<$k<typeid>, $v<typeid>, $mode<hashmap_mode_e> >
 	}
 
 	^ result;
-}
-
-# Create a hashmap with explicit mode.
-++ make_hashmap($k<typeid>, $v<typeid>, $mode<hashmap_mode_e>) when mode == :chained && hashable?(k) && comparable?(k) -> [k => v, :chained]
-{
-	^ make_hashmap_with_capacity(k, v, mode, 0_sz);
-}
-
-# Create a hashmap with explicit mode and allocator.
-++ make_hashmap($k<typeid>, $v<typeid>, $mode<hashmap_mode_e>, alloc<allocator_r>) when mode == :chained && hashable?(k) && comparable?(k) -> [k => v, :chained]
-{
-	^ make_hashmap(k, v, mode, alloc, 0_sz);
-}
-
-# Create a chained hashmap with requested capacity.
-++ make_hashmap_with_capacity($k<typeid>, $v<typeid>, cap<size>) when hashable?(k) && comparable?(k) -> [k => v]
-{
-	^ make_hashmap_with_capacity(k, v, :chained, cap);
-}
-
-# Create a chained hashmap with allocator and requested capacity.
-++ make_hashmap($k<typeid>, $v<typeid>, alloc<allocator_r>, cap<size>) when hashable?(k) && comparable?(k) -> [k => v]
-{
-	^ make_hashmap(k, v, :chained, alloc, cap);
 }
 
 # Create a chained hashmap.

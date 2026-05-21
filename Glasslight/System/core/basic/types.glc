@@ -97,7 +97,7 @@ package basic;
 # Base type for stacks — [T, :stack] resolves to stack_r<T>.
 [[(:kind, :stack), (:record, :stack_r)]] typecreate _;
 
-# Base type for hashmaps — [K => V] resolves to hashmap_r<K, V, :chained>.
+# Base type for hashmaps — [K => V] resolves to hashmap_r<K, V>.
 [[(:kind, :hashmap), (:record, :hashmap_r)]] typecreate _;
 
 # Base type for static arrays — enables typemix methods on all [T, N] types.

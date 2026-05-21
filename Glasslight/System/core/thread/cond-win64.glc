@@ -52,29 +52,39 @@ foreign "Kernel32" ~> .
 # Wait until signaled or until `timeout_ns` elapses on the monotonic clock.
 # Returns :signaled if the cond was notified (or a spurious wake happened),
 # :timedout if the deadline expired.
+#
+# SleepConditionVariableSRW takes a relative millisecond timeout and is bound
+# by the system timer granularity (~15.6ms by default). It can therefore wake
+# slightly before timeout_ns has actually elapsed on QueryPerformanceCounter.
+# Loop on early timeout returns so the runtime keeps the contract: :timedout
+# is only returned once the monotonic deadline has truly passed.
 + cond_wait_timeout(cv<cond_r*>, m<mutex_r*>, timeout_ns<s8>) -> atom
 {
 	let deadline<s8> = time.deadline_from_timeout_ns(timeout_ns);
-	let remaining_ns<s8> = time.nanos_until(deadline);
 
-	if(remaining_ns <= 0_s8)
+	while(:true)
 	{
-		^ :timedout;
-	}
+		let remaining_ns<s8> = time.nanos_until(deadline);
 
-	# Round up to the nearest whole ms. Cap at MAX_FINITE_MS to avoid INFINITE.
-	let remaining_ms<s8> = ((remaining_ns - 1_s8) / 1000000_s8) + 1_s8;
+		if(remaining_ns <= 0_s8)
+		{
+			^ :timedout;
+		}
 
-	if(remaining_ms > kernel32.MAX_FINITE_MS)
-	{
-		remaining_ms = kernel32.MAX_FINITE_MS;
-	}
+		# Round up to the nearest whole ms. Cap at MAX_FINITE_MS to avoid INFINITE.
+		let remaining_ms<s8> = ((remaining_ns - 1_s8) / 1000000_s8) + 1_s8;
 
-	let rc<atom> = SleepConditionVariableSRW(cv, m, remaining_ms ~> u4, 0_u4);
+		if(remaining_ms > kernel32.MAX_FINITE_MS)
+		{
+			remaining_ms = kernel32.MAX_FINITE_MS;
+		}
 
-	if(rc == :true)
-	{
-		^ :signaled;
+		let rc<atom> = SleepConditionVariableSRW(cv, m, remaining_ms ~> u4, 0_u4);
+
+		if(rc == :true)
+		{
+			^ :signaled;
+		}
 	}
 
 	^ :timedout;
