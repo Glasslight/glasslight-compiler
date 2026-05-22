@@ -1,5 +1,6 @@
 package archive;
 require core.common ~> .;
+require core.hashmap ~> hashmap;
 require core.io ~> io;
 
 # Archive direction for symmetric serialization helpers.
@@ -7,6 +8,14 @@ atomenum archive_mode_e
 {
 	:read,
 	:write
+}
+
+# Archive-owned property value used for opt-in serialization policies.
+variant archive_property_v
+{
+	:size => {
+		let value<size>;
+	}
 }
 
 # Structured serialization state layered over byte readers and writers.
@@ -19,6 +28,32 @@ record archive_r
 	let endian<endian_e> = :little;
 	let version<u4> = 0_u4;
 	let err<io.io_error_e> = :ok;
+	let properties<[atom => archive_property_v]>;
+
+	# Store or replace an archive property. The backing map is allocated lazily.
+	- set_property(key<atom>, value<archive_property_v>) -> ()
+	{
+		if(!self.properties.alloc_initialized)
+		{
+			self.properties = hashmap.make_hashmap(atom, archive_property_v, self.alloc);
+		}
+
+		self.properties.set!(key, value);
+		^ ();
+	}
+
+	# Return (:true, value) when a property exists, otherwise (:false, default value).
+	- get_property(key<atom>) -> (atom, archive_property_v)
+	{
+		^ self.properties.get(key);
+	}
+
+	# Release owned property storage. Readers and writers remain caller-owned.
+	- delete -> ()
+	{
+		self.properties.delete;
+		^ ();
+	}
 }
 
 # Create a write archive over a byte writer.

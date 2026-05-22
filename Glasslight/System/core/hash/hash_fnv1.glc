@@ -33,5 +33,5 @@ require core.atom ~> .;
 	^ result;
 }
 
-+ hash_fnv1(a<atom>) -> hash { ^ hash_fnv1(__glc_atom_to_view(a)); }
-+ hash_fnv1a(a<atom>) -> hash { ^ hash_fnv1a(__glc_atom_to_view(a)); }
++ hash_fnv1(a<atom>) -> hash { ^ hash_bits(a ~~> u8); }
++ hash_fnv1a($a<atom>) -> hash { ^ hash_fnv1a(__glc_atom_to_view(a)); }

@@ -4,6 +4,29 @@ require core.array ~> .;
 require core.io ~> io;
 require core.math ~> math;
 
++ validate_dynamic_count(ar<archive_r*>, count<size>) -> io.io_error_e
+{
+	let (found<atom>, property<archive_property_v>) = ar.get_property(:max_dynamic_count);
+	if(!found)
+	{
+		^ :ok;
+	}
+
+	match(property)
+	{
+		case :size =>
+		{
+			if(count > property.value)
+			{
+				let err<io.io_error_e> = :invalid_input;
+				^ set_error(ar, err);
+			}
+		}
+	}
+
+	^ :ok;
+}
+
 + serialize_dynamic_array($e<typeid>, ar<archive_r*>, value<[e, :dynamic]>) when serializeable?(e) -> io.io_error_e
 {
 	let err<io.io_error_e> = serialize(size, ar, value.length);
@@ -93,6 +116,12 @@ require core.math ~> math;
 	if(len_err != :ok)
 	{
 		^ len_err;
+	}
+
+	let count_err<io.io_error_e> = validate_dynamic_count(ar, count);
+	if(count_err != :ok)
+	{
+		^ count_err;
 	}
 
 	if(nil?(out.data))
