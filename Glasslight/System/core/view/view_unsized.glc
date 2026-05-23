@@ -2,10 +2,14 @@ package view;
 require core.basic ~> .;
 require core.basic.limits ~> .;
 
+[[:viewable]]
 record view_r<$t<typeid> >
 {
 	let data<t*> = nil;
 	let length<size> = 0_sz;
+
+	# Returns this unsized view.
+	- view -> [t, ()] { ^ *self; }
 
 	# Returns the runtime length of the view.
 	- length() -> size { ^ self.length; }

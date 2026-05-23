@@ -88,9 +88,6 @@ package basic;
 # C void type used by foreign functions.
 [[(:kind, :foreignvoid), :foreign]] typecreate cvoid;
 
-# Base type for atom sets — atomset resolves to atomset_r.
-[[(:kind, :atomset), (:record, :atomset_r)]] typecreate atomset;
-
 # Base type for dynamic arrays — [T, :dynamic] resolves to dynamic_array_r<T>.
 [[(:kind, :dynamic_array), (:record, :dynamic_array_r)]] typecreate _;
 
@@ -159,7 +156,6 @@ atomenum typekind_e
 	:enum,
 	:atom,
 	:atomenum,
-	:atomset,
 	:voidptr,
 	:fptr,
 	:typeid,

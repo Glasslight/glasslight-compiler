@@ -1,8 +1,10 @@
-package atom;
+package atomset;
 require core.common ~> .;
+require core.hash ~> .;
 require core.mem ~> .;
 require core.error ~> error;
 
+[[:collection, (:element, :atom)]]
 record atomset_r
 {
 	let keys<atom*> = nil;
@@ -30,8 +32,8 @@ record atomset_r
 	# Map an atom value to a bucket index within the current capacity.
 	+ bucket(value<atom>, capacity<size>) -> size
 	{
-		let bits<size> = value ~~> size;
-		^ bits % capacity;
+		let value_hash<hash> = hashing(value);
+		^ (value_hash ~~> size) % capacity;
 	}
 
 	# Ensure the set has a valid allocator before allocating storage.
@@ -363,7 +365,7 @@ record atomset_r
 	}
 }
 
-# Create a new atomset with optional reserved capacity.
+# Create a new atomset_r with optional reserved capacity.
 ++ make_atomset(cap<size>) -> atomset_r
 {
 	let result<atomset_r>;
@@ -378,14 +380,14 @@ record atomset_r
 	^ result;
 }
 
-# Create a new atomset with zero reserved capacity.
+# Create a new atomset_r with zero reserved capacity.
 ++ make_atomset -> atomset_r
 {
 	^ make_atomset(0_sz);
 }
 
-# Create an atomset copy.
-++ copy_atomset(a<atomset*>) -> atomset_r
+# Create an atomset_r copy.
+++ copy_atomset(a<atomset_r*>) -> atomset_r
 {
 	let result<atomset_r> = make_atomset(a.length());
 

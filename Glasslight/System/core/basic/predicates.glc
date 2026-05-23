@@ -79,10 +79,6 @@ package basic;
 + atomenum?($t<typeid>) when typeinfo(t, :kind) == :atomenum -> atom { ^ :true; }
 + atomenum?($t<typeid>) -> atom { ^ :false; }
 
-# Return true if type is an atomset.
-+ atomset?($t<typeid>) when typeinfo(t, :kind) == :atomset -> atom { ^ :true; }
-+ atomset?($t<typeid>) -> atom { ^ :false; }
-
 # Return true if type is a stack.
 + stack?($t<typeid>) when typeinfo(t, :kind) == :stack -> atom { ^ :true; }
 + stack?($t<typeid>) -> atom { ^ :false; }

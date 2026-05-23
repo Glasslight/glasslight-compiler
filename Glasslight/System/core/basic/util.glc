@@ -31,7 +31,6 @@ package basic;
 + length($t<typeid>, x<t>) when dynamic_array?(t) -> size { ^ x.length; }
 + length($t<typeid>, x<t>) when view_unsized?(t) -> size { ^ x.length; }
 + length($t<typeid>, x<t>) when stack?(t) -> size { ^ x.length; }
-+ length($t<typeid>, x<t>) when atomset?(t) -> size { ^ x.length; }
 + length($t<typeid>, x<t>) when string?(t) -> size { ^ x.length; }
 + length($t<typeid>, x<t>) when wstring?(t) -> size { ^ x.length; }
 + length($t<typeid>, x<t>) when cstring?(t) -> size { ^ x.length(); }
@@ -55,7 +54,6 @@ package basic;
 + empty?($t<typeid>, x<t>) when dynamic_array?(t) -> atom { ^ x.empty?; }
 + empty?($t<typeid>, x<t>) when view_unsized?(t) -> atom { ^ x.empty?; }
 + empty?($t<typeid>, x<t>) when stack?(t) -> atom { ^ x.empty?; }
-+ empty?($t<typeid>, x<t>) when atomset?(t) -> atom { ^ x.empty?; }
 + empty?($t<typeid>, x<t>) when string?(t) -> atom { ^ x.empty?; }
 + empty?($t<typeid>, x<t>) when wstring?(t) -> atom { ^ x.empty?; }
 + empty?($t<typeid>, x<t>) when cstring?(t) -> atom { ^ x.empty?; }
