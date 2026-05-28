@@ -25,6 +25,15 @@ foreign "Kernel32" ~> .
 	# Get a handle to a standard device (stdin, stdout, stderr).
 	+ GetStdHandle(nStdHandle<u4>) -> handle_t;
 
+	# Create or open a file.
+	+ CreateFileA(lpFileName<[c1, :c]>, dwDesiredAccess<u4>, dwShareMode<u4>, lpSecurityAttributes<voidptr>, dwCreationDisposition<u4>, dwFlagsAndAttributes<u4>, hTemplateFile<handle_t>) -> handle_t;
+
+	# Read bytes from a file or stream handle.
+	+ ReadFile(hFile<handle_t>, lpBuffer<voidptr>, nNumberOfBytesToRead<u4>, lpNumberOfBytesRead<u4*>, lpOverlapped<voidptr>) -> cbool ->> atom;
+
+	# Write bytes to a file or stream handle.
+	+ WriteFile(hFile<handle_t>, lpBuffer<voidptr>, nNumberOfBytesToWrite<u4>, lpNumberOfBytesWritten<u4*>, lpOverlapped<voidptr>) -> cbool ->> atom;
+
 	# Write a string to the console.
 	+ WriteConsoleA(hConsoleOutput<handle_t>, lpBuffer<voidptr>, nNumberOfCharsToWrite<u4>, lpNumberOfCharsWritten<u4*>, lpReserved<voidptr>) -> cbool ->> atom;
 
@@ -36,6 +45,9 @@ foreign "Kernel32" ~> .
 
 	# Return a pseudo-handle for the calling process.
 	+ GetCurrentProcess -> handle_t;
+
+	# Return a pseudo-handle for the calling thread.
+	+ GetCurrentThread -> handle_t;
 
 	# Write the process's affinity masks into `*pProcessAffinityMask` and `*pSystemAffinityMask`.
 	+ GetProcessAffinityMask(hProcess<handle_t>, pProcessAffinityMask<size*>, pSystemAffinityMask<size*>) -> cbool ->> atom;

@@ -1,0 +1,245 @@
+package file;
+require core.common ~> .;
+require core.io ~> io;
+require core.os.handle ~> handle;
+require core.platform.posix.errno ~> posix_errno;
+require core.platform.posix.fcntl ~> posix_fcntl;
+require core.platform.posix.stat ~> posix_stat;
+require core.platform.posix.unistd ~> posix_unistd;
+
+# Map the current POSIX errno to the public I/O error enum.
++ posix_errno_to_io_error() -> io.io_error_e
+{
+	let err<s4> = posix_errno.last_error();
+
+	if(err == posix_errno.ENOENT)
+	{
+		^ :not_found;
+	}
+
+	if(err == posix_errno.EACCES || err == posix_errno.EPERM)
+	{
+		^ :permission_denied;
+	}
+
+	if(err == posix_errno.EEXIST)
+	{
+		^ :already_exists;
+	}
+
+	if(err == posix_errno.EINVAL)
+	{
+		^ :invalid_input;
+	}
+
+	if(err == posix_errno.EAGAIN)
+	{
+		^ :would_block;
+	}
+
+	if(err == posix_errno.EINTR)
+	{
+		^ :interrupted;
+	}
+
+	if(err == posix_errno.EPIPE)
+	{
+		^ :broken_pipe;
+	}
+
+	if(err == posix_errno.EBADF)
+	{
+		^ :closed;
+	}
+
+	^ :other;
+}
+
+# Convert public file modes to POSIX open flags.
++ posix_flags_for_mode(mode<file_mode_e>) -> s4
+{
+	match(mode)
+	{
+		case :read =>
+		{
+			^ posix_fcntl.O_RDONLY;
+		}
+
+		case :write =>
+		{
+			^ posix_fcntl.O_WRONLY | posix_fcntl.O_CREAT | posix_fcntl.O_TRUNC;
+		}
+
+		case :append =>
+		{
+			^ posix_fcntl.O_WRONLY | posix_fcntl.O_APPEND;
+		}
+
+		case :read_write =>
+		{
+			^ posix_fcntl.O_RDWR;
+		}
+
+		case :read_write_create =>
+		{
+			^ posix_fcntl.O_RDWR;
+		}
+	}
+
+	^ posix_fcntl.O_RDONLY;
+}
+
+# Return true when a path exists before an open that may create it.
++ posix_path_exists?(path<[c1, :c]>) -> atom
+{
+	let st<posix_stat.stat_t>;
+	^ posix_stat.stat(path, &st) == 0_s4;
+}
+
+# Ensure append can create a missing file without truncating an existing one.
++ posix_create_missing_file(path<[c1, :c]>) -> io.io_error_e
+{
+	if(posix_path_exists?(path))
+	{
+		^ :ok;
+	}
+
+	let fd<s4> = posix_fcntl.create_file(path, 0o666_u2);
+	if(fd < 0_s4)
+	{
+		^ posix_errno_to_io_error();
+	}
+
+	if(posix_unistd.close_fd(fd) != 0_s4)
+	{
+		^ posix_errno_to_io_error();
+	}
+
+	^ :ok;
+}
+
+# Open a POSIX file.
++ open(path<[c1, :c]>, mode<file_mode_e>) -> (file_r, io.io_error_e)
+{
+	let f<file_r>;
+	let fd<s4> = -1_s4;
+
+	match(mode)
+	{
+		case :write =>
+		{
+			fd = posix_fcntl.create_file(path, 0o666_u2);
+		}
+
+		case :append =>
+		{
+			let create_err<io.io_error_e> = posix_create_missing_file(path);
+			if(create_err != :ok)
+			{
+				^ (f, create_err);
+			}
+
+			fd = posix_fcntl.open_file(path, posix_flags_for_mode(mode), 0_s4);
+		}
+
+		case :read_write_create =>
+		{
+			let created_fd<s4> = posix_fcntl.create_file(path, 0o666_u2);
+			if(created_fd < 0_s4)
+			{
+				^ (f, posix_errno_to_io_error());
+			}
+
+			if(posix_unistd.close_fd(created_fd) != 0_s4)
+			{
+				^ (f, posix_errno_to_io_error());
+			}
+
+			fd = posix_fcntl.open_file(path, posix_flags_for_mode(mode), 0_s4);
+		}
+
+		case :read =>
+		{
+			fd = posix_fcntl.open_file(path, posix_flags_for_mode(mode), 0_s4);
+		}
+
+		case :read_write =>
+		{
+			fd = posix_fcntl.open_file(path, posix_flags_for_mode(mode), 0_s4);
+		}
+	}
+
+	if(fd < 0_s4)
+	{
+		^ (f, posix_errno_to_io_error());
+	}
+
+	f.handle = handle.make_handle(fd, :owned);
+	^ (f, :ok);
+}
+
+# Read up to buf.length bytes from a POSIX file.
++ read(file<file_r*>, buf<[u1, ()]>) -> (size, io.io_error_e)
+{
+	let (valid<atom>, fd<s4>) = handle.native_handle(file.handle);
+	if(!valid)
+	{
+		^ (0_sz, :closed);
+	}
+
+	let read_count<s8> = posix_unistd.read_fd(fd, buf.data() ~~> voidptr, buf.length());
+
+	if(read_count < 0_s8)
+	{
+		^ (0_sz, posix_errno_to_io_error());
+	}
+
+	^ ((read_count ~> u8) ~~> size, :ok);
+}
+
+# Write up to buf.length bytes to a POSIX file.
++ write(file<file_r*>, buf<[u1, ()]>) -> (size, io.io_error_e)
+{
+	let (valid<atom>, fd<s4>) = handle.native_handle(file.handle);
+	if(!valid)
+	{
+		^ (0_sz, :closed);
+	}
+
+	let written<s8> = posix_unistd.write_fd(fd, buf.data() ~~> voidptr, buf.length());
+
+	if(written < 0_s8)
+	{
+		^ (0_sz, posix_errno_to_io_error());
+	}
+
+	^ ((written ~> u8) ~~> size, :ok);
+}
+
+# Close a POSIX file.
++ close!(file<file_r*>) -> io.io_error_e
+{
+	if(handle.closed?(file.handle))
+	{
+		^ :closed;
+	}
+
+	if(!handle.closable?(file.handle))
+	{
+		^ :invalid_input;
+	}
+
+	let (valid<atom>, fd<s4>) = handle.native_handle(file.handle);
+	if(!valid)
+	{
+		^ :closed;
+	}
+
+	if(posix_unistd.close_fd(fd) != 0_s4)
+	{
+		^ posix_errno_to_io_error();
+	}
+
+	file.handle = handle.closed!();
+	^ :ok;
+}

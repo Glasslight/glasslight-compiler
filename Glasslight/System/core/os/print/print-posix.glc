@@ -1,16 +1,23 @@
 package print;
 require core.common ~> .;
+require core.os.handle ~> handle;
 require core.string ~> .;
 require core.platform.posix.unistd ~> posix_unistd;
 
-+ write_fd(fd<s4>, text<[c1, :c]>) -> atom
++ write_handle(h<handle.handle_v>, text<[c1, :c]>) -> atom
 {
+	let (valid<atom>, fd<s4>) = handle.native_handle(h);
+	if(!valid)
+	{
+		^ :false;
+	}
+
 	let remaining<size> = text.length();
 	let ptr<c1*> = text ~~> c1*;
 
 	while(remaining > 0_sz)
 	{
-		let written<s8> = posix_unistd.write(fd, ptr ~~> voidptr, remaining);
+		let written<s8> = posix_unistd.write_fd(fd, ptr ~~> voidptr, remaining);
 
 		if(written <= 0_s8)
 		{
@@ -27,10 +34,10 @@ require core.platform.posix.unistd ~> posix_unistd;
 
 + print(text<[c1, :c]>) -> atom
 {
-	^ write_fd(posix_unistd.STDOUT_FILENO, text);
+	^ write_handle(handle.make_handle(posix_unistd.STDOUT_FILENO, :borrowed), text);
 }
 
 + eprint(text<[c1, :c]>) -> atom
 {
-	^ write_fd(posix_unistd.STDERR_FILENO, text);
+	^ write_handle(handle.make_handle(posix_unistd.STDERR_FILENO, :borrowed), text);
 }

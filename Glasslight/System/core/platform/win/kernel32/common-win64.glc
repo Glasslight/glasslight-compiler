@@ -9,6 +9,25 @@ const STD_INPUT_HANDLE<u4>  = 0xFFFFFFF6_u4;
 const STD_OUTPUT_HANDLE<u4> = 0xFFFFFFF5_u4;
 const STD_ERROR_HANDLE<u4>  = 0xFFFFFFF4_u4;
 
+# File access rights for CreateFileA.
+const GENERIC_READ<u4>      = 0x80000000_u4;
+const GENERIC_WRITE<u4>     = 0x40000000_u4;
+const FILE_APPEND_DATA<u4>  = 0x00000004_u4;
+
+# File sharing flags for CreateFileA.
+const FILE_SHARE_READ<u4>   = 0x00000001_u4;
+const FILE_SHARE_WRITE<u4>  = 0x00000002_u4;
+
+# File creation disposition values for CreateFileA.
+const CREATE_NEW<u4>        = 1_u4;
+const CREATE_ALWAYS<u4>     = 2_u4;
+const OPEN_EXISTING<u4>     = 3_u4;
+const OPEN_ALWAYS<u4>       = 4_u4;
+const TRUNCATE_EXISTING<u4> = 5_u4;
+
+# Normal file attribute for CreateFileA.
+const FILE_ATTRIBUTE_NORMAL<u4> = 0x00000080_u4;
+
 # Return code from WaitForSingleObject indicating the handle was signaled.
 const WAIT_OBJECT_0<u4> = 0_u4;
 
@@ -19,6 +38,12 @@ const INFINITE<u4> = 0xFFFFFFFF_u4;
 # INFINITE. Used by any Win32 API that takes a `DWORD dwMilliseconds`
 # timeout (Sleep, SleepConditionVariableSRW, WaitForSingleObject, ...).
 const MAX_FINITE_MS<s8> = 4294967294_s8;
+
+# Return true for Win32's INVALID_HANDLE_VALUE sentinel.
++ is_invalid_handle(h<handle_t>) -> atom
+{
+	^ (h ~~> size) == 0xffffffffffffffff_sz;
+}
 
 # LPSYSTEM_INFO record matching Win32's SYSTEM_INFO layout (48 bytes on x64).
 [[(:alignment, 8_sz)]]

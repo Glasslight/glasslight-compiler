@@ -1,11 +1,18 @@
 package print;
 require core.common ~> .;
+require core.basic.limits ~> .;
+require core.os.handle ~> handle;
 require core.string ~> .;
 require core.platform.win.kernel32 ~> kernel32;
 
-+ write_console(std_handle<u4>, text<[c1, :c]>) -> atom
++ write_handle(h<handle.handle_v>, text<[c1, :c]>) -> atom
 {
-	let handle<kernel32.handle_t> = kernel32.GetStdHandle(std_handle);
+	let (valid<atom>, native_handle<kernel32.handle_t>) = handle.native_handle(h);
+	if(!valid)
+	{
+		^ :false;
+	}
+
 	let remaining<size> = text.length();
 	let ptr<c1*> = text ~~> c1*;
 	let max_count_size<size> = (max(u4) ~> u8) ~~> size;
@@ -22,7 +29,7 @@ require core.platform.win.kernel32 ~> kernel32;
 
 		let count<u4> = (chunk ~~> u8) ~> u4;
 
-		if(!kernel32.WriteConsoleA(handle, ptr ~~> voidptr, count, &written, nil))
+		if(!kernel32.WriteConsoleA(native_handle, ptr ~~> voidptr, count, &written, nil))
 		{
 			^ :false;
 		}
@@ -38,6 +45,11 @@ require core.platform.win.kernel32 ~> kernel32;
 	}
 
 	^ :true;
+}
+
++ write_console(std_handle<u4>, text<[c1, :c]>) -> atom
+{
+	^ write_handle(handle.make_handle(kernel32.GetStdHandle(std_handle), :borrowed), text);
 }
 
 + print(text<[c1, :c]>) -> atom

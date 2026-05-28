@@ -1,0 +1,167 @@
+package handle;
+require core.common ~> .;
+require core.platform.win.kernel32 ~> kernel32;
+
+variant handle_v
+{
+	:closed,
+	:owned =>
+	{
+		let value<kernel32.handle_t>;
+	},
+	:borrowed =>
+	{
+		let value<kernel32.handle_t>;
+	},
+	:pseudo_process,
+	:pseudo_thread
+}
+
+# Return true when the handle contains a usable Win32 HANDLE or pseudo-handle.
++ valid?(h<handle_v>) -> atom
+{
+	let local<handle_v> = h;
+	match(local)
+	{
+		case :owned =>
+		{
+			^ :true;
+		}
+
+		case :borrowed =>
+		{
+			^ :true;
+		}
+
+		case :pseudo_process =>
+		{
+			^ :true;
+		}
+
+		case :pseudo_thread =>
+		{
+			^ :true;
+		}
+
+		case :closed =>
+		{
+			^ :false;
+		}
+	}
+
+	^ :false;
+}
+
+# Return true when this wrapper owns a real HANDLE and may close it.
++ closable?(h<handle_v>) -> atom
+{
+	let local<handle_v> = h;
+	match(local)
+	{
+		case :owned =>
+		{
+			^ :true;
+		}
+
+		case :borrowed =>
+		{
+			^ :false;
+		}
+
+		case :pseudo_process =>
+		{
+			^ :false;
+		}
+
+		case :pseudo_thread =>
+		{
+			^ :false;
+		}
+
+		case :closed =>
+		{
+			^ :false;
+		}
+	}
+
+	^ :false;
+}
+
+# Return true when a Win32 HANDLE is neither null nor INVALID_HANDLE_VALUE.
++ valid_native_handle?(value<kernel32.handle_t>) -> atom
+{
+	^ value != nil && !kernel32.is_invalid_handle(value);
+}
+
+# Wrap a Win32 HANDLE in a platform handle value.
++ make_handle(value<kernel32.handle_t>, ownership<atom>) -> handle_v
+{
+	if(!valid_native_handle?(value))
+	{
+		^ closed!();
+	}
+
+	if(ownership == :owned)
+	{
+		let h<handle_v> = :owned;
+		h.value = value;
+		^ h;
+	}
+	elif(ownership == :borrowed)
+	{
+		let h<handle_v> = :borrowed;
+		h.value = value;
+		^ h;
+	}
+
+	^ closed!();
+}
+
+# Create a pseudo-handle for the current process.
++ current_process! -> handle_v
+{
+	let h<handle_v> = :pseudo_process;
+	^ h;
+}
+
+# Create a pseudo-handle for the current thread.
++ current_thread! -> handle_v
+{
+	let h<handle_v> = :pseudo_thread;
+	^ h;
+}
+
+# Extract the Win32 HANDLE from a usable handle.
++ native_handle(h<handle_v>) -> (atom, kernel32.handle_t)
+{
+	let local<handle_v> = h;
+	match(local)
+	{
+		case :owned =>
+		{
+			^ (:true, local.value);
+		}
+
+		case :borrowed =>
+		{
+			^ (:true, local.value);
+		}
+
+		case :pseudo_process =>
+		{
+			^ (:true, kernel32.GetCurrentProcess);
+		}
+
+		case :pseudo_thread =>
+		{
+			^ (:true, kernel32.GetCurrentThread);
+		}
+
+		case :closed =>
+		{
+			^ (:false, nil);
+		}
+	}
+
+	^ (:false, nil);
+}

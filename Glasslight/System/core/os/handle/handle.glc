@@ -1,0 +1,15 @@
+package handle;
+require core.common ~> .;
+
+# Return true when the handle is closed.
++ closed?(h<handle_v>) -> atom
+{
+	^ !valid?(h);
+}
+
+# Create a closed handle value.
++ closed! -> handle_v
+{
+	let h<handle_v> = :closed;
+	^ h;
+}

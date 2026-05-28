@@ -1,0 +1,107 @@
+package file;
+require core.common ~> .;
+require core.io ~> io;
+require core.os.handle ~> handle;
+require core.os.paths ~> paths;
+require core.string ~> .;
+
+# Platform file open modes.
+atomenum file_mode_e
+{
+	:read,
+	:write,
+	:append,
+	:read_write,
+	:read_write_create
+}
+
+# Platform file handle.
+record file_r
+{
+	let handle<handle.handle_v> = :closed;
+}
+
+# Open a file from a normal string view after converting it to the native platform path format.
+++ open(path<[c1, ()]>, mode<file_mode_e>) -> (file_r, io.io_error_e)
+{
+	let platform_path<[c1]> = paths.make_platform(path);
+
+	defer
+	{
+		platform_path.delete;
+	}
+
+	let (result<file_r>, err<io.io_error_e>) = open(platform_path.to_cstring, mode);
+	^ (result, err);
+}
+
+# Write a character view through a file.
++ write(file<file_r*>, s<[c1, ()]>) -> (size, io.io_error_e)
+{
+	^ write(file, make_view(u1, s.data() ~~> u1*, s.length()));
+}
+
+# Dispatch function for writers that forward to a file without owning it.
++ file_writer_func(op<io.writer_op_e>, user_data<voidptr>, buf<voidptr>, count<size>) -> (size, io.io_error_e)
+{
+	let f<file_r*> = user_data ~~> file_r*;
+
+	match(op)
+	{
+		case :write =>
+		{
+			^ write(f, make_view(u1, buf ~~> u1*, count));
+		}
+
+		case :flush =>
+		{
+			^ (0_sz, :ok);
+		}
+
+		case :close =>
+		{
+			^ (0_sz, :ok);
+		}
+	}
+
+	^ (0_sz, :invalid_input);
+}
+
+# Create a writer adapter for an already-open file. The adapter does not own or close the file.
++ file_writer(f<file_r*>) -> io.writer_r
+{
+	let w<io.writer_r>;
+	w.func = &file_writer_func;
+	w.user_data = f ~~> voidptr;
+	^ w;
+}
+
+# Dispatch function for readers that forward to a file without owning it.
++ file_reader_func(op<io.reader_op_e>, user_data<voidptr>, buf<voidptr>, count<size>) -> (size, io.io_error_e)
+{
+	let f<file_r*> = user_data ~~> file_r*;
+
+	match(op)
+	{
+		case :read =>
+		{
+			^ read(f, make_view(u1, buf ~~> u1*, count));
+		}
+
+		case :close =>
+		{
+			^ (0_sz, :ok);
+		}
+	}
+
+	^ (0_sz, :invalid_input);
+}
+
+# Create a reader adapter for an already-open file. The adapter does not own or close the file.
++ file_reader(f<file_r*>) -> io.reader_r
+{
+	let r<io.reader_r>;
+	r.func = &file_reader_func;
+	r.user_data = f ~~> voidptr;
+	^ r;
+}

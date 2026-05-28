@@ -3,13 +3,14 @@ package thread;
 require core.basic ~> .;
 require core.context ~> .;
 require core.allocator ~> .;
+require core.os.handle ~> os_handle;
 require core.wstring ~> .;
 require core.unicode.wstring ~> uwstr;
 require core.platform.win.kernel32 ~> kernel32;
 
 record thread_r
 {
-	let native<u8>;
+	let native<os_handle.handle_v> = :closed;
 }
 
 record thread_spawn_config_r
@@ -31,9 +32,6 @@ foreign "Kernel32" ~> .
 {
 	# Create a new thread running `lpStartAddress(lpParameter)`. Returns HANDLE or nil on failure.
 	+ CreateThread(lpThreadAttributes<voidptr>, dwStackSize<size>, lpStartAddress<fptr>, lpParameter<voidptr>, dwCreationFlags<u4>, lpThreadId<u4*>) -> kernel32.handle_t;
-
-	# Return a pseudo-handle for the calling thread.
-	+ GetCurrentThread -> kernel32.handle_t;
 
 	# Terminate the calling thread with the given exit code.
 	+ ExitThread(dwExitCode<u4>) -> cvoid ->> ();
@@ -82,9 +80,9 @@ foreign "Kernel32" ~> .
 	args.user_data = user_data;
 	args.args_alloc = a;
 
-	let handle<kernel32.handle_t> = CreateThread(nil, config.stack_bytes, &__glc_thread_bootstrap_win64 ~> fptr, raw, 0_u4, nil);
+	let native_handle<kernel32.handle_t> = CreateThread(nil, config.stack_bytes, &__glc_thread_bootstrap_win64 ~> fptr, raw, 0_u4, nil);
 
-	if(nil?(handle))
+	if(!os_handle.valid_native_handle?(native_handle))
 	{
 		allocator_free(a, raw);
 		let failed<thread_r>;
@@ -92,7 +90,7 @@ foreign "Kernel32" ~> .
 	}
 
 	let t<thread_r>;
-	t.native = handle ~~> u8;
+	t.native = os_handle.make_handle(native_handle, :owned);
 	^ (:ok, t);
 }
 
@@ -106,15 +104,25 @@ foreign "Kernel32" ~> .
 # Block until thread `t` exits, then close its handle. Returns :ok or :failed.
 + join(t<thread_r>) -> atom
 {
-	let handle<kernel32.handle_t> = t.native ~~> kernel32.handle_t;
-	let wait_result<u4> = kernel32.WaitForSingleObject(handle, kernel32.INFINITE);
+	if(!os_handle.closable?(t.native))
+	{
+		^ :failed;
+	}
+
+	let (valid<atom>, native_handle<kernel32.handle_t>) = os_handle.native_handle(t.native);
+	if(!valid)
+	{
+		^ :failed;
+	}
+
+	let wait_result<u4> = kernel32.WaitForSingleObject(native_handle, kernel32.INFINITE);
 
 	if(wait_result != kernel32.WAIT_OBJECT_0)
 	{
 		^ :failed;
 	}
 
-	let closed<atom> = kernel32.CloseHandle(handle);
+	let closed<atom> = kernel32.CloseHandle(native_handle);
 
 	if(closed)
 	{
@@ -127,16 +135,25 @@ foreign "Kernel32" ~> .
 # Detach by closing the thread handle; the thread keeps running until exit.
 + detach(t<thread_r>) -> atom
 {
-	let handle<kernel32.handle_t> = t.native ~~> kernel32.handle_t;
-	^ kernel32.CloseHandle(handle);
+	if(!os_handle.closable?(t.native))
+	{
+		^ :false;
+	}
+
+	let (valid<atom>, native_handle<kernel32.handle_t>) = os_handle.native_handle(t.native);
+	if(!valid)
+	{
+		^ :false;
+	}
+
+	^ kernel32.CloseHandle(native_handle);
 }
 
 # Return a pseudo-handle for the calling thread.
 + current -> thread_r
 {
-	let handle<kernel32.handle_t> = GetCurrentThread;
 	let t<thread_r>;
-	t.native = handle ~~> u8;
+	t.native = os_handle.current_thread!();
 	^ t;
 }
 
@@ -157,8 +174,13 @@ foreign "Kernel32" ~> .
 # Return the numeric thread id of `t`.
 + thread_id(t<thread_r>) -> u8
 {
-	let handle<kernel32.handle_t> = t.native ~~> kernel32.handle_t;
-	let id<u4> = GetThreadId(handle);
+	let (valid<atom>, native_handle<kernel32.handle_t>) = os_handle.native_handle(t.native);
+	if(!valid)
+	{
+		^ 0_u8;
+	}
+
+	let id<u4> = GetThreadId(native_handle);
 	^ id ~> u8;
 }
 
@@ -173,8 +195,13 @@ foreign "Kernel32" ~> .
 # Win32 HANDLEs may differ for the same thread (DuplicateHandle); compare numeric ids.
 + thread_equal(a<thread_r>, b<thread_r>) -> atom
 {
-	let ha<kernel32.handle_t> = a.native ~~> kernel32.handle_t;
-	let hb<kernel32.handle_t> = b.native ~~> kernel32.handle_t;
+	let (valid_a<atom>, ha<kernel32.handle_t>) = os_handle.native_handle(a.native);
+	let (valid_b<atom>, hb<kernel32.handle_t>) = os_handle.native_handle(b.native);
+	if(!valid_a || !valid_b)
+	{
+		^ :false;
+	}
+
 	let id_a<u4> = GetThreadId(ha);
 	let id_b<u4> = GetThreadId(hb);
 
@@ -190,8 +217,15 @@ foreign "Kernel32" ~> .
 ++ thread_set_name(name<[c1, :c]>) -> atom
 {
 	let wide<[c2]> = uwstr.make_from_utf8(name.view);
-	let handle<kernel32.handle_t> = GetCurrentThread;
-	let hr<s4> = SetThreadDescription(handle, wide.data);
+	let current_handle<os_handle.handle_v> = os_handle.current_thread!();
+	let (valid<atom>, native_handle<kernel32.handle_t>) = os_handle.native_handle(current_handle);
+	if(!valid)
+	{
+		wide.delete;
+		^ :failed;
+	}
+
+	let hr<s4> = SetThreadDescription(native_handle, wide.data);
 	wide.delete;
 
 	if(hr >= 0_s4)
@@ -219,8 +253,13 @@ foreign "Kernel32" ~> .
 # Set the CPU affinity mask for thread `t` (low 64 CPUs). Returns :ok or :failed.
 + thread_set_affinity_mask(t<thread_r>, mask<u8>) -> atom
 {
-	let handle<kernel32.handle_t> = t.native ~~> kernel32.handle_t;
-	let prev<size> = SetThreadAffinityMask(handle, mask ~~> size);
+	let (valid<atom>, native_handle<kernel32.handle_t>) = os_handle.native_handle(t.native);
+	if(!valid)
+	{
+		^ :failed;
+	}
+
+	let prev<size> = SetThreadAffinityMask(native_handle, mask ~~> size);
 
 	if(prev != 0_sz)
 	{
@@ -235,7 +274,13 @@ foreign "Kernel32" ~> .
 # and restore it. Returns (:ok, mask) or (:failed, 0_u8).
 + thread_get_affinity_mask(t<thread_r>) -> (atom, u8)
 {
-	let process<kernel32.handle_t> = kernel32.GetCurrentProcess;
+	let process_handle<os_handle.handle_v> = os_handle.current_process!();
+	let (process_valid<atom>, process<kernel32.handle_t>) = os_handle.native_handle(process_handle);
+	if(!process_valid)
+	{
+		^ (:failed, 0_u8);
+	}
+
 	let proc_mask<size> = 0_sz;
 	let sys_mask<size> = 0_sz;
 	let ok<atom> = kernel32.GetProcessAffinityMask(process, &proc_mask, &sys_mask);
@@ -245,14 +290,19 @@ foreign "Kernel32" ~> .
 		^ (:failed, 0_u8);
 	}
 
-	let handle<kernel32.handle_t> = t.native ~~> kernel32.handle_t;
-	let prev<size> = SetThreadAffinityMask(handle, proc_mask);
+	let (valid<atom>, native_handle<kernel32.handle_t>) = os_handle.native_handle(t.native);
+	if(!valid)
+	{
+		^ (:failed, 0_u8);
+	}
+
+	let prev<size> = SetThreadAffinityMask(native_handle, proc_mask);
 
 	if(prev == 0_sz)
 	{
 		^ (:failed, 0_u8);
 	}
 
-	let _restore<size> = SetThreadAffinityMask(handle, prev);
+	let _restore<size> = SetThreadAffinityMask(native_handle, prev);
 	^ (:ok, prev ~~> u8);
 }

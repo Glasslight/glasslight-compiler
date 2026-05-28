@@ -1,0 +1,22 @@
+package fcntl;
+require core.basic ~> basic;
+
+# Darwin open(2) flags.
+const O_RDONLY<basic.s4> = 0_s4;
+const O_WRONLY<basic.s4> = 1_s4;
+const O_RDWR<basic.s4>   = 2_s4;
+const O_APPEND<basic.s4> = 0x0008_s4;
+const O_CREAT<basic.s4>  = 0x0200_s4;
+const O_TRUNC<basic.s4>  = 0x0400_s4;
+
+[[:system, :dynamic]]
+foreign "libSystem.B.tbd" ~> .
+{
+	# Open a file descriptor (fcntl.h). The mode argument is used when O_CREAT is present.
+	[[(:link_name, "open")]]
+	+ open_file(path<[basic.c1, :c]>, flags<basic.s4>, mode<basic.s4>) -> basic.s4;
+
+	# Create or truncate a file descriptor (fcntl.h).
+	[[(:link_name, "creat")]]
+	+ create_file(path<[basic.c1, :c]>, mode<basic.u2>) -> basic.s4;
+}

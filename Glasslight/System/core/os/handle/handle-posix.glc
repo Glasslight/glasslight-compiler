@@ -1,0 +1,123 @@
+package handle;
+require core.common ~> .;
+
+# POSIX file descriptors use -1 as the invalid handle sentinel.
+const invalid_handle<s4> = -1_s4;
+
+variant handle_v
+{
+	:closed,
+	:owned =>
+	{
+		let fd<s4>;
+	},
+	:borrowed =>
+	{
+		let fd<s4>;
+	}
+}
+
+# Return true when the handle contains a usable POSIX file descriptor.
++ valid?(h<handle_v>) -> atom
+{
+	let local<handle_v> = h;
+	match(local)
+	{
+		case :owned =>
+		{
+			^ :true;
+		}
+
+		case :borrowed =>
+		{
+			^ :true;
+		}
+
+		case :closed =>
+		{
+			^ :false;
+		}
+	}
+
+	^ :false;
+}
+
+# Return true when this wrapper owns the file descriptor and may close it.
++ closable?(h<handle_v>) -> atom
+{
+	let local<handle_v> = h;
+	match(local)
+	{
+		case :owned =>
+		{
+			^ :true;
+		}
+
+		case :borrowed =>
+		{
+			^ :false;
+		}
+
+		case :closed =>
+		{
+			^ :false;
+		}
+	}
+
+	^ :false;
+}
+
+# Return true when a POSIX file descriptor is valid.
++ valid_native_handle?(fd<s4>) -> atom
+{
+	^ fd >= 0_s4;
+}
+
+# Wrap a POSIX file descriptor in a platform handle value.
++ make_handle(fd<s4>, ownership<atom>) -> handle_v
+{
+	if(!valid_native_handle?(fd))
+	{
+		^ closed!();
+	}
+
+	if(ownership == :owned)
+	{
+		let h<handle_v> = :owned;
+		h.fd = fd;
+		^ h;
+	}
+	elif(ownership == :borrowed)
+	{
+		let h<handle_v> = :borrowed;
+		h.fd = fd;
+		^ h;
+	}
+
+	^ closed!();
+}
+
+# Extract the POSIX file descriptor from a usable handle.
++ native_handle(h<handle_v>) -> (atom, s4)
+{
+	let local<handle_v> = h;
+	match(local)
+	{
+		case :owned =>
+		{
+			^ (:true, local.fd);
+		}
+
+		case :borrowed =>
+		{
+			^ (:true, local.fd);
+		}
+
+		case :closed =>
+		{
+			^ (:false, invalid_handle);
+		}
+	}
+
+	^ (:false, invalid_handle);
+}

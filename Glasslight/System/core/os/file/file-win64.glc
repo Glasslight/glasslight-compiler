@@ -1,0 +1,221 @@
+package file;
+require core.common ~> .;
+require core.basic.limits ~> .;
+require core.io ~> io;
+require core.os.handle ~> handle;
+require core.platform.win.kernel32 ~> kernel32;
+
+# Map the current Win32 last-error value to the public I/O error enum.
++ win32_error_to_io_error() -> io.io_error_e
+{
+	let err<kernel32.win32_error_code_e> = kernel32.GetLastError();
+
+	if(err == kernel32.win32_error_code_e.error_file_not_found || err == kernel32.win32_error_code_e.error_path_not_found || err == kernel32.win32_error_code_e.error_not_found)
+	{
+		^ :not_found;
+	}
+
+	if(err == kernel32.win32_error_code_e.error_access_denied || err == kernel32.win32_error_code_e.error_privilege_not_held)
+	{
+		^ :permission_denied;
+	}
+
+	if(err == kernel32.win32_error_code_e.error_file_exists || err == kernel32.win32_error_code_e.error_already_exists)
+	{
+		^ :already_exists;
+	}
+
+	if(err == kernel32.win32_error_code_e.error_invalid_parameter)
+	{
+		^ :invalid_input;
+	}
+
+	if(err == kernel32.win32_error_code_e.error_broken_pipe || err == kernel32.win32_error_code_e.error_netname_deleted)
+	{
+		^ :broken_pipe;
+	}
+
+	if(err == kernel32.win32_error_code_e.error_invalid_handle)
+	{
+		^ :closed;
+	}
+
+	^ :other;
+}
+
+# Convert public file modes to Win32 access masks.
++ win32_access_for_mode(mode<file_mode_e>) -> u4
+{
+	match(mode)
+	{
+		case :read =>
+		{
+			^ kernel32.GENERIC_READ;
+		}
+
+		case :write =>
+		{
+			^ kernel32.GENERIC_WRITE;
+		}
+
+		case :append =>
+		{
+			^ kernel32.FILE_APPEND_DATA;
+		}
+
+		case :read_write =>
+		{
+			^ kernel32.GENERIC_READ | kernel32.GENERIC_WRITE;
+		}
+
+		case :read_write_create =>
+		{
+			^ kernel32.GENERIC_READ | kernel32.GENERIC_WRITE;
+		}
+	}
+
+	^ kernel32.GENERIC_READ;
+}
+
+# Convert public file modes to Win32 creation dispositions.
++ win32_disposition_for_mode(mode<file_mode_e>) -> u4
+{
+	match(mode)
+	{
+		case :read =>
+		{
+			^ kernel32.OPEN_EXISTING;
+		}
+
+		case :write =>
+		{
+			^ kernel32.CREATE_ALWAYS;
+		}
+
+		case :append =>
+		{
+			^ kernel32.OPEN_ALWAYS;
+		}
+
+		case :read_write =>
+		{
+			^ kernel32.OPEN_EXISTING;
+		}
+
+		case :read_write_create =>
+		{
+			^ kernel32.CREATE_ALWAYS;
+		}
+	}
+
+	^ kernel32.OPEN_EXISTING;
+}
+
+# Open a Win32 file.
++ open(path<[c1, :c]>, mode<file_mode_e>) -> (file_r, io.io_error_e)
+{
+	let f<file_r>;
+	let native_handle<kernel32.handle_t> = kernel32.CreateFileA(
+		path,
+		win32_access_for_mode(mode),
+		kernel32.FILE_SHARE_READ | kernel32.FILE_SHARE_WRITE,
+		nil,
+		win32_disposition_for_mode(mode),
+		kernel32.FILE_ATTRIBUTE_NORMAL,
+		nil);
+
+	if(kernel32.is_invalid_handle(native_handle))
+	{
+		^ (f, win32_error_to_io_error());
+	}
+
+	f.handle = handle.make_handle(native_handle, :owned);
+	^ (f, :ok);
+}
+
+# Read up to buf.length bytes from a Win32 file.
++ read(file<file_r*>, buf<[u1, ()]>) -> (size, io.io_error_e)
+{
+	let (valid<atom>, native_handle<kernel32.handle_t>) = handle.native_handle(file.handle);
+	if(!valid)
+	{
+		^ (0_sz, :closed);
+	}
+
+	let max_count<size> = (max(u4) ~> u8) ~~> size;
+	let chunk<size> = buf.length();
+	if(chunk > max_count)
+	{
+		chunk = max_count;
+	}
+
+	let read_count<u4> = 0_u4;
+	let count<u4> = (chunk ~~> u8) ~> u4;
+
+	if(!kernel32.ReadFile(native_handle, buf.data() ~~> voidptr, count, &read_count, nil))
+	{
+		if(kernel32.GetLastError() == kernel32.win32_error_code_e.error_handle_eof)
+		{
+			^ (0_sz, :ok);
+		}
+
+		^ (0_sz, win32_error_to_io_error());
+	}
+
+	^ ((read_count ~> u8) ~~> size, :ok);
+}
+
+# Write up to buf.length bytes to a Win32 file.
++ write(file<file_r*>, buf<[u1, ()]>) -> (size, io.io_error_e)
+{
+	let (valid<atom>, native_handle<kernel32.handle_t>) = handle.native_handle(file.handle);
+	if(!valid)
+	{
+		^ (0_sz, :closed);
+	}
+
+	let max_count<size> = (max(u4) ~> u8) ~~> size;
+	let chunk<size> = buf.length();
+	if(chunk > max_count)
+	{
+		chunk = max_count;
+	}
+
+	let written<u4> = 0_u4;
+	let count<u4> = (chunk ~~> u8) ~> u4;
+
+	if(!kernel32.WriteFile(native_handle, buf.data() ~~> voidptr, count, &written, nil))
+	{
+		^ (0_sz, win32_error_to_io_error());
+	}
+
+	^ ((written ~> u8) ~~> size, :ok);
+}
+
+# Close a Win32 file.
++ close!(file<file_r*>) -> io.io_error_e
+{
+	if(handle.closed?(file.handle))
+	{
+		^ :closed;
+	}
+
+	if(!handle.closable?(file.handle))
+	{
+		^ :invalid_input;
+	}
+
+	let (valid<atom>, native_handle<kernel32.handle_t>) = handle.native_handle(file.handle);
+	if(!valid)
+	{
+		^ :closed;
+	}
+
+	if(!kernel32.CloseHandle(native_handle))
+	{
+		^ win32_error_to_io_error();
+	}
+
+	file.handle = handle.closed!();
+	^ :ok;
+}

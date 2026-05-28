@@ -4,6 +4,11 @@ require core.atom ~> .;
 require core.array ~> .;
 require core.math ~> math;
 
+intrinsic
+{
+	+ __glc_hash_typeid(v<typeid>) -> hash;
+}
+
 # Zero hash.
 + hash_zero -> hash { ^ 0_hs; }
 
@@ -18,6 +23,7 @@ require core.math ~> math;
 + hashing(v<size>) -> hash { ^ v ~~> hash; }
 + hashing(v<voidptr>) -> hash { ^ hash_bits(v); }
 + hashing(v<atom>) -> hash { ^ v ~> hash; }
++ hashing(v<typeid>) -> hash { ^ __glc_hash_typeid(v); }
 
 # Hashing for unsigned integers.
 + hashing(v<u1>) -> hash { ^ v ~> hash; }

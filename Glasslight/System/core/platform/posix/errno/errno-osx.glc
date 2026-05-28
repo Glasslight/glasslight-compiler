@@ -1,0 +1,27 @@
+package errno;
+require core.basic ~> basic;
+
+# Darwin errno values used by core.os.file.
+const EPERM<basic.s4>  = 1_s4;
+const ENOENT<basic.s4> = 2_s4;
+const EINTR<basic.s4>  = 4_s4;
+const EBADF<basic.s4>  = 9_s4;
+const EACCES<basic.s4> = 13_s4;
+const EEXIST<basic.s4> = 17_s4;
+const EINVAL<basic.s4> = 22_s4;
+const EPIPE<basic.s4>  = 32_s4;
+const EAGAIN<basic.s4> = 35_s4;
+
+[[:system, :dynamic]]
+foreign "libSystem.B.tbd" ~> .
+{
+	# Return a pointer to the thread-local errno value on Darwin.
+	[[(:link_name, "__error")]]
+	+ error_location() -> basic.s4*;
+}
+
+# Return the current thread-local errno value.
++ last_error() -> basic.s4
+{
+	^ *error_location();
+}
