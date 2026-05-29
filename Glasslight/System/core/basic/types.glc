@@ -13,6 +13,9 @@ package basic;
 # Hash type, 64 bit, integral.
 [[(:kind, :hash), (:suffix, :hs), :integral, :hashable, :serializeable, (:compare, :value), (:order, :value)]] typecreate hash;
 
+# Entity handle type, 64 bit, opaque.
+[[(:kind, :entity), :hashable, (:compare, :value)]] typecreate entity;
+
 # Atom type, 64 bit, unsigned.
 [[(:kind, :atom), :hashable, :serializeable, (:compare, :value)]] typecreate atom;
 
@@ -151,8 +154,10 @@ atomenum typekind_e
 	:character,
 	:size,
 	:hash,
+	:entity,
 	:pointer,
 	:tuple,
+	:fragment,
 	:record,
 	:variant,
 	:vector,

@@ -1,0 +1,22 @@
+package ecs;
+
+require core.basic ~> .;
+
+# Invalid entity handle. Generation zero is reserved for invalid/null handles.
++ invalid_entity -> entity { ^ 0_u8 ~~> entity; }
+
++ make_entity(index<u4>, generation<u4>) -> entity
+{
+	let raw<u8> = (generation ~> u8) << 32_sz | (index ~> u8);
+	^ raw ~~> entity;
+}
+
++ index(e<entity>) -> u4
+{
+	^ (e ~~> u8) ~> u4;
+}
+
++ generation(e<entity>) -> u4
+{
+	^ ((e ~~> u8) >> 32_sz) ~> u4;
+}

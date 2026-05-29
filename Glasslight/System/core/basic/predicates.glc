@@ -12,6 +12,10 @@ package basic;
 + hash?($t<typeid>) when t == typeof hash -> atom { ^ :true; }
 + hash?($t<typeid>) -> atom { ^ :false; }
 
+# Return true if type is an entity type.
++ entity?($t<typeid>) when typeinfo(t, :kind) == :entity -> atom { ^ :true; }
++ entity?($t<typeid>) -> atom { ^ :false; }
+
 # Return true if type is a character type.
 + character?($t<typeid>) when typeinfo(t, :kind) == :character -> atom { ^ :true; }
 + character?($t<typeid>) -> atom { ^ :false; }
@@ -58,6 +62,10 @@ package basic;
 + record?($t<typeid>) when typeinfo(t, :kind) == :wstring -> atom { ^ :true; }
 + record?($t<typeid>) when typeinfo(t, :kind) == :stack -> atom { ^ :true; }
 + record?($t<typeid>) -> atom { ^ :false; }
+
+# Return true if type is a fragment type.
++ fragment?($t<typeid>) when typeinfo(t, :kind) == :fragment -> atom { ^ :true; }
++ fragment?($t<typeid>) -> atom { ^ :false; }
 
 # Return true if type is a typeid.
 + typeid?($t<typeid>) when typeinfo(t, :kind) == :typeid -> atom { ^ :true; }

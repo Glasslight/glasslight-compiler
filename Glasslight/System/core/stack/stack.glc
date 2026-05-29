@@ -2,7 +2,6 @@ package stack;
 require core.common ~> .;
 require core.array ~> .;
 require core.archive ~> archive;
-require core.error ~> error;
 require core.io ~> io;
 
 [[:collection, :viewable]]
@@ -52,9 +51,13 @@ record stack_r<$t<typeid> >
 		^ ();
 	}
 
-	# Returns the top element. Errors on empty stack.
-	- top when self.empty? -> t { error.runtime_error("stack_r.top: empty stack"); }
-	- top -> t { ^ self.buf.top; }
+	# Returns the top element.
+	- top when self.empty? -> (atom, t)
+	{
+		let x<t>;
+		^ (:false, x);
+	}
+	- top -> (atom, t) { ^ (:true, self.buf.top); }
 
 	# Removes all elements but keeps allocation.
 	- clear! -> ()

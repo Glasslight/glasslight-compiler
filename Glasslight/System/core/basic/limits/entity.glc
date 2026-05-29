@@ -1,0 +1,11 @@
+package limits;
+require core.basic ~> .;
+
+# Smallest finite value.
++ min($t<typeid>) when t == typeof entity -> entity { ^ 0_u8 ~~> entity; }
+
+# Largest finite positive.
++ max($t<typeid>) when t == typeof entity -> entity { ^ 0xffffffffffffffff_u8 ~~> entity; }
+
+# Entity value used to designate invalid entity.
++ invalid($t<typeid>) when t == typeof entity -> entity { ^ 0_u8 ~~> entity; }
