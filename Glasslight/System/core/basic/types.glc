@@ -157,7 +157,6 @@ atomenum typekind_e
 	:entity,
 	:pointer,
 	:tuple,
-	:fragment,
 	:record,
 	:variant,
 	:vector,

@@ -7,7 +7,6 @@ require core.math ~> math;
 intrinsic
 {
 	+ __glc_hash_typeid(v<typeid>) -> hash;
-	+ __glc_hash_fragment($t<typeid>, v<t>) -> hash;
 }
 
 # Zero hash.
@@ -95,6 +94,3 @@ intrinsic
 
 # Record hashing.
 + hashing($t<typeid>, v<t>) when record?(t) && hashable?(t) -> hash { ^ v.hashing; }
-
-# Fragment hashing.
-+ hashing($t<typeid>, v<t>) when fragment?(t) && hashable?(t) -> hash { ^ __glc_hash_fragment(t, v); }

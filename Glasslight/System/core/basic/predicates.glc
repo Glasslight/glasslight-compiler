@@ -63,10 +63,6 @@ package basic;
 + record?($t<typeid>) when typeinfo(t, :kind) == :stack -> atom { ^ :true; }
 + record?($t<typeid>) -> atom { ^ :false; }
 
-# Return true if type is a fragment type.
-+ fragment?($t<typeid>) when typeinfo(t, :kind) == :fragment -> atom { ^ :true; }
-+ fragment?($t<typeid>) -> atom { ^ :false; }
-
 # Return true if type is a typeid.
 + typeid?($t<typeid>) when typeinfo(t, :kind) == :typeid -> atom { ^ :true; }
 + typeid?($t<typeid>) -> atom { ^ :false; }
