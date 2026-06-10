@@ -17,7 +17,7 @@ record pthread_mutexattr_r
 # Linux glibc PTHREAD_MUTEX_RECURSIVE type value from <bits/pthreadtypes.h>.
 const PTHREAD_MUTEX_RECURSIVE<s4> = 1_s4;
 
-[[:system, :dynamic]]
+[[(:foreign_origin, :system), (:foreign_linkage, :dynamic)]]
 foreign "c" ~> .
 {
 	# Initialize a mutex-attribute record. Returns 0 on success.

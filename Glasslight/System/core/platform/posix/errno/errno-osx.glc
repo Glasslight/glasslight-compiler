@@ -12,11 +12,11 @@ const EINVAL<basic.s4> = 22_s4;
 const EPIPE<basic.s4>  = 32_s4;
 const EAGAIN<basic.s4> = 35_s4;
 
-[[:system, :dynamic]]
+[[(:foreign_origin, :system), (:foreign_linkage, :dynamic)]]
 foreign "libSystem.B.tbd" ~> .
 {
 	# Return a pointer to the thread-local errno value on Darwin.
-	[[(:link_name, "__error")]]
+	[[(:link_name, :__error)]]
 	+ error_location() -> basic.s4*;
 }
 

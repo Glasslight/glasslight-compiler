@@ -38,7 +38,7 @@ elif(__glc_arch == :arm64)
 	}
 }
 
-[[:system, :dynamic]]
+[[(:foreign_origin, :system), (:foreign_linkage, :dynamic)]]
 foreign "c" ~> .
 {
 	# Initialize `*m` with default attributes (non-recursive). Returns 0 on success.

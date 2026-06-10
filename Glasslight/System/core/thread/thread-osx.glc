@@ -34,7 +34,7 @@ record pthread_attr_r
 	let _opaque<[u1, 56_sz]>;
 }
 
-[[:system, :dynamic]]
+[[(:foreign_origin, :system), (:foreign_linkage, :dynamic)]]
 foreign "libSystem.B.tbd" ~> .
 {
 	# Create a new thread running `start(arg)`. Returns 0 on success.

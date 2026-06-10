@@ -41,7 +41,7 @@ record cpu_set_t
 	let _opaque<[u1, 128_sz]>;
 }
 
-[[:system, :dynamic]]
+[[(:foreign_origin, :system), (:foreign_linkage, :dynamic)]]
 foreign "c" ~> .
 {
 	# Create a new thread running `start(arg)`. Returns 0 on success.

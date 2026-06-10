@@ -1,7 +1,7 @@
 package objc;
 require core.basic ~> basic;
 
-[[:system, :dynamic]]
+[[(:foreign_origin, :system), (:foreign_linkage, :dynamic)]]
 foreign "libobjc.A.tbd" ~> .
 {
 	# Get a class by name.

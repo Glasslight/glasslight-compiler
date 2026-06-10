@@ -11,7 +11,7 @@ record cond_r
 	let ptr<voidptr>;
 }
 
-[[:system, :dynamic]]
+[[(:foreign_origin, :system), (:foreign_linkage, :dynamic)]]
 foreign "Kernel32" ~> .
 {
 	# Initialize `*cv` to the not-signaled state. Void on Win32.

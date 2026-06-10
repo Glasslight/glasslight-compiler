@@ -10,7 +10,7 @@ record mutex_r
 	let _opaque<[u1, 56_sz]>;
 }
 
-[[:system, :dynamic]]
+[[(:foreign_origin, :system), (:foreign_linkage, :dynamic)]]
 foreign "libSystem.B.tbd" ~> .
 {
 	# Initialize `*m` with default attributes (non-recursive). Returns 0 on success.

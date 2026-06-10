@@ -12,7 +12,7 @@ record cond_r
 	let _opaque<[u1, 40_sz]>;
 }
 
-[[:system, :dynamic]]
+[[(:foreign_origin, :system), (:foreign_linkage, :dynamic)]]
 foreign "libSystem.B.tbd" ~> .
 {
 	# Initialize `*cv` with default attributes. Returns 0 on success.

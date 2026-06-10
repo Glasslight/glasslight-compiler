@@ -4,7 +4,7 @@ require core.basic ~> basic;
 # CLOCKS_PER_SEC for POSIX platforms (microseconds).
 const CLOCKS_PER_SEC<basic.s8> = 1000000_s8;
 
-[[:system, :dynamic]]
+[[(:foreign_origin, :system), (:foreign_linkage, :dynamic)]]
 foreign "libSystem.B.tbd" ~> .
 {
 	# Get current calendar time.

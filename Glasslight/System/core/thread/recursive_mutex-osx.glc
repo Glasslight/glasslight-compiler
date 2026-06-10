@@ -18,7 +18,7 @@ record pthread_mutexattr_r
 # macOS PTHREAD_MUTEX_RECURSIVE type value from <pthread.h>.
 const PTHREAD_MUTEX_RECURSIVE<s4> = 2_s4;
 
-[[:system, :dynamic]]
+[[(:foreign_origin, :system), (:foreign_linkage, :dynamic)]]
 foreign "libSystem.B.tbd" ~> .
 {
 	# Initialize a mutex-attribute record. Returns 0 on success.

@@ -1,7 +1,7 @@
 package c;
 require core.basic ~> basic;
 
-[[:system, :dynamic]]
+[[(:foreign_origin, :system), (:foreign_linkage, :dynamic)]]
 foreign "c" ~> .
 {
 	+ isalnum(ch<basic.s4>) -> basic.s4;

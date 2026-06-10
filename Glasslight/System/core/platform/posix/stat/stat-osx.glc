@@ -37,7 +37,7 @@ const s_ifdir<basic.u2> = 0x4000_u2;
 + s_isreg(mode<basic.u2>) -> basic.atom { ^ (mode & s_ifmt) == s_ifreg; }
 + s_isdir(mode<basic.u2>) -> basic.atom { ^ (mode & s_ifmt) == s_ifdir; }
 
-[[:system, :dynamic]]
+[[(:foreign_origin, :system), (:foreign_linkage, :dynamic)]]
 foreign "libSystem.B.tbd" ~> .
 {
 	# Get file status (sys/stat.h).

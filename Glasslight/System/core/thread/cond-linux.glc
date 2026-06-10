@@ -25,7 +25,7 @@ record pthread_condattr_r
 	let _opaque<[u1, 4_sz]>;
 }
 
-[[:system, :dynamic]]
+[[(:foreign_origin, :system), (:foreign_linkage, :dynamic)]]
 foreign "c" ~> .
 {
 	# Initialize `*cv` with the given (possibly nil) attributes. Returns 0 on success.

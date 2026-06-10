@@ -12,11 +12,11 @@ const EEXIST<basic.s4> = 17_s4;
 const EINVAL<basic.s4> = 22_s4;
 const EPIPE<basic.s4>  = 32_s4;
 
-[[:system, :dynamic]]
+[[(:foreign_origin, :system), (:foreign_linkage, :dynamic)]]
 foreign "c" ~> .
 {
 	# Return a pointer to the thread-local errno value on Linux/glibc.
-	[[(:link_name, "__errno_location")]]
+	[[(:link_name, :__errno_location)]]
 	+ errno_location() -> basic.s4*;
 }
 

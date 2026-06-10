@@ -1,7 +1,7 @@
 package cocoa;
 require core.basic ~> basic;
 
-[[:system, :framework]]
+[[(:foreign_origin, :system), (:foreign_linkage, :framework)]]
 foreign "AppKit" ~> .
 {
 	+ NSApplicationLoad() -> basic.cbool ->> basic.atom;

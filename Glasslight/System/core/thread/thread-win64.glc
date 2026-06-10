@@ -27,7 +27,7 @@ record thread_args_r
 	let args_alloc<allocator_r>;
 }
 
-[[:system, :dynamic]]
+[[(:foreign_origin, :system), (:foreign_linkage, :dynamic)]]
 foreign "Kernel32" ~> .
 {
 	# Create a new thread running `lpStartAddress(lpParameter)`. Returns HANDLE or nil on failure.

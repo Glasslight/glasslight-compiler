@@ -2,7 +2,7 @@ package env;
 require core.basic ~> basic;
 require core.c ~> core_c;
 
-[[:system, :dynamic]]
+[[(:foreign_origin, :system), (:foreign_linkage, :dynamic)]]
 foreign "libSystem.B.tbd" ~> .
 {
 	+ setenv(name<[basic.u1, :c]>, value<[basic.u1, :c]>, overwrite<basic.s4>) -> basic.s4;

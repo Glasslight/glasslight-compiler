@@ -1,7 +1,7 @@
 package test;
 require core.basic;
 
-[[:builtin, :static]]
+[[(:foreign_origin, :builtin), (:foreign_linkage, :static)]]
 foreign "test" ~> .
 {
 	# Test lifecycle.

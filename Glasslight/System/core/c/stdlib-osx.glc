@@ -1,7 +1,7 @@
 package c;
 require core.basic ~> basic;
 
-[[:system, :dynamic]]
+[[(:foreign_origin, :system), (:foreign_linkage, :dynamic)]]
 foreign "libSystem.B.tbd" ~> .
 {
 	+ strlen(s<[basic.c1, :c]>) -> basic.size;

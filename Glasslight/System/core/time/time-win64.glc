@@ -26,7 +26,7 @@ record FILETIME_r
 	let dwHighDateTime<basic.u4>;
 }
 
-[[:system, :dynamic]]
+[[(:foreign_origin, :system), (:foreign_linkage, :dynamic)]]
 foreign "Kernel32" ~> .
 {
 	# High-resolution performance counter. BOOL always non-zero on XP+.

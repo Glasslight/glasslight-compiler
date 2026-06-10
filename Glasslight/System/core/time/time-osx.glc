@@ -9,7 +9,7 @@ const CLOCK_MONOTONIC<basic.s4> = 6_s4;
 # Nanoseconds per second, used by the timespec conversions and split multiplies.
 const NS_PER_SEC<basic.s8> = 1000000000_s8;
 
-[[:system, :dynamic]]
+[[(:foreign_origin, :system), (:foreign_linkage, :dynamic)]]
 foreign "libSystem.B.tbd" ~> .
 {
 	# Reads the specified clock into *ts. Returns 0 on success.

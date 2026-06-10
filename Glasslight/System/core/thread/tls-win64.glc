@@ -10,7 +10,7 @@ record tls_key_r
 # TlsAlloc returns this DWORD sentinel when no slots are available.
 const TLS_OUT_OF_INDEXES<u4> = 0xFFFFFFFF_u4;
 
-[[:system, :dynamic]]
+[[(:foreign_origin, :system), (:foreign_linkage, :dynamic)]]
 foreign "Kernel32" ~> .
 {
 	# Allocate a new TLS slot. Returns TLS_OUT_OF_INDEXES on failure.

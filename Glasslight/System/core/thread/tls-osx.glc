@@ -10,7 +10,7 @@ record tls_key_r
 # pthread_key_t on Darwin: unsigned long, 8 bytes.
 [[(:kind, :alias), (:alias, :weak)]] typecreate pthread_key_t ~> u8;
 
-[[:system, :dynamic]]
+[[(:foreign_origin, :system), (:foreign_linkage, :dynamic)]]
 foreign "libSystem.B.tbd" ~> .
 {
 	# Allocate a new per-thread key. `destructor` is a function called at thread

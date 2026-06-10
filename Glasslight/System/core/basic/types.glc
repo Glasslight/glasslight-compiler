@@ -144,6 +144,24 @@ atomenum abi_e
 	:vectorcall
 }
 
+# Foreign library origin atomenum for `(:foreign_origin, ...)`.
+atomenum foreign_origin_e
+{
+	:local,
+	:system,
+	:vendor,
+	:builtin
+}
+
+# Foreign library linkage atomenum for `(:foreign_linkage, ...)`.
+atomenum foreign_linkage_e
+{
+	:static,
+	:dynamic,
+	:runtime,
+	:framework
+}
+
 # Type kind atomenum for `typeinfo(..., :kind)`.
 atomenum typekind_e
 {

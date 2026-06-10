@@ -63,7 +63,7 @@ const s_ifdir<basic.u4> = 0x4000_u4;
 + s_isreg(mode<basic.u4>) -> basic.atom { ^ (mode & s_ifmt) == s_ifreg; }
 + s_isdir(mode<basic.u4>) -> basic.atom { ^ (mode & s_ifmt) == s_ifdir; }
 
-[[:system, :dynamic]]
+[[(:foreign_origin, :system), (:foreign_linkage, :dynamic)]]
 foreign "c" ~> .
 {
 	# Get file status (sys/stat.h).

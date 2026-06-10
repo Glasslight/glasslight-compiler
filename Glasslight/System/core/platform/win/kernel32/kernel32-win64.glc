@@ -1,7 +1,7 @@
 package kernel32;
 require core.basic ~> .;
 
-[[:system, :dynamic]]
+[[(:foreign_origin, :system), (:foreign_linkage, :dynamic)]]
 foreign "Kernel32" ~> .
 {
 	+ GetEnvironmentVariableA(lpName<[c1, :c]>, lpBuffer<c1*>, nSize<u4>) -> u4;

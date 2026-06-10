@@ -16,7 +16,7 @@ record recursive_mutex_r
 	let spin_count<u8>;
 }
 
-[[:system, :dynamic]]
+[[(:foreign_origin, :system), (:foreign_linkage, :dynamic)]]
 foreign "Kernel32" ~> .
 {
 	# Initialize `*m` to the unlocked state. Void on Win32.
