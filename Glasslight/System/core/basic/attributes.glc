@@ -1,0 +1,33 @@
+package basic;
+
+# (:intrinsic|:custom, :attribute_name[, expression]).
+
+attributecreate (:intrinsic, :kind, typekind_e);
+attributecreate (:intrinsic, :bits, size);
+attributecreate (:intrinsic, :dim, size);
+attributecreate (:intrinsic, :alignment, size);
+attributecreate (:intrinsic, :element, atom);
+attributecreate (:intrinsic, :record, atom);
+attributecreate (:intrinsic, :suffix, atom);
+attributecreate (:intrinsic, :alias, atom);
+attributecreate (:intrinsic, :mixable);
+attributecreate (:intrinsic, :foreign);
+attributecreate (:intrinsic, :const_only);
+attributecreate (:intrinsic, :atomic);
+attributecreate (:intrinsic, :integral);
+attributecreate (:intrinsic, :hashable);
+attributecreate (:intrinsic, :viewable);
+attributecreate (:intrinsic, :collection);
+attributecreate (:intrinsic, :serializeable);
+attributecreate (:intrinsic, :default);
+attributecreate (:intrinsic, :compare, type_compare_mode_e);
+attributecreate (:intrinsic, :order, type_compare_mode_e);
+
+attributecreate (:intrinsic, :foreign_origin, foreign_origin_e);
+attributecreate (:intrinsic, :foreign_linkage, foreign_linkage_e);
+attributecreate (:intrinsic, :abi, abi_e);
+
+attributecreate (:intrinsic, :no_context);
+attributecreate (:intrinsic, :test);
+attributecreate (:intrinsic, :constfold);
+attributecreate (:intrinsic, :link_name, atom);
