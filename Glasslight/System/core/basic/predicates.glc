@@ -147,6 +147,10 @@ package basic;
 + hashable?($t<typeid>) when typeinfo(t, :hashable) -> atom { ^ :true; }
 + hashable?($t<typeid>) -> atom { ^ :false; }
 
+# Return true if type is an ECS fragment record.
++ fragment?($t<typeid>) when typeinfo(t, :fragment) -> atom { ^ :true; }
++ fragment?($t<typeid>) -> atom { ^ :false; }
+
 # Return true if type can produce an unsized view.
 + viewable?($t<typeid>) when typeinfo(t, :viewable) -> atom { ^ :true; }
 + viewable?($t<typeid>) -> atom { ^ :false; }

@@ -15,6 +15,7 @@ attributecreate (:intrinsic, :foreign);
 attributecreate (:intrinsic, :const_only);
 attributecreate (:intrinsic, :atomic);
 attributecreate (:intrinsic, :integral);
+attributecreate (:intrinsic, :fragment);
 attributecreate (:intrinsic, :hashable);
 attributecreate (:intrinsic, :viewable);
 attributecreate (:intrinsic, :collection);

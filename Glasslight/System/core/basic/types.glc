@@ -212,6 +212,7 @@ atomenum typeinfo_key_e
 	:dim,				# Vector component count (size).
 	:element,			# Element type of containers/vectors (typeid).
 	:foreign,			# Foreign/FFI type (atom).
+	:fragment,			# ECS fragment record marker (atom).
 	:hashable,			# Supports hash metadata (atom).
 	:immutable,			# Const-only type (atom).
 	:integral,			# Is an integer type (atom).
