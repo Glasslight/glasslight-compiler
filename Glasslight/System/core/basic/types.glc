@@ -209,7 +209,9 @@ atomenum typeinfo_key_e
 	:collection,		# Type is considered to be a collection (atom).
 	:compare,			# Comparison mode (type_compare_mode_e).
 	:contains_atomic,	# Has an atomic-typed field (atom).
+	:contains_disposable,	# Transitively owns a :disposable value (atom).
 	:dim,				# Vector component count (size).
+	:disposable,		# Type carries the :disposable attribute (atom).
 	:element,			# Element type of containers/vectors (typeid).
 	:foreign,			# Foreign/FFI type (atom).
 	:fragment,			# ECS fragment record marker (atom).
@@ -220,6 +222,8 @@ atomenum typeinfo_key_e
 	:length,			# Compile-time element count or string-literal length (size).
 	:mixable,			# Participates in typemix expressions (atom).
 	:order,				# Ordering mode (type_compare_mode_e).
+	:phase,				# ECS phase record marker (atom).
+	:processor,		# ECS processor record marker (atom).
 	:serializeable,		# Supports archive serialization (atom).
 	:stride,			# Element stride in bytes (size).
 	:viewable			# Can produce an unsized view (atom).

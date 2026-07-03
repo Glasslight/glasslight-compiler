@@ -35,7 +35,7 @@ record set_node_r<$t<typeid> >
 	^ (value_hash ~~> size) % count;
 }
 
-[[:collection]]
+[[:collection, :disposable]]
 record set_r<$t<typeid> > when hashable?(t) && comparable?(t)
 {
 	let alloc<allocator_r>;
@@ -342,6 +342,45 @@ record set_r<$t<typeid> > when hashable?(t) && comparable?(t)
 		if(self.alloc_initialized)
 		{
 			self.clear!(cleanup, user_data);
+			allocator_free(self.alloc, self.buckets ~~> voidptr);
+		}
+
+		self.buckets = nil;
+		self.bucket_count = 0_sz;
+		self.length = 0_sz;
+		self.alloc_initialized = :false;
+
+		let reset_alloc<allocator_r>;
+		self.alloc = reset_alloc;
+
+		^ ();
+	}
+
+	# Disposes each live disposable element, then releases all storage and resets state.
+	- dispose() -> ()
+	{
+		if(self.alloc_initialized)
+		{
+			for(let idx<size> = 0_sz; idx < self.bucket_count; idx += 1_sz)
+			{
+				let node<set_node_r<t>*> = *(self.buckets + idx);
+
+				while(!nil?(node))
+				{
+					let next_link<set_node_r<t>*> = node.next_node;
+
+					constif (contains_disposable?(t))
+					{
+						node.value.dispose();
+					}
+
+					allocator_free(self.alloc, node ~~> voidptr);
+					node = next_link;
+				}
+
+				*(self.buckets + idx) = nil;
+			}
+
 			allocator_free(self.alloc, self.buckets ~~> voidptr);
 		}
 

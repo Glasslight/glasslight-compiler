@@ -4,7 +4,7 @@ require core.hash ~> .;
 require core.mem ~> .;
 require core.error ~> error;
 
-[[:collection, (:element, :atom)]]
+[[:collection, :disposable, (:element, :atom)]]
 record atomset_r
 {
 	let keys<atom*> = nil;
@@ -280,6 +280,28 @@ record atomset_r
 
 	# Release all owned storage and reset to zero-initialized state.
 	- delete -> ()
+	{
+		if(self.alloc_initialized)
+		{
+			allocator_free(self.alloc, self.keys ~~> voidptr);
+			allocator_free(self.alloc, self.states ~~> voidptr);
+		}
+
+		self.keys = nil;
+		self.states = nil;
+		self.length = 0_sz;
+		self.capacity = 0_sz;
+		self.deleted = 0_sz;
+		self.alloc_initialized = :false;
+
+		let reset_alloc<allocator_r>;
+		self.alloc = reset_alloc;
+
+		^ ();
+	}
+
+	# Disposes owned storage and resets state. Elements are atoms and never disposable.
+	- dispose() -> ()
 	{
 		if(self.alloc_initialized)
 		{

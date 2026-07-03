@@ -5,7 +5,7 @@ require core.allocator ~> .;
 require core.mem ~> .;
 require core.error ~> error;
 
-[[:collection, :viewable]]
+[[:collection, :viewable, :disposable]]
 record dynamic_array_r<$t<typeid> >
 {
 	let data<t*> = nil;
@@ -385,6 +385,26 @@ record dynamic_array_r<$t<typeid> >
 	# Frees storage and resets the array state.
 	- delete -> ()
 	{
+		allocator_free(self.alloc, self.data ~~> voidptr);
+
+		self.data = nil;
+		self.length = 0_sz;
+		self.capacity = 0_sz;
+
+		^ ();
+	}
+
+	# Disposes each live disposable element, then frees storage and resets state.
+	- dispose() -> ()
+	{
+		constif (contains_disposable?(t))
+		{
+			for(let i<size> = 0_sz; i < self.length; i += 1_sz)
+			{
+				(self.data + i).dispose();
+			}
+		}
+
 		allocator_free(self.alloc, self.data ~~> voidptr);
 
 		self.data = nil;

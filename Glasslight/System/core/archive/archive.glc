@@ -54,6 +54,13 @@ record archive_r
 		self.properties.delete;
 		^ ();
 	}
+
+	# Disposes the owned property map. Readers and writers remain caller-owned.
+	- dispose() -> ()
+	{
+		self.properties.dispose();
+		^ ();
+	}
 }
 
 # Create a write archive over a byte writer.

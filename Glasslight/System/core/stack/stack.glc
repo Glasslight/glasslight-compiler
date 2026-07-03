@@ -4,7 +4,7 @@ require core.array ~> .;
 require core.archive ~> archive;
 require core.io ~> io;
 
-[[:collection, :viewable]]
+[[:collection, :viewable, :disposable]]
 record stack_r<$t<typeid> >
 {
 	let buf<[t, :dynamic]>;
@@ -70,6 +70,13 @@ record stack_r<$t<typeid> >
 	- delete -> ()
 	{
 		self.buf.delete;
+		^ ();
+	}
+
+	# Disposes the owned element buffer (disposes disposable elements first).
+	- dispose() -> ()
+	{
+		self.buf.dispose();
 		^ ();
 	}
 

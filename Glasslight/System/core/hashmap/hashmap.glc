@@ -36,6 +36,7 @@ record hashmap_chained_node_r<$k<typeid>, $v<typeid> >
 	^ (key_hash ~~> size) % count;
 }
 
+[[:disposable]]
 record hashmap_r<$k<typeid>, $v<typeid> > when hashable?(k) && comparable?(k)
 {
 	let alloc<allocator_r>;
@@ -408,6 +409,50 @@ record hashmap_r<$k<typeid>, $v<typeid> > when hashable?(k) && comparable?(k)
 		if(self.alloc_initialized)
 		{
 			self.clear!(cleanup, user_data);
+			allocator_free(self.alloc, self.buckets ~~> voidptr);
+		}
+
+		self.buckets = nil;
+		self.bucket_count = 0_sz;
+		self.length = 0_sz;
+		self.alloc_initialized = :false;
+
+		let reset_alloc<allocator_r>;
+		self.alloc = reset_alloc;
+
+		^ ();
+	}
+
+	# Disposes each live disposable key/value, then releases all storage and resets state.
+	- dispose() -> ()
+	{
+		if(self.alloc_initialized)
+		{
+			for(let idx<size> = 0_sz; idx < self.bucket_count; idx += 1_sz)
+			{
+				let node<hashmap_chained_node_r<k, v>*> = *(self.buckets + idx);
+
+				while(!nil?(node))
+				{
+					let next_link<hashmap_chained_node_r<k, v>*> = node.next_node;
+
+					constif (contains_disposable?(k))
+					{
+						node.key.dispose();
+					}
+
+					constif (contains_disposable?(v))
+					{
+						node.value.dispose();
+					}
+
+					allocator_free(self.alloc, node ~~> voidptr);
+					node = next_link;
+				}
+
+				*(self.buckets + idx) = nil;
+			}
+
 			allocator_free(self.alloc, self.buckets ~~> voidptr);
 		}
 

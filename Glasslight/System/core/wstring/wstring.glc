@@ -7,7 +7,7 @@ require core.error ~> error;
 require core.io ~> io;
 require core.unicode.utf16 ~> utf16;
 
-[[:serializeable, :collection, :viewable, (:element, :c2)]]
+[[:serializeable, :collection, :viewable, :disposable, (:element, :c2)]]
 record wstring_r
 {
 	let buf<[c2, :dynamic]>;
@@ -135,6 +135,13 @@ record wstring_r
 	- delete -> ()
 	{
 		self.buf.delete;
+		^ ();
+	}
+
+	# Disposes the owned element buffer.
+	- dispose() -> ()
+	{
+		self.buf.dispose();
 		^ ();
 	}
 
