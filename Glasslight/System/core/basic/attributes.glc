@@ -27,6 +27,7 @@ attributecreate (:intrinsic, :phase);
 attributecreate (:intrinsic, :processor);
 attributecreate (:intrinsic, :hashable);
 attributecreate (:intrinsic, :viewable);
+attributecreate (:intrinsic, :disposable);
 attributecreate (:intrinsic, :collection);
 attributecreate (:intrinsic, :serializeable);
 attributecreate (:intrinsic, :default);

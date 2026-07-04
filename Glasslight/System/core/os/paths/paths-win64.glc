@@ -18,7 +18,7 @@ const file_attribute_directory<u4> = 0x10_u4;
 
 	defer
 	{
-		tmp.delete;
+		tmp.dispose;
 	}
 
 	let attrs<u4> = kernel32.GetFileAttributesA(tmp.to_cstring);
@@ -38,7 +38,7 @@ const file_attribute_directory<u4> = 0x10_u4;
 
 	defer
 	{
-		tmp.delete;
+		tmp.dispose;
 	}
 
 	let attrs<u4> = kernel32.GetFileAttributesA(tmp.to_cstring);
@@ -58,7 +58,7 @@ const file_attribute_directory<u4> = 0x10_u4;
 
 	defer
 	{
-		tmp.delete;
+		tmp.dispose;
 	}
 
 	if(kernel32.CreateDirectoryA(tmp.to_cstring, nil))
@@ -83,7 +83,7 @@ const file_attribute_directory<u4> = 0x10_u4;
 
 	if(written == 0_u4)
 	{
-		buf.delete;
+		buf.dispose;
 		^ (:false, make_empty_string());
 	}
 
@@ -110,7 +110,7 @@ const file_attribute_directory<u4> = 0x10_u4;
 
 	if(written == 0_u4)
 	{
-		buf.delete;
+		buf.dispose;
 		^ (:false, make_empty_string());
 	}
 
@@ -138,7 +138,7 @@ const file_attribute_directory<u4> = 0x10_u4;
 	{
 		if(!keep_value)
 		{
-			value.delete;
+			value.dispose;
 		}
 	}
 
@@ -166,10 +166,14 @@ const file_attribute_directory<u4> = 0x10_u4;
 ++ make_platform(path<[c1, ()]>) -> [c1]
 {
 	let result<[c1]> = make_string(path);
+	let keep_result<atom> = :false;
 
 	defer
 	{
-		result.delete;
+		if(!keep_result)
+		{
+			result.dispose;
+		}
 	}
 
 	result.replace!('/'_c1, '\\'_c1);
@@ -179,6 +183,7 @@ const file_attribute_directory<u4> = 0x10_u4;
 
 	if(n <= 2_sz)
 	{
+		keep_result = :true;
 		^ result;
 	}
 

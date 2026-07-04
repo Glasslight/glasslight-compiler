@@ -222,6 +222,11 @@ record set_r<$t<typeid> > when hashable?(t) && comparable?(t)
 					previous.next_node = node.next_node;
 				}
 
+				constif(contains_disposable?(t))
+				{
+					node.value.dispose;
+				}
+
 				allocator_free(self.alloc, node ~~> voidptr);
 				self.length -= 1_sz;
 
@@ -235,43 +240,8 @@ record set_r<$t<typeid> > when hashable?(t) && comparable?(t)
 		^ :false;
 	}
 
-	# Remove value if present and run context-aware cleanup for the removed entry.
-	- remove!(value<t>, cleanup<(context_r, t, voidptr) -> ()>, user_data<voidptr>) when self.bucket_count == 0_sz -> () { ^ (); }
-	- remove!(value<t>, cleanup<(context_r, t, voidptr) -> ()>, user_data<voidptr>) -> ()
-	{
-		let idx<size> = set_bucket(value, self.bucket_count);
-		let previous<set_node_r<t>*> = nil;
-		let node<set_node_r<t>*> = *(self.buckets + idx);
-		let ctx<context_r> = get_default_ctx;
-
-		while(!nil?(node))
-		{
-			if(node.value == value)
-			{
-				if(nil?(previous))
-				{
-					*(self.buckets + idx) = node.next_node;
-				}
-				else
-				{
-					previous.next_node = node.next_node;
-				}
-
-				cleanup(node.value, user_data);
-				allocator_free(self.alloc, node ~~> voidptr);
-				self.length -= 1_sz;
-
-				^ ();
-			}
-
-			previous = node;
-			node = node.next_node;
-		}
-
-		^ ();
-	}
-
-	# Remove all entries while keeping bucket storage.
+	# Remove all entries while keeping bucket storage. Disposes each discarded
+	# disposable element.
 	- clear! -> ()
 	{
 		for(let idx<size> = 0_sz; idx < self.bucket_count; idx += 1_sz)
@@ -281,6 +251,12 @@ record set_r<$t<typeid> > when hashable?(t) && comparable?(t)
 			while(!nil?(node))
 			{
 				let next_link<set_node_r<t>*> = node.next_node;
+
+				constif(contains_disposable?(t))
+				{
+					node.value.dispose;
+				}
+
 				allocator_free(self.alloc, node ~~> voidptr);
 				node = next_link;
 			}
@@ -289,98 +265,15 @@ record set_r<$t<typeid> > when hashable?(t) && comparable?(t)
 		}
 
 		self.length = 0_sz;
-		^ ();
-	}
-
-	# Remove all entries with context-aware cleanup, while keeping bucket storage.
-	- clear!(cleanup<(context_r, t, voidptr) -> ()>, user_data<voidptr>) -> ()
-	{
-		let ctx<context_r> = get_default_ctx;
-
-		for(let idx<size> = 0_sz; idx < self.bucket_count; idx += 1_sz)
-		{
-			let node<set_node_r<t>*> = *(self.buckets + idx);
-
-			while(!nil?(node))
-			{
-				let next_link<set_node_r<t>*> = node.next_node;
-				cleanup(node.value, user_data);
-				allocator_free(self.alloc, node ~~> voidptr);
-				node = next_link;
-			}
-
-			*(self.buckets + idx) = nil;
-		}
-
-		self.length = 0_sz;
-		^ ();
-	}
-
-	# Release all storage and reset to zero-initialized state.
-	- delete -> ()
-	{
-		if(self.alloc_initialized)
-		{
-			self.clear!;
-			allocator_free(self.alloc, self.buckets ~~> voidptr);
-		}
-
-		self.buckets = nil;
-		self.bucket_count = 0_sz;
-		self.length = 0_sz;
-		self.alloc_initialized = :false;
-
-		let reset_alloc<allocator_r>;
-		self.alloc = reset_alloc;
-
-		^ ();
-	}
-
-	# Release all storage after running context-aware cleanup for each live entry.
-	- delete(cleanup<(context_r, t, voidptr) -> ()>, user_data<voidptr>) -> ()
-	{
-		if(self.alloc_initialized)
-		{
-			self.clear!(cleanup, user_data);
-			allocator_free(self.alloc, self.buckets ~~> voidptr);
-		}
-
-		self.buckets = nil;
-		self.bucket_count = 0_sz;
-		self.length = 0_sz;
-		self.alloc_initialized = :false;
-
-		let reset_alloc<allocator_r>;
-		self.alloc = reset_alloc;
-
 		^ ();
 	}
 
 	# Disposes each live disposable element, then releases all storage and resets state.
-	- dispose() -> ()
+	- dispose -> ()
 	{
 		if(self.alloc_initialized)
 		{
-			for(let idx<size> = 0_sz; idx < self.bucket_count; idx += 1_sz)
-			{
-				let node<set_node_r<t>*> = *(self.buckets + idx);
-
-				while(!nil?(node))
-				{
-					let next_link<set_node_r<t>*> = node.next_node;
-
-					constif (contains_disposable?(t))
-					{
-						node.value.dispose();
-					}
-
-					allocator_free(self.alloc, node ~~> voidptr);
-					node = next_link;
-				}
-
-				*(self.buckets + idx) = nil;
-			}
-
+			self.clear!;
 			allocator_free(self.alloc, self.buckets ~~> voidptr);
 		}
 

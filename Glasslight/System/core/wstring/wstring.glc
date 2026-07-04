@@ -131,17 +131,10 @@ record wstring_r
 		^ ();
 	}
 
-	# Frees storage and resets the wide string state.
-	- delete -> ()
-	{
-		self.buf.delete;
-		^ ();
-	}
-
 	# Disposes the owned element buffer.
-	- dispose() -> ()
+	- dispose -> ()
 	{
-		self.buf.dispose();
+		self.buf.dispose;
 		^ ();
 	}
 

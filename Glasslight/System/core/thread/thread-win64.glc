@@ -221,12 +221,12 @@ foreign "Kernel32" ~> .
 	let (valid<atom>, native_handle<kernel32.handle_t>) = os_handle.native_handle(current_handle);
 	if(!valid)
 	{
-		wide.delete;
+		wide.dispose;
 		^ :failed;
 	}
 
 	let hr<s4> = SetThreadDescription(native_handle, wide.data);
-	wide.delete;
+	wide.dispose;
 
 	if(hr >= 0_s4)
 	{

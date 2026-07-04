@@ -17,7 +17,7 @@ require core.platform.posix.unistd ~> posix_unistd;
 
 	defer
 	{
-		tmp.delete;
+		tmp.dispose;
 	}
 
 	if(posix_stat.stat(tmp, &buf) != 0_s4)
@@ -37,7 +37,7 @@ require core.platform.posix.unistd ~> posix_unistd;
 
 	defer
 	{
-		tmp.delete;
+		tmp.dispose;
 	}
 
 	if(posix_stat.stat(tmp, &buf) != 0_s4)
@@ -56,7 +56,7 @@ require core.platform.posix.unistd ~> posix_unistd;
 
 	defer
 	{
-		tmp.delete;
+		tmp.dispose;
 	}
 
 	let mkdir_result<s4> = posix_stat.mkdir(tmp, 0o755_u2);
@@ -81,7 +81,7 @@ require core.platform.posix.unistd ~> posix_unistd;
 
 	if(cwd_result == nil)
 	{
-		buf.delete;
+		buf.dispose;
 		^ (:false, make_empty_string());
 	}
 
@@ -160,7 +160,7 @@ require core.platform.posix.unistd ~> posix_unistd;
 {
 	let mp_result<[c1]> = normalize(path);
 	let cleaned<[c1]> = remove_duplicate_slashes(mp_result.view);
-	mp_result.delete;
+	mp_result.dispose;
 
 	^ cleaned;
 }

@@ -159,7 +159,8 @@ record hashmap_r<$k<typeid>, $v<typeid> > when hashable?(k) && comparable?(k)
 		^ ();
 	}
 
-	# Insert or overwrite a key/value pair. Returns (:true, old value) on overwrite.
+	# Insert or overwrite a key/value pair. Returns (:true, old value) on overwrite:
+	# the old value's ownership transfers to the caller, who disposes it if disposable.
 	- set!(key<k>, value<v>) -> (atom, v)
 	{
 		let existing<hashmap_chained_node_r<k, v>*> = self.find_node(key);
@@ -198,47 +199,6 @@ record hashmap_r<$k<typeid>, $v<typeid> > when hashable?(k) && comparable?(k)
 
 		let default_value<v>;
 		^ (:false, default_value);
-	}
-
-	# Insert or overwrite, running cleanup on the old entry before replacement.
-	- set!(key<k>, value<v>, cleanup<(context_r, k, v, voidptr) -> ()>, user_data<voidptr>) -> ()
-	{
-		let existing<hashmap_chained_node_r<k, v>*> = self.find_node(key);
-		let ctx<context_r> = get_default_ctx;
-
-		if(!nil?(existing))
-		{
-			cleanup(existing.key, existing.value, user_data);
-			existing.value = value;
-			^ ();
-		}
-
-		if(self.bucket_count == 0_sz)
-		{
-			self.rehash!(8_sz);
-		}
-		elif(self.length + 1_sz > self.bucket_count)
-		{
-			self.rehash!(self.bucket_count * 2_sz);
-		}
-
-		let raw<voidptr> = allocator_alloc(self.alloc, typeinfo(hashmap_chained_node_r<k, v>, :bytes));
-
-		if(nil?(raw))
-		{
-			error.runtime_error("hashmap_r.set!: out of memory");
-		}
-
-		let node<hashmap_chained_node_r<k, v>*> = raw ~~> hashmap_chained_node_r<k, v>*;
-		let idx<size> = hashmap_chained_bucket(key, self.bucket_count);
-
-		node.key = key;
-		node.value = value;
-		node.next_node = *(self.buckets + idx);
-		*(self.buckets + idx) = node;
-		self.length += 1_sz;
-
-		^ ();
 	}
 
 	# Return :true when this map contains key.
@@ -288,6 +248,11 @@ record hashmap_r<$k<typeid>, $v<typeid> > when hashable?(k) && comparable?(k)
 					previous.next_node = node.next_node;
 				}
 
+				constif(contains_disposable?(k))
+				{
+					node.key.dispose;
+				}
+
 				allocator_free(self.alloc, node ~~> voidptr);
 				self.length -= 1_sz;
 
@@ -302,43 +267,8 @@ record hashmap_r<$k<typeid>, $v<typeid> > when hashable?(k) && comparable?(k)
 		^ (:false, default_value);
 	}
 
-	# Remove key if present and run context-aware cleanup for the removed entry.
-	- remove!(key<k>, cleanup<(context_r, k, v, voidptr) -> ()>, user_data<voidptr>) when self.bucket_count == 0_sz -> () { ^ (); }
-	- remove!(key<k>, cleanup<(context_r, k, v, voidptr) -> ()>, user_data<voidptr>) -> ()
-	{
-		let idx<size> = hashmap_chained_bucket(key, self.bucket_count);
-		let previous<hashmap_chained_node_r<k, v>*> = nil;
-		let node<hashmap_chained_node_r<k, v>*> = *(self.buckets + idx);
-		let ctx<context_r> = get_default_ctx;
-
-		while(!nil?(node))
-		{
-			if(node.key == key)
-			{
-				if(nil?(previous))
-				{
-					*(self.buckets + idx) = node.next_node;
-				}
-				else
-				{
-					previous.next_node = node.next_node;
-				}
-
-				cleanup(node.key, node.value, user_data);
-				allocator_free(self.alloc, node ~~> voidptr);
-				self.length -= 1_sz;
-
-				^ ();
-			}
-
-			previous = node;
-			node = node.next_node;
-		}
-
-		^ ();
-	}
-
-	# Remove all entries while keeping bucket storage.
+	# Remove all entries while keeping bucket storage. Disposes each discarded
+	# disposable key/value.
 	- clear! -> ()
 	{
 		for(let idx<size> = 0_sz; idx < self.bucket_count; idx += 1_sz)
@@ -348,6 +278,17 @@ record hashmap_r<$k<typeid>, $v<typeid> > when hashable?(k) && comparable?(k)
 			while(!nil?(node))
 			{
 				let next_link<hashmap_chained_node_r<k, v>*> = node.next_node;
+
+				constif(contains_disposable?(k))
+				{
+					node.key.dispose;
+				}
+
+				constif(contains_disposable?(v))
+				{
+					node.value.dispose;
+				}
+
 				allocator_free(self.alloc, node ~~> voidptr);
 				node = next_link;
 			}
@@ -356,103 +297,15 @@ record hashmap_r<$k<typeid>, $v<typeid> > when hashable?(k) && comparable?(k)
 		}
 
 		self.length = 0_sz;
-		^ ();
-	}
-
-	# Remove all entries with context-aware cleanup, while keeping bucket storage.
-	- clear!(cleanup<(context_r, k, v, voidptr) -> ()>, user_data<voidptr>) -> ()
-	{
-		let ctx<context_r> = get_default_ctx;
-
-		for(let idx<size> = 0_sz; idx < self.bucket_count; idx += 1_sz)
-		{
-			let node<hashmap_chained_node_r<k, v>*> = *(self.buckets + idx);
-
-			while(!nil?(node))
-			{
-				let next_link<hashmap_chained_node_r<k, v>*> = node.next_node;
-				cleanup(node.key, node.value, user_data);
-				allocator_free(self.alloc, node ~~> voidptr);
-				node = next_link;
-			}
-
-			*(self.buckets + idx) = nil;
-		}
-
-		self.length = 0_sz;
-		^ ();
-	}
-
-	# Release all storage and reset to zero-initialized state.
-	- delete -> ()
-	{
-		if(self.alloc_initialized)
-		{
-			self.clear!;
-			allocator_free(self.alloc, self.buckets ~~> voidptr);
-		}
-
-		self.buckets = nil;
-		self.bucket_count = 0_sz;
-		self.length = 0_sz;
-		self.alloc_initialized = :false;
-
-		let reset_alloc<allocator_r>;
-		self.alloc = reset_alloc;
-
-		^ ();
-	}
-
-	# Release all storage after running context-aware cleanup for each live entry.
-	- delete(cleanup<(context_r, k, v, voidptr) -> ()>, user_data<voidptr>) -> ()
-	{
-		if(self.alloc_initialized)
-		{
-			self.clear!(cleanup, user_data);
-			allocator_free(self.alloc, self.buckets ~~> voidptr);
-		}
-
-		self.buckets = nil;
-		self.bucket_count = 0_sz;
-		self.length = 0_sz;
-		self.alloc_initialized = :false;
-
-		let reset_alloc<allocator_r>;
-		self.alloc = reset_alloc;
-
 		^ ();
 	}
 
 	# Disposes each live disposable key/value, then releases all storage and resets state.
-	- dispose() -> ()
+	- dispose -> ()
 	{
 		if(self.alloc_initialized)
 		{
-			for(let idx<size> = 0_sz; idx < self.bucket_count; idx += 1_sz)
-			{
-				let node<hashmap_chained_node_r<k, v>*> = *(self.buckets + idx);
-
-				while(!nil?(node))
-				{
-					let next_link<hashmap_chained_node_r<k, v>*> = node.next_node;
-
-					constif (contains_disposable?(k))
-					{
-						node.key.dispose();
-					}
-
-					constif (contains_disposable?(v))
-					{
-						node.value.dispose();
-					}
-
-					allocator_free(self.alloc, node ~~> voidptr);
-					node = next_link;
-				}
-
-				*(self.buckets + idx) = nil;
-			}
-
+			self.clear!;
 			allocator_free(self.alloc, self.buckets ~~> voidptr);
 		}
 

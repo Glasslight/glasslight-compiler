@@ -28,9 +28,14 @@ record dynamic_array_r<$t<typeid> >
 	# Returns the element at idx via subscript operator.
 	- subscript(idx<size>) -> t { ^ *(self.data + idx); }
 
-	# Sets the element at idx via subscript operator.
+	# Sets the element at idx via subscript operator. Disposes the displaced element.
 	- subscript(idx<size>, val<t>) -> ()
 	{
+		constif(contains_disposable?(t))
+		{
+			(self.data + idx).dispose;
+		}
+
 		*(self.data + idx) = val;
 		^ ();
 	}
@@ -265,6 +270,11 @@ record dynamic_array_r<$t<typeid> >
 	- remove_at!(idx<size>) when !self.valid_index?(idx) -> () { ^ (); }
 	- remove_at!(idx<size>) -> ()
 	{
+		constif(contains_disposable?(t))
+		{
+			(self.data + idx).dispose;
+		}
+
 		for(let i<size> = idx; i + 1_sz < self.length; i += 1_sz)
 		{
 			*(self.data + i) = *(self.data + i + 1_sz);
@@ -278,6 +288,11 @@ record dynamic_array_r<$t<typeid> >
 	- remove_at_swap!(idx<size>) when !self.valid_index?(idx) -> () { ^ (); }
 	- remove_at_swap!(idx<size>) -> ()
 	{
+		constif(contains_disposable?(t))
+		{
+			(self.data + idx).dispose;
+		}
+
 		let last_idx<size> = self.length - 1_sz;
 		*(self.data + idx) = *(self.data + last_idx);
 		self.length -= 1_sz;
@@ -289,13 +304,78 @@ record dynamic_array_r<$t<typeid> >
 	- pop! when self.empty? -> () { ^ (); }
 	- pop! -> ()
 	{
+		constif(contains_disposable?(t))
+		{
+			(self.data + self.length - 1_sz).dispose;
+		}
+
 		self.length -= 1_sz;
 		^ ();
 	}
 
-	# Removes all elements but keeps allocation.
+	# Returns the element at idx and removes its slot by shifting the tail left.
+	# Ownership transfers to the caller; the container disposes nothing.
+	- take_at!(idx<size>) when !self.valid_index?(idx) -> (atom, t)
+	{
+		let x<t>;
+		^ (:false, x);
+	}
+	- take_at!(idx<size>) -> (atom, t)
+	{
+		let result<t> = *(self.data + idx);
+
+		for(let i<size> = idx; i + 1_sz < self.length; i += 1_sz)
+		{
+			*(self.data + i) = *(self.data + i + 1_sz);
+		}
+
+		self.length -= 1_sz;
+		^ (:true, result);
+	}
+
+	# Returns the element at idx and removes its slot by swapping in the last live element.
+	# Ownership transfers to the caller; the container disposes nothing.
+	- take_at_swap!(idx<size>) when !self.valid_index?(idx) -> (atom, t)
+	{
+		let x<t>;
+		^ (:false, x);
+	}
+	- take_at_swap!(idx<size>) -> (atom, t)
+	{
+		let result<t> = *(self.data + idx);
+		let last_idx<size> = self.length - 1_sz;
+		*(self.data + idx) = *(self.data + last_idx);
+		self.length -= 1_sz;
+
+		^ (:true, result);
+	}
+
+	# Returns the last element and removes its slot.
+	# Ownership transfers to the caller; the container disposes nothing.
+	- take_last! when self.empty? -> (atom, t)
+	{
+		let x<t>;
+		^ (:false, x);
+	}
+	- take_last! -> (atom, t)
+	{
+		let result<t> = *(self.data + self.length - 1_sz);
+		self.length -= 1_sz;
+
+		^ (:true, result);
+	}
+
+	# Removes all elements but keeps allocation. Disposes each live disposable element.
 	- clear! -> ()
 	{
+		constif(contains_disposable?(t))
+		{
+			for(let i<size> = 0_sz; i < self.length; i += 1_sz)
+			{
+				(self.data + i).dispose;
+			}
+		}
+
 		self.length = 0_sz;
 		^ ();
 	}
@@ -344,9 +424,18 @@ record dynamic_array_r<$t<typeid> >
 		^ ();
 	}
 
-	# Resizes the array to n and fills all live elements with v.
+	# Resizes the array to n and fills all live elements with v. Disposes the
+	# previous live elements first.
 	- init(v<t>, n<size>) -> ()
 	{
+		constif(contains_disposable?(t))
+		{
+			for(let i<size> = 0_sz; i < self.length; i += 1_sz)
+			{
+				(self.data + i).dispose;
+			}
+		}
+
 		self.ensure_capacity(n);
 
 		for(let i<size> = 0_sz; i < n; i += 1_sz)
@@ -358,7 +447,8 @@ record dynamic_array_r<$t<typeid> >
 		^ ();
 	}
 
-	# Resize the array but leave elements in uninitialized state.
+	# Resize the array but leave elements in uninitialized state. Raw API: does
+	# not dispose previous elements.
 	- set_num_uninitialized(n<size>) -> ()
 	{
 		self.ensure_capacity(n);
@@ -367,7 +457,8 @@ record dynamic_array_r<$t<typeid> >
 		^ ();
 	}
 
-	# Resize the array and zero fill memory.
+	# Resize the array and zero fill memory. Raw API: does not dispose previous
+	# elements.
 	- set_num_zeroed(n<size>) -> ()
 	{
 		self.ensure_capacity(n);
@@ -382,33 +473,14 @@ record dynamic_array_r<$t<typeid> >
 	# Create an unsized array view from this dynamic array.
 	- view -> [t, ()] { ^ make_view(t, self.data, self.length); }
 
-	# Frees storage and resets the array state.
-	- delete -> ()
-	{
-		allocator_free(self.alloc, self.data ~~> voidptr);
-
-		self.data = nil;
-		self.length = 0_sz;
-		self.capacity = 0_sz;
-
-		^ ();
-	}
-
 	# Disposes each live disposable element, then frees storage and resets state.
-	- dispose() -> ()
+	- dispose -> ()
 	{
-		constif (contains_disposable?(t))
-		{
-			for(let i<size> = 0_sz; i < self.length; i += 1_sz)
-			{
-				(self.data + i).dispose();
-			}
-		}
+		self.clear!;
 
 		allocator_free(self.alloc, self.data ~~> voidptr);
 
 		self.data = nil;
-		self.length = 0_sz;
 		self.capacity = 0_sz;
 
 		^ ();

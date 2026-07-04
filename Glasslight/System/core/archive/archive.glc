@@ -48,17 +48,10 @@ record archive_r
 		^ self.properties.get(key);
 	}
 
-	# Release owned property storage. Readers and writers remain caller-owned.
-	- delete -> ()
-	{
-		self.properties.delete;
-		^ ();
-	}
-
 	# Disposes the owned property map. Readers and writers remain caller-owned.
-	- dispose() -> ()
+	- dispose -> ()
 	{
-		self.properties.dispose();
+		self.properties.dispose;
 		^ ();
 	}
 }

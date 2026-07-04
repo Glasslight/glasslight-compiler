@@ -138,17 +138,10 @@ record string_r
 		^ ();
 	}
 
-	# Frees storage and resets the string state.
-	- delete -> ()
-	{
-		self.buf.delete;
-		^ ();
-	}
-
 	# Disposes the owned byte buffer.
-	- dispose() -> ()
+	- dispose -> ()
 	{
-		self.buf.dispose();
+		self.buf.dispose;
 		^ ();
 	}
 
@@ -448,7 +441,7 @@ record string_r
 	{
 		if(self.buf.length == 0_sz)
 		{
-			self.buf.delete;
+			self.buf.dispose;
 			^ ();
 		}
 

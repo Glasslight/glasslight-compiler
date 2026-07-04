@@ -17,7 +17,7 @@ require core.unicode.utf16 ~> utf16;
 {
 	let units<[c2, :dynamic]> = utf16.to_lower(s.view);
 	let result<[c2]> = wrap_units(units);
-	units.delete;
+	units.dispose;
 
 	^ result;
 }
@@ -27,7 +27,7 @@ require core.unicode.utf16 ~> utf16;
 {
 	let units<[c2, :dynamic]> = utf16.to_upper(s.view);
 	let result<[c2]> = wrap_units(units);
-	units.delete;
+	units.dispose;
 
 	^ result;
 }
@@ -62,7 +62,7 @@ require core.unicode.utf16 ~> utf16;
 {
 	let units<[c2, :dynamic]> = utf8.to_utf16(v);
 	let result<[c2]> = wrap_units(units);
-	units.delete;
+	units.dispose;
 
 	^ result;
 }

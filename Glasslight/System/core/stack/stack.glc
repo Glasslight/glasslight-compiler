@@ -51,6 +51,10 @@ record stack_r<$t<typeid> >
 		^ ();
 	}
 
+	# Returns the top element and removes it. Ownership transfers to the caller;
+	# the stack disposes nothing. Fails on an empty stack.
+	- take! -> (atom, t) { ^ self.buf.take_last!; }
+
 	# Returns the top element.
 	- top when self.empty? -> (atom, t)
 	{
@@ -66,17 +70,10 @@ record stack_r<$t<typeid> >
 		^ ();
 	}
 
-	# Frees storage and resets the stack state.
-	- delete -> ()
-	{
-		self.buf.delete;
-		^ ();
-	}
-
 	# Disposes the owned element buffer (disposes disposable elements first).
-	- dispose() -> ()
+	- dispose -> ()
 	{
-		self.buf.dispose();
+		self.buf.dispose;
 		^ ();
 	}
 

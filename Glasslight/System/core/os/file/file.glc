@@ -28,7 +28,7 @@ record file_r
 
 	defer
 	{
-		platform_path.delete;
+		platform_path.dispose;
 	}
 
 	let (result<file_r>, err<io.io_error_e>) = open(platform_path.to_cstring, mode);

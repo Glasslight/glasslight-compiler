@@ -19,7 +19,7 @@ require core.unicode.utf16 ~> utf16;
 {
 	let bytes<[c1, :dynamic]> = utf8.to_lower(s.view);
 	let result<[c1]> = wrap_bytes(bytes);
-	bytes.delete;
+	bytes.dispose;
 
 	^ result;
 }
@@ -29,7 +29,7 @@ require core.unicode.utf16 ~> utf16;
 {
 	let bytes<[c1, :dynamic]> = utf8.to_upper(s.view);
 	let result<[c1]> = wrap_bytes(bytes);
-	bytes.delete;
+	bytes.dispose;
 
 	^ result;
 }
@@ -65,7 +65,7 @@ require core.unicode.utf16 ~> utf16;
 {
 	let bytes<[c1, :dynamic]> = utf16.to_utf8(v);
 	let result<[c1]> = wrap_bytes(bytes);
-	bytes.delete;
+	bytes.dispose;
 
 	^ result;
 }

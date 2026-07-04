@@ -118,7 +118,7 @@ require core.builtin ~> .;
 	{
 		let (_, base_view<[c1, ()]>) = fv.left(dot_pos);
 		let result<[c1]> = make_string(base_view);
-		filename.delete;
+		filename.dispose;
 		^ result;
 	}
 
@@ -152,12 +152,12 @@ require core.builtin ~> .;
 		if(ok)
 		{
 			let result<[c1]> = make_string(ext_view);
-			filename.delete;
+			filename.dispose;
 			^ result;
 		}
 	}
 
-	filename.delete;
+	filename.dispose;
 	^ make_empty_string();
 }
 
@@ -360,10 +360,10 @@ require core.builtin ~> .;
 		}
 	}
 
-	seg_starts.delete;
-	seg_lens.delete;
-	stack.delete;
-	p.delete;
+	seg_starts.dispose;
+	seg_lens.dispose;
+	stack.dispose;
+	p.dispose;
 
 	^ result;
 }
@@ -411,7 +411,7 @@ require core.builtin ~> .;
 
 	defer
 	{
-		cwd.delete;
+		cwd.dispose;
 	}
 
 	if(!cwd_ok)
@@ -423,7 +423,7 @@ require core.builtin ~> .;
 
 	defer
 	{
-		joined.delete;
+		joined.dispose;
 	}
 
 	let result<[c1]> = collapse(joined.view);
@@ -437,7 +437,7 @@ require core.builtin ~> .;
 
 	defer
 	{
-		abs.delete;
+		abs.dispose;
 	}
 
 	if(!abs_ok)
@@ -449,14 +449,14 @@ require core.builtin ~> .;
 
 	defer
 	{
-		normalized.delete;
+		normalized.dispose;
 	}
 
 	let cleaned<[c1]> = remove_duplicate_slashes(normalized.view);
 
 	defer
 	{
-		cleaned.delete;
+		cleaned.dispose;
 	}
 
 	let n<size> = cleaned.length();
@@ -506,7 +506,7 @@ require core.builtin ~> .;
 
 			defer
 			{
-				prefix_str.delete;
+				prefix_str.dispose;
 			}
 
 			if(!mkdir_exists_ok(prefix_str.view))
