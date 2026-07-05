@@ -1,6 +1,7 @@
 package view;
 require core.basic ~> .;
 require core.basic.limits ~> .;
+require core.mem ~> mem;
 
 [[:viewable]]
 record view_r<$t<typeid> >
@@ -131,7 +132,7 @@ record view_r<$t<typeid> >
 
 	constif(comparable?(t))
 	{
-		# Check if view equals another view element-by-element.
+		# Check if view equals another view.
 		- equals?(other<[t, ()]>) -> atom
 		{
 			if(self.length != other.length())
@@ -139,15 +140,22 @@ record view_r<$t<typeid> >
 				^ :false;
 			}
 
-			for(let i<size> = 0_sz; i < self.length; i += 1_sz)
+			constif(bytewise_equalable?(t))
 			{
-				if(*(self.data + i) != *(other.data() + i))
-				{
-					^ :false;
-				}
+				^ mem.equals?(t, self.data, other.data(), self.length);
 			}
+			else
+			{
+				for(let i<size> = 0_sz; i < self.length; i += 1_sz)
+				{
+					if(*(self.data + i) != *(other.data() + i))
+					{
+						^ :false;
+					}
+				}
 
-			^ :true;
+				^ :true;
+			}
 		}
 	}
 
