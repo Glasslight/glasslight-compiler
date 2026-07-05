@@ -1,0 +1,132 @@
+package main;
+require core.common ~> .;
+require core.array ~> .;
+require core.string ~> .;
+require core.format ~> fmt;
+require core.os.print ~> os;
+require core.ecs ~> ecs;
+
+# Plain-data fragments: no lifecycle, no dispose, zero overhead.
+[[:fragment]]
+record pos_r
+{
+	let x<s4> = 0_s4;
+	let y<s4> = 0_s4;
+}
+
+[[:fragment]]
+record vel_r
+{
+	let dx<s4> = 0_s4;
+	let dy<s4> = 0_s4;
+}
+
+# An owning fragment: the name owns a heap string, so the compiler requires
+# this dispose - and the world calls it automatically when the creature dies
+# or the world tears down. No cleanup code appears anywhere below.
+[[:fragment]]
+record name_r
+{
+	let name<[c1]>;
+	- dispose -> ()
+	{
+		self.name.dispose;
+		^ ();
+	}
+}
+
++ make_pos(x<s4>, y<s4>) -> pos_r
+{
+	let p<pos_r>;
+	p.x = x;
+	p.y = y;
+	^ p;
+}
+
++ make_vel(dx<s4>, dy<s4>) -> vel_r
+{
+	let v<vel_r>;
+	v.dx = dx;
+	v.dy = dy;
+	^ v;
+}
+
+++ make_name(text<[c1, ()]>) -> name_r
+{
+	let n<name_r>;
+	n.name = make_string(text);
+	^ n;
+}
+
+++ spawn_creature(w<ecs.world_r*>, text<[c1, ()]>, x<s4>, y<s4>) -> entity
+{
+	let e<entity> = w.spawn!;
+	w.add!(e, name_r, make_name(text));
+	w.add!(e, pos_r, make_pos(x, y));
+	^ e;
+}
+
+++ report(w<ecs.world_r*>, creatures<[entity, ()]>) -> ()
+{
+	for(let i<size> = 0_sz; i < creatures.length(); i += 1_sz)
+	{
+		let e<entity> = creatures.at(i);
+
+		if(!w.registry.valid?(e))
+		{
+			next;
+		}
+
+		let n<name_r*> = w.get(e, name_r);
+		let p<pos_r*> = w.get(e, pos_r);
+		let line<[c1]> = fmt.format("  {} at ({}, {})", (n.name.view, p.x, p.y));
+		os.println(line);
+		line.dispose;
+	}
+
+	^ ();
+}
+
+let w<ecs.world_r> = ecs.make_world();
+let creatures<[entity, :dynamic]> = make_array(entity, 3_sz);
+
+# Three creatures; two can move; one is tagged.
+creatures.append!(spawn_creature(&w, "rabbit", 0_s4, 0_s4));
+creatures.append!(spawn_creature(&w, "turtle", 10_s4, 5_s4));
+creatures.append!(spawn_creature(&w, "rock", 20_s4, 20_s4));
+
+w.add!(creatures.at(0_sz), vel_r, make_vel(3_s4, 1_s4));
+w.add!(creatures.at(1_sz), vel_r, make_vel(1_s4, 0_s4));
+w.tag!(creatures.at(0_sz), :fast);
+
+os.println("before:");
+report(&w, creatures.view);
+
+# One integration step: mutate positions through get borrows. (Processor
+# iteration over archetypes arrives with the exec_ctx / scheduler slices.)
+for(let i<size> = 0_sz; i < creatures.length; i += 1_sz)
+{
+	let e<entity> = creatures.at(i);
+
+	if(w.has?(e, vel_r))
+	{
+		let p<pos_r*> = w.get(e, pos_r);
+		let v<vel_r*> = w.get(e, vel_r);
+		p.x += v.dx;
+		p.y += v.dy;
+	}
+}
+
+os.println("after one step:");
+report(&w, creatures.view);
+
+# The rock erodes: its name string is disposed by the world, automatically.
+w.destroy!(creatures.at(2_sz));
+
+os.println("after the rock erodes:");
+report(&w, creatures.view);
+
+# World teardown disposes every surviving name. No manual cleanup anywhere.
+w.dispose;
+creatures.dispose;
+os.println("done.");

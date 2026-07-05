@@ -1,0 +1,131 @@
+package ecs;
+require core.common ~> .;
+require core.array ~> .;
+
+# The entity ledger: index allocation with generation-based stale detection,
+# LIFO index recycling, and the entity -> (archetype index, row) location map
+# the world maintains on transitions. Archetype indices are plain integers
+# here; storage lives in archetype_r.
+#
+# Generation 0 is reserved for invalid/null handles (see entity.glc), so live
+# generations start at 1. destroy! bumps the slot's generation, which stales
+# every outstanding copy of the handle at once; the recycled spawn! reads the
+# bumped value.
+[[:disposable]]
+record entity_registry_r
+{
+	let generations<[u4, :dynamic]>;
+	let entity_archetype<[u4, :dynamic]>;
+	let entity_row<[u4, :dynamic]>;
+	let free_list<[u4, :dynamic]>;
+	let next_index<u4> = 0_u4;
+
+	# Returns the number of live entities.
+	- live_count() -> size
+	{
+		^ (self.next_index ~> u8 ~~> size) - self.free_list.length;
+	}
+
+	# Returns the number of index slots ever allocated (live + recyclable).
+	- slot_count() -> size { ^ self.generations.length; }
+
+	# Allocates an entity: reuses a destroyed index (with its already-bumped
+	# generation) when one is free, otherwise claims a fresh index.
+	- spawn! -> entity
+	{
+		if(self.free_list.length > 0_sz)
+		{
+			let (_<atom>, idx<u4>) = self.free_list.take_last!;
+			^ make_entity(idx, self.generations.at(idx ~> u8 ~~> size));
+		}
+
+		let idx<u4> = self.next_index;
+		self.next_index += 1_u4;
+		self.generations.append!(1_u4);
+		self.entity_archetype.append!(0_u4);
+		self.entity_row.append!(0_u4);
+
+		^ make_entity(idx, 1_u4);
+	}
+
+	# Returns :true when the handle's generation matches the slot's live
+	# generation. Stale, destroyed, never-spawned, and invalid handles all fail.
+	- valid?(e<entity>) -> atom
+	{
+		let idx_sz<size> = index(e) ~> u8 ~~> size;
+
+		if(idx_sz >= self.generations.length)
+		{
+			^ :false;
+		}
+
+		^ self.generations.at(idx_sz) == generation(e);
+	}
+
+	# Destroys a live entity: bumps the slot generation (staling every
+	# outstanding copy of the handle) and recycles the index. Destroying an
+	# invalid or stale handle is a no-op returning :false.
+	- destroy!(e<entity>) -> atom
+	{
+		if(!self.valid?(e))
+		{
+			^ :false;
+		}
+
+		let idx<u4> = index(e);
+		let idx_sz<size> = idx ~> u8 ~~> size;
+		let next_gen<u4> = self.generations.at(idx_sz) + 1_u4;
+
+		# Generation 0 is the reserved invalid generation - skip it on wrap.
+		if(next_gen == 0_u4)
+		{
+			next_gen = 1_u4;
+		}
+
+		self.generations[idx_sz] = next_gen;
+		self.entity_archetype[idx_sz] = 0_u4;
+		self.entity_row[idx_sz] = 0_u4;
+		self.free_list.append!(idx);
+
+		^ :true;
+	}
+
+	# Records where an entity's data lives. Precondition: valid?(e) - the world
+	# maintains this on every transition and swap-remove.
+	- set_location!(e<entity>, archetype_index<u4>, row<u4>) -> ()
+	{
+		let idx_sz<size> = index(e) ~> u8 ~~> size;
+		self.entity_archetype[idx_sz] = archetype_index;
+		self.entity_row[idx_sz] = row;
+		^ ();
+	}
+
+	# Returns (archetype index, row). Precondition: valid?(e).
+	- location(e<entity>) -> (u4, u4)
+	{
+		let idx_sz<size> = index(e) ~> u8 ~~> size;
+		^ (self.entity_archetype.at(idx_sz), self.entity_row.at(idx_sz));
+	}
+
+	# Frees the ledger storage and resets state.
+	- dispose -> ()
+	{
+		self.generations.dispose;
+		self.entity_archetype.dispose;
+		self.entity_row.dispose;
+		self.free_list.dispose;
+		self.next_index = 0_u4;
+		^ ();
+	}
+}
+
+# Create an empty entity registry.
+++ make_registry() -> entity_registry_r
+{
+	let result<entity_registry_r>;
+	result.generations = make_array(u4, 0_sz);
+	result.entity_archetype = make_array(u4, 0_sz);
+	result.entity_row = make_array(u4, 0_sz);
+	result.free_list = make_array(u4, 0_sz);
+	^ result;
+}

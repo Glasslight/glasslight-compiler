@@ -1,0 +1,26 @@
+package mem;
+require core.basic ~> .;
+
+# Compare two raw memory ranges byte-by-byte.
++ equals?(lhs<voidptr>, rhs<voidptr>, num_bytes<size>) -> atom
+{
+	let l<u1*> = lhs ~~> u1*;
+	let r<u1*> = rhs ~~> u1*;
+
+	for(let i<size> = 0_sz; i < num_bytes; i += 1_sz)
+	{
+		if(*(l + i) != *(r + i))
+		{
+			^ :false;
+		}
+	}
+
+	^ :true;
+}
+
+# Compare contiguous elements whose semantic equality is byte equality.
++ equals?($t<typeid>, lhs<t*>, rhs<t*>, count<size>) when bytewise_equalable?(t) -> atom
+{
+	let num_bytes<size> = count * typeinfo(t, :bytes);
+	^ equals?(lhs ~~> voidptr, rhs ~~> voidptr, num_bytes);
+}

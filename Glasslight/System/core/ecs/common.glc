@@ -1,0 +1,24 @@
+package ecs;
+require core.common ~> .;
+
+# Returns the erased disposer for a type: a context-free (voidptr) -> ()
+# function running the author's dispose, or nil for types with nothing to
+# dispose. Captured at typed call sites (the world's add/register paths) and
+# stored in archetype schema rows; transitions copy rows, so dispose info
+# enters the system at a fragment's first typed touch and flows as data.
++ disposer_of($t<typeid>) when contains_disposable?(t) -> fptr
+{
+	let g<(voidptr) -> ()> = \ (p<voidptr>) -> ()
+	{
+		(p ~~> t*).dispose;
+		^ ();
+	};
+
+	^ g ~> fptr;
+}
+
++ disposer_of($t<typeid>) -> fptr
+{
+	let no_disposer<fptr>;
+	^ no_disposer;
+}

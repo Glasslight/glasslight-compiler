@@ -124,6 +124,7 @@ atomenum type_compare_mode_e
 	:value,		# Compare by the raw value (bitwise equality/ordering).
 	:memory,	# Compare by raw memory representation.
 	:fields,	# Compare field-by-field in declaration order.
+	:view,		# Compare by content through the type's view (equality only).
 	:none		# Explicitly not compare/order.
 }
 

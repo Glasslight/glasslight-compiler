@@ -1,0 +1,20 @@
+package ecs;
+require core.common ~> .;
+
+# Per-fragment schema row. Field order and types up to `name` are a
+# byte-for-byte contract with the compiler's Ecs/ pass reflection emission -
+# coordinate any layout change with that pass.
+#
+# dispose is runtime data, not compiler-emitted: nil for fragments with no
+# cleanup, else a context-free (voidptr) -> () disposer obtained via
+# disposer_of at a typed call site (see common.glc). The compiler's reflection
+# rows leave it nil (reserved); the world fills it at a fragment's first typed
+# touch, and archetype transitions copy it along with the row.
+record fragment_info_r
+{
+	let tid<typeid>;
+	let size<size> = 0_sz;
+	let align<size> = 0_sz;
+	let name<[c1, ()]>;
+	let dispose<fptr>;
+}

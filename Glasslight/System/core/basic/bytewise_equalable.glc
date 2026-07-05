@@ -1,0 +1,12 @@
+package basic;
+
+# Return true if semantic equality for this type is raw byte equality.
++ bytewise_equalable?($t<typeid>) when integer?(t) -> atom { ^ :true; }
++ bytewise_equalable?($t<typeid>) when entity?(t) -> atom { ^ :true; }
++ bytewise_equalable?($t<typeid>) when atomenum?(t) -> atom { ^ :true; }
++ bytewise_equalable?($t<typeid>) when typeinfo(t, :kind) == :enum -> atom { ^ :true; }
++ bytewise_equalable?($t<typeid>) when typeinfo(t, :kind) == :pointer -> atom { ^ :true; }
++ bytewise_equalable?($t<typeid>) when typeinfo(t, :kind) == :voidptr -> atom { ^ :true; }
++ bytewise_equalable?($t<typeid>) when typeinfo(t, :kind) == :fptr -> atom { ^ :true; }
++ bytewise_equalable?($t<typeid>) when typeid?(t) -> atom { ^ :true; }
++ bytewise_equalable?($t<typeid>) -> atom { ^ :false; }

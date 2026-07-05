@@ -1,0 +1,287 @@
+package ecs;
+require core.common ~> .;
+require core.array ~> .;
+require core.mem ~> .;
+require core.error ~> error;
+
+# One archetype's storage: type-erased SoA columns, one contiguous buffer per
+# fragment type, plus the entity handle per row. Row i across all columns +
+# entities[i] is one entity. Archetype identity/composition, tags, and lookup
+# are the world's job; this table only stores.
+#
+# Ownership: the table owns its rows. Dying cells (swap_remove!/dispose) are
+# disposed through the schema's fragment_info_r.dispose pointers; relocation
+# (grow!, the swapped-in survivor, cross-table cell copies) moves bytes and
+# never disposes - ownership moves with the bytes.
+#
+# Row buffers are lazy: make_archetype allocates only the column metadata;
+# the buffers materialize on the first grow! (first reserve_row!). Archetypes
+# that never receive a row cost nothing beyond the metadata.
+[[:disposable]]
+record archetype_r
+{
+	let infos<[fragment_info_r, :dynamic]>;
+	let columns<[voidptr, :dynamic]>;
+	let disposable_cols<[size, :dynamic]>;
+	let entities<voidptr> = nil;
+	let count<size> = 0_sz;
+	let capacity<size> = 0_sz;
+	let alloc<allocator_r>;
+	let alloc_initialized<atom> = :false;
+
+	# Returns the number of live rows.
+	- length() -> size { ^ self.count; }
+
+	# Returns the number of fragment columns.
+	- column_count() -> size { ^ self.infos.length; }
+
+	# Returns :true when the archetype has a column for the fragment typeid.
+	- has_index?(tid<typeid>) -> atom
+	{
+		for(let i<size> = 0_sz; i < self.infos.length; i += 1_sz)
+		{
+			if(self.infos.at(i).tid == tid)
+			{
+				^ :true;
+			}
+		}
+
+		^ :false;
+	}
+
+	# Returns the column index for a fragment typeid. Unknown typeids are a
+	# caller bug and abort; use has_index? for the explicit membership check.
+	- column_index(tid<typeid>) -> size
+	{
+		for(let i<size> = 0_sz; i < self.infos.length; i += 1_sz)
+		{
+			if(self.infos.at(i).tid == tid)
+			{
+				^ i;
+			}
+		}
+
+		error.runtime_error("archetype_r.column_index: unknown fragment typeid");
+		^ 0_sz;
+	}
+
+	# Returns the raw base pointer of a fragment column.
+	- column_base(tid<typeid>) -> voidptr
+	{
+		^ self.columns.at(self.column_index(tid));
+	}
+
+	# Address of one cell by column index.
+	- cell_ptr_at(col<size>, row<size>) -> voidptr
+	{
+		let info<fragment_info_r> = self.infos.at(col);
+		let base<u1*> = self.columns.at(col) ~~> u1*;
+		^ (base + (row * info.size)) ~~> voidptr;
+	}
+
+	# Address of one cell: for reads, and as the src when copying a cell from
+	# another table (b.write_cell(tid, new_row, a.cell_ptr(tid, old_row))).
+	- cell_ptr(tid<typeid>, row<size>) -> voidptr
+	{
+		^ self.cell_ptr_at(self.column_index(tid), row);
+	}
+
+	# Copies one fragment value into a cell. Pure byte transfer: the table
+	# becomes the owner; the source is dead bytes afterwards.
+	- write_cell(tid<typeid>, row<size>, src<voidptr>) -> ()
+	{
+		let col<size> = self.column_index(tid);
+		let info<fragment_info_r> = self.infos.at(col);
+		__glc_mem_copy(self.cell_ptr_at(col, row), src, info.size);
+		^ ();
+	}
+
+	# Writes the entity handle of a row.
+	- write_entity(row<size>, e<entity>) -> ()
+	{
+		*((self.entities ~~> entity*) + row) = e;
+		^ ();
+	}
+
+	# Returns the entity handle of a row.
+	- entity_at(row<size>) -> entity
+	{
+		^ *((self.entities ~~> entity*) + row);
+	}
+
+	# Claims the next row, growing storage if needed. Cells are raw until
+	# written - the caller writes each cell (and the entity) separately.
+	- reserve_row! -> size
+	{
+		if(self.count == self.capacity)
+		{
+			self.grow!;
+		}
+
+		let row<size> = self.count;
+		self.count += 1_sz;
+		^ row;
+	}
+
+	# First grow allocates at capacity 8, then doubles. Every column and the
+	# entities buffer relocate by memcpy - relocation never disposes.
+	- grow! -> ()
+	{
+		let new_cap<size> = 8_sz;
+
+		if(self.capacity > 0_sz)
+		{
+			new_cap = self.capacity * 2_sz;
+		}
+
+		for(let i<size> = 0_sz; i < self.infos.length; i += 1_sz)
+		{
+			let info<fragment_info_r> = self.infos.at(i);
+			let new_buffer<voidptr> = allocator_alloc_aligned(self.alloc, info.size * new_cap, info.align);
+
+			if(nil?(new_buffer))
+			{
+				error.runtime_error("archetype_r.grow!: out of memory");
+			}
+
+			let old_buffer<voidptr> = self.columns.at(i);
+
+			if(!nil?(old_buffer))
+			{
+				__glc_mem_copy(new_buffer, old_buffer, info.size * self.count);
+				allocator_free(self.alloc, old_buffer);
+			}
+
+			self.columns[i] = new_buffer;
+		}
+
+		let entity_bytes<size> = typeinfo(entity, :bytes);
+		let new_entities<voidptr> = allocator_alloc_aligned(self.alloc, entity_bytes * new_cap, typeinfo(entity, :alignment));
+
+		if(nil?(new_entities))
+		{
+			error.runtime_error("archetype_r.grow!: out of memory");
+		}
+
+		if(!nil?(self.entities))
+		{
+			__glc_mem_copy(new_entities, self.entities, entity_bytes * self.count);
+			allocator_free(self.alloc, self.entities);
+		}
+
+		self.entities = new_entities;
+		self.capacity = new_cap;
+
+		^ ();
+	}
+
+	# Disposes the dying row's cells in each disposable column.
+	- dispose_row_cells(row<size>) -> ()
+	{
+		for(let d<size> = 0_sz; d < self.disposable_cols.length; d += 1_sz)
+		{
+			let col<size> = self.disposable_cols.at(d);
+			let disposer<fptr> = self.infos.at(col).dispose;
+			(disposer ~> (voidptr) -> ())(self.cell_ptr_at(col, row));
+		}
+
+		^ ();
+	}
+
+	# Removes a row whose contents DIED (entity destruction): disposes its cells
+	# first, then removes the slot.
+	- swap_remove!(row<size>) -> ()
+	{
+		self.dispose_row_cells(row);
+		self.swap_remove_no_dispose!(row);
+		^ ();
+	}
+
+	# Removes a row whose contents MOVED OUT (archetype transition): the cells
+	# were relocated to another table and ownership went with the bytes, so the
+	# stale duplicates here are removed without disposal. Same slot mechanics as
+	# swap_remove! - memcpy the last row into the slot (the relocated survivor
+	# is NOT disposed), then shrink.
+	- swap_remove_no_dispose!(row<size>) -> ()
+	{
+		let last<size> = self.count - 1_sz;
+
+		if(row != last)
+		{
+			for(let i<size> = 0_sz; i < self.infos.length; i += 1_sz)
+			{
+				let info<fragment_info_r> = self.infos.at(i);
+				__glc_mem_copy(self.cell_ptr_at(i, row), self.cell_ptr_at(i, last), info.size);
+			}
+
+			self.write_entity(row, self.entity_at(last));
+		}
+
+		self.count -= 1_sz;
+		^ ();
+	}
+
+	# Disposes every live cell in the disposable columns, then frees all
+	# storage and resets state.
+	- dispose -> ()
+	{
+		for(let row<size> = 0_sz; row < self.count; row += 1_sz)
+		{
+			self.dispose_row_cells(row);
+		}
+
+		if(self.alloc_initialized)
+		{
+			for(let i<size> = 0_sz; i < self.columns.length; i += 1_sz)
+			{
+				allocator_free(self.alloc, self.columns.at(i));
+			}
+
+			allocator_free(self.alloc, self.entities);
+		}
+
+		self.infos.dispose;
+		self.columns.dispose;
+		self.disposable_cols.dispose;
+
+		self.entities = nil;
+		self.count = 0_sz;
+		self.capacity = 0_sz;
+		self.alloc_initialized = :false;
+
+		let reset_alloc<allocator_r>;
+		self.alloc = reset_alloc;
+
+		^ ();
+	}
+}
+
+# Build a table from a fragment schema. Copies the schema into archetype-owned
+# storage (the caller's view may be transient); row buffers are allocated
+# lazily on first growth. The empty schema (zero fragment columns, entities
+# only) is valid - it is every entity's starting point.
+++ make_archetype(schema<[fragment_info_r, ()]>) -> archetype_r
+{
+	let result<archetype_r>;
+	let n<size> = schema.length();
+
+	result.alloc = ctx.main;
+	result.alloc_initialized = :true;
+	result.infos = make_array(fragment_info_r, n);
+	result.columns = make_array(voidptr, n);
+	result.disposable_cols = make_array(size, 0_sz);
+
+	for(let i<size> = 0_sz; i < n; i += 1_sz)
+	{
+		let info<fragment_info_r> = schema.at(i);
+		result.infos.append!(info);
+		result.columns.append!(nil);
+
+		if(!nil?(info.dispose ~~> voidptr))
+		{
+			result.disposable_cols.append!(i);
+		}
+	}
+
+	^ result;
+}

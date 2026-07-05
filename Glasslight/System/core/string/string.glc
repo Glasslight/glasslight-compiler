@@ -8,7 +8,7 @@ require core.c ~> c;
 require core.error ~> error;
 require core.io ~> io;
 
-[[:serializeable, :hashable, :collection, :viewable, :disposable, (:element, :c1)]]
+[[:serializeable, :hashable, :collection, :viewable, :disposable, (:compare, :view), (:element, :c1)]]
 record string_r
 {
 	let buf<[c1, :dynamic]>;
