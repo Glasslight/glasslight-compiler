@@ -7,7 +7,7 @@ require core.error ~> error;
 require core.io ~> io;
 require core.unicode.utf16 ~> utf16;
 
-[[:serializeable, :collection, :viewable, :disposable, (:compare, :view), (:element, :c2)]]
+[[:serializeable, :collection, :viewable, :disposable, (:index, :replace), (:compare, :view), (:element, :c2)]]
 record wstring_r
 {
 	let buf<[c2, :dynamic]>;
@@ -53,7 +53,7 @@ record wstring_r
 	- subscript(idx<size>) -> c2 { ^ self.buf[idx]; }
 
 	# Sets the element at idx via subscript operator.
-	- subscript(idx<size>, val<c2>) -> ()
+	- subscript_replace(idx<size>, val<c2>) -> ()
 	{
 		self.buf[idx] = val;
 		^ ();

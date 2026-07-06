@@ -3,7 +3,7 @@ require core.basic ~> .;
 require core.basic.limits ~> .;
 require core.mem ~> mem;
 
-[[:viewable]]
+[[:viewable, (:index, :basic)]]
 record view_r<$t<typeid> >
 {
 	let data<t*> = nil;

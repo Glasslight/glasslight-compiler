@@ -171,6 +171,20 @@ package basic;
 + viewable?($t<typeid>) when typeinfo(t, :viewable) -> atom { ^ :true; }
 + viewable?($t<typeid>) -> atom { ^ :false; }
 
+# Return true if type supports value subscripting via [] (any index mode).
++ indexable?($t<typeid>) when typeinfo(t, :index) != :none -> atom { ^ :true; }
++ indexable?($t<typeid>) -> atom { ^ :false; }
+
+# Return true if type supports whole-element replacement via subscript_replace.
++ replaceable?($t<typeid>) when typeinfo(t, :index) == :replace -> atom { ^ :true; }
++ replaceable?($t<typeid>) when typeinfo(t, :index) == :replace_address -> atom { ^ :true; }
++ replaceable?($t<typeid>) -> atom { ^ :false; }
+
+# Return true if type supports element addressing via subscript_address.
++ addressable?($t<typeid>) when typeinfo(t, :index) == :address -> atom { ^ :true; }
++ addressable?($t<typeid>) when typeinfo(t, :index) == :replace_address -> atom { ^ :true; }
++ addressable?($t<typeid>) -> atom { ^ :false; }
+
 # Return true if type is considered to be a collection.
 + collection?($t<typeid>) when typeinfo(t, :collection) -> atom { ^ :true; }
 + collection?($t<typeid>) -> atom { ^ :false; }

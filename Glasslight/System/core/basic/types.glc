@@ -128,6 +128,17 @@ atomenum type_compare_mode_e
 	:none		# Explicitly not compare/order.
 }
 
+# Index mode for the (:index, mode) attribute. Every mode except :none
+# includes value subscripting (a subscript getter).
+atomenum type_index_mode_e
+{
+	:basic,				# Get only: subscript.
+	:replace,			# Get + whole-element replacement: subscript_replace.
+	:address,			# Get + element addressing: subscript_address.
+	:replace_address,	# Get + replacement + addressing.
+	:none				# Explicitly not indexable (same as no attribute).
+}
+
 # Comparison result atomenum for lexicographic ordering.
 atomenum compare_result_e
 {
@@ -218,6 +229,7 @@ atomenum typeinfo_key_e
 	:fragment,			# ECS fragment record marker (atom).
 	:hashable,			# Supports hash metadata (atom).
 	:immutable,			# Const-only type (atom).
+	:index,				# Index mode (type_index_mode_e).
 	:integral,			# Is an integer type (atom).
 	:kind,				# Type kind classification (typekind_e).
 	:length,			# Compile-time element count or string-literal length (size).

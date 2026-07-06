@@ -5,7 +5,7 @@ require core.allocator ~> .;
 require core.mem ~> .;
 require core.error ~> error;
 
-[[:collection, :viewable, :disposable]]
+[[:collection, :viewable, :disposable, (:index, :replace)]]
 record dynamic_array_r<$t<typeid> >
 {
 	let data<t*> = nil;
@@ -29,7 +29,7 @@ record dynamic_array_r<$t<typeid> >
 	- subscript(idx<size>) -> t { ^ *(self.data + idx); }
 
 	# Sets the element at idx via subscript operator. Disposes the displaced element.
-	- subscript(idx<size>, val<t>) -> ()
+	- subscript_replace(idx<size>, val<t>) -> ()
 	{
 		constif(contains_disposable?(t))
 		{
