@@ -462,6 +462,11 @@ record string_r
 	# Create an unsized string view from this string.
 	- view -> [c1, ()] { ^ self.buf.view; }
 
+	# Create an unsized mutable byte view over the string contents. Writes
+	# through the view are raw stores; the length cannot change through it.
+	# Invalidated by growth or dispose, like view.
+	- mut_view -> [c1, (), :mut] { ^ self.buf.mut_view; }
+
 	# Return a cstring pointer to the null-terminated buffer.
 	- to_cstring -> [c1, :c] { ^ self.data() ~~> cstring; }
 

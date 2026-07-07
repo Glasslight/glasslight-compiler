@@ -78,4 +78,17 @@ typemix static_array
 	{
 		^ make_view(t, n, self.data());
 	}
+
+	# Create an unsized mutable view from a static array. Writes through the
+	# view are raw stores that do NOT dispose displaced disposable elements.
+	- mut_view($t<typeid>, $n<size>) -> [t, (), :mut]
+	{
+		^ make_mut_view(t, self.data(), n);
+	}
+
+	# Create a sized mutable view from a static array.
+	- mut_view($t<typeid>, $n<size>) -> [t, (n,), :mut]
+	{
+		^ make_mut_view(t, n, self.data());
+	}
 }

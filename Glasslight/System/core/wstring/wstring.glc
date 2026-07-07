@@ -149,6 +149,11 @@ record wstring_r
 	# Create an unsized wide string view from this wide string.
 	- view -> [c2, ()] { ^ self.buf.view; }
 
+	# Create an unsized mutable unit view over the wide string contents.
+	# Writes through the view are raw stores; the length cannot change
+	# through it. Invalidated by growth or dispose, like view.
+	- mut_view -> [c2, (), :mut] { ^ self.buf.mut_view; }
+
 	# Return a wcstring pointer to the null-terminated buffer.
 	- to_wcstring -> [c2, :c] { ^ self.data() ~~> wcstring; }
 

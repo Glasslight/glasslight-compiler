@@ -1,0 +1,70 @@
+package view;
+require core.basic ~> .;
+
+# Non-owning mutable window with a compile-time length. Writes are raw
+# stores through the addressor - the owning container is the only party with
+# standing to run element lifecycle logic, so there is no subscript_replace
+# and a displaced disposable element is NOT disposed by the view.
+[[:viewable, (:index, :address)]]
+record mut_view_r<$t<typeid>, $n<size> >
+{
+	let data<t*> = nil;
+
+	# Returns the read-only view over the same data.
+	- view -> [t, ()] { ^ make_view(t, self.data, n); }
+
+	# Returns the unsized mutable view over the same data.
+	- mut_view -> [t, (), :mut] { ^ make_mut_view(self.data, n); }
+
+	# Returns the compile-time length of the view.
+	- length -> size { ^ n; }
+
+	# Returns the value at the requested index.
+	- at(idx<size>) -> t { ^ *(self.data + idx); }
+
+	# Returns the value at the requested index via subscript syntax.
+	- subscript(idx<size>) -> t { ^ *(self.data + idx); }
+
+	# Returns the address of the element at the requested index.
+	- subscript_address(idx<size>) -> t* { ^ self.data + idx; }
+
+	# Returns the start pointer for the viewed data.
+	- data() -> t* { ^ self.data; }
+
+	# Returns whether the given index is within bounds.
+	- valid_index?(idx<size>) when idx < n -> atom { ^ :true; }
+	- valid_index?(idx<size>) -> atom { ^ :false; }
+
+	# Sized views are never empty.
+	- empty? -> atom { ^ :false; }
+
+	# Return a mutable sub-view starting at start with length count.
+	- slice(start<size>, count<size>) -> (atom, [t, (), :mut]) { ^ self.mut_view.slice(start, count); }
+
+	# Alias for slice.
+	- mid(start<size>, count<size>) -> (atom, [t, (), :mut]) { ^ self.mut_view.mid(start, count); }
+
+	# Return a mutable sub-view from start to the end.
+	- mid(start<size>) -> (atom, [t, (), :mut]) { ^ self.mut_view.mid(start); }
+
+	# Return the first count elements as a mutable sub-view.
+	- left(count<size>) -> (atom, [t, (), :mut]) { ^ self.mut_view.left(count); }
+
+	# Return the last count elements as a mutable sub-view.
+	- right(count<size>) -> (atom, [t, (), :mut]) { ^ self.mut_view.right(count); }
+
+	# Drop first count elements, return the rest as a mutable sub-view.
+	- left_chop(count<size>) -> (atom, [t, (), :mut]) { ^ self.mut_view.left_chop(count); }
+
+	# Drop last count elements, return the rest as a mutable sub-view.
+	- right_chop(count<size>) -> (atom, [t, (), :mut]) { ^ self.mut_view.right_chop(count); }
+}
+
+# Creates a sized mutable view from a pointer.
++ make_mut_view($t<typeid>, $n<size>, ptr<t*>) -> [t, (n,), :mut]
+{
+	let result<[t, (n,), :mut]>;
+	result.data = ptr;
+
+	^ result;
+}

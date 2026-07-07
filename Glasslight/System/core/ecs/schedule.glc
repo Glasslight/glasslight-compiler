@@ -1,0 +1,21 @@
+package ecs;
+require core.common ~> .;
+
+# The resolved schedule ABI (compiler-emitted, consumed by the tick). Inert
+# definitions in this slice: they fix the byte-for-byte layout target for the
+# future __glc_ecs_schedule() emission, the same role fragment_info_r plays
+# for __glc_ecs_fragments().
+
+# One ordered stage: processors within a stage may run concurrently; the
+# phase typeid marks the command-buffer flush boundary.
+record stage_r
+{
+	let phase<typeid>;
+	let procs<[u4, ()]>;
+}
+
+# The full resolved order: stages run in sequence.
+record schedule_r
+{
+	let stages<[stage_r, ()]>;
+}

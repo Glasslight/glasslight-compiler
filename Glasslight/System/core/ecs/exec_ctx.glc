@@ -1,0 +1,43 @@
+package ecs;
+require core.common ~> .;
+
+# The per-chunk execution context handed to a processor body, by value. A
+# chunk is one archetype's live rows; the entities view's length is the row
+# count. The ctx and every view it hands out are BORROWS into the archetype -
+# invalidated by any structural change (bodies do not structurally mutate;
+# deferred commands are a later slice).
+record exec_ctx_r
+{
+	let dt<f4> = 0.0_f4;
+	let entities<[entity, ()]>;
+	let arch<archetype_r*> = nil;
+
+	# Returns the chunk's row count.
+	- length() -> size { ^ self.entities.length(); }
+
+	# Read-only view over one fragment column's live rows.
+	- read($t<typeid>) when fragment?(t) -> [t, ()]
+	{
+		^ make_view(t, self.arch.column_base(t) ~~> t*, self.arch.length());
+	}
+
+	# Mutable view over one fragment column's live rows: subscripts are
+	# lvalues (writes are raw stores; the archetype owns element lifecycle).
+	- write($t<typeid>) when fragment?(t) -> [t, (), :mut]
+	{
+		^ make_mut_view(t, self.arch.column_base(t) ~~> t*, self.arch.length());
+	}
+}
+
+# Stub chunk driver: builds the ctx for one archetype and invokes the body
+# once. Query matching, the schedule walk, and comptime processor dispatch
+# arrive with the compiler emission slices - this is the hand-driven path.
+++ run_chunk(arch<archetype_r*>, dt<f4>, body<(exec_ctx_r) -> ()>) -> ()
+{
+	let ctx<exec_ctx_r>;
+	ctx.dt = dt;
+	ctx.arch = arch;
+	ctx.entities = make_view(entity, arch.entities ~~> entity*, arch.length());
+	body(ctx);
+	^ ();
+}

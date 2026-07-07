@@ -95,8 +95,16 @@ package basic;
 + view_unsized?($t<typeid>) when typeinfo(t, :kind) == :view_unsized -> atom { ^ :true; }
 + view_unsized?($t<typeid>) -> atom { ^ :false; }
 
+# Return true if the type is an unsized mutable view.
++ view_unsized_mut?($t<typeid>) when typeinfo(t, :kind) == :view_unsized_mut -> atom { ^ :true; }
++ view_unsized_mut?($t<typeid>) -> atom { ^ :false; }
+
+# Return true if the type is a sized mutable view.
++ view_sized_mut?($t<typeid>) when typeinfo(t, :kind) == :view_sized_mut -> atom { ^ :true; }
++ view_sized_mut?($t<typeid>) -> atom { ^ :false; }
+
 # Return true if the type is a view.
-+ view?($t<typeid>) when view_sized?(t) || view_unsized?(t) -> atom { ^ :true; }
++ view?($t<typeid>) when view_sized?(t) || view_unsized?(t) || view_unsized_mut?(t) || view_sized_mut?(t) -> atom { ^ :true; }
 + view?($t<typeid>) -> atom { ^ :false; }
 
 # Return true if the type is a string.

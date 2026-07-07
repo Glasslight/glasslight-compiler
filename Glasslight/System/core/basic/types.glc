@@ -112,6 +112,12 @@ package basic;
 # Base type for sized array views — [T, (N_sz,)] resolves to view_r<T, N>.
 [[(:kind, :view_sized), (:record, :view_r)]] typecreate _;
 
+# Base type for unsized mutable array views — [T, (), :mut] resolves to mut_view_r<T>.
+[[(:kind, :view_unsized_mut), (:record, :mut_view_r)]] typecreate _;
+
+# Base type for sized mutable array views — [T, (N_sz,), :mut] resolves to mut_view_r<T, N>.
+[[(:kind, :view_sized_mut), (:record, :mut_view_r)]] typecreate _;
+
 # Base type for strings — [c1] resolves to string_r.
 [[(:kind, :string), (:record, :string_r)]] typecreate _;
 
@@ -201,6 +207,8 @@ atomenum typekind_e
 	:stack,
 	:view_unsized,
 	:view_sized,
+	:view_unsized_mut,
+	:view_sized_mut,
 	:cstring,
 	:wcstring,
 	:strlit,
