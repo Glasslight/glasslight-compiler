@@ -1,0 +1,78 @@
+package ecs;
+require core.common ~> .;
+
+# True when every fragment the processor reads or writes is a column of the
+# archetype. Tag require/exclude matching arrives with the typed-tag
+# matching slice - today's queries carry empty tag lists.
++ query_matches?(arch<archetype_r*>, info<processor_info_r>) -> atom
+{
+	for(let i<size> = 0_sz; i < info.reads.length(); i += 1_sz)
+	{
+		if(!arch.has_index?(info.reads.at(i)))
+		{
+			^ :false;
+		}
+	}
+
+	for(let i<size> = 0_sz; i < info.writes.length(); i += 1_sz)
+	{
+		if(!arch.has_index?(info.writes.at(i)))
+		{
+			^ :false;
+		}
+	}
+
+	^ :true;
+}
+
+# The single-threaded tick: walks the emitted schedule stage by stage, and
+# for each processor matches its emitted query against the world's
+# archetypes, builds the per-chunk context, and dispatches to the
+# processor's per-world instance. Consumes only emitted data plus the
+# dispatch seam - no per-program knowledge.
+#
+# Within a stage, processors run sequentially in stage order; a stage's
+# processors are conflict-free by construction, so the order is
+# unobservable (running them concurrently is a later slice). A phase change
+# between stages is the band boundary where deferred structural commands
+# will flush once command buffers exist. Until then, execute bodies must
+# not structurally change the world (spawn/despawn/add!/remove!): the
+# chunk's views are borrows into the archetype.
+#
+# With no processors, or under --no-ecs, the schedule is empty and the
+# tick is a no-op.
+++ tick(w<world_r*>, dt<f4>) -> ()
+{
+	let sched<schedule_r> = schedule();
+	let procs<[processor_info_r, ()]> = processors();
+
+	for(let si<size> = 0_sz; si < sched.stages.length(); si += 1_sz)
+	{
+		let stage<stage_r> = sched.stages.at(si);
+
+		for(let pi<size> = 0_sz; pi < stage.procs.length(); pi += 1_sz)
+		{
+			let index<u4> = stage.procs.at(pi);
+			let info<processor_info_r> = procs.at(index ~> u8 ~~> size);
+
+			for(let ai<size> = 0_sz; ai < w.archetype_count; ai += 1_sz)
+			{
+				let arch<archetype_r*> = w.arch_at(ai ~~> u8 ~> u4);
+
+				if(arch.empty? || !query_matches?(arch, info))
+				{
+					next;
+				}
+
+				let chunk<exec_ctx_r>;
+				chunk.dt = dt;
+				chunk.arch = arch;
+				chunk.entities = make_view(entity, arch.entities ~~> entity*, arch.length);
+				chunk.ctx = ctx;
+				dispatch(w, index, chunk);
+			}
+		}
+	}
+
+	^ ();
+}

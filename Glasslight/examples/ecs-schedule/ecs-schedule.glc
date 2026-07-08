@@ -1,26 +1,17 @@
 package main;
 require core.common ~> .;
-require core.array ~> .;
 require core.string ~> .;
+require core.context ~> .;
 require core.format ~> fmt;
 require core.os.print ~> os;
 require core.ecs ~> ecs;
 
-# A declarative ECS program driven by the compiler-emitted tables.
-#
-# The compiler validates the phase/processor graph at compile time (cycles,
-# missing phases, cross-phase edges are all errors) and emits three constant
-# tables; tick() below is a hand-written miniature of the future runtime
-# tick, consuming them as plain data:
-#
-#   ecs.schedule()   - stages in execution order (parallel-eligible groups)
-#   ecs.processors() - each processor's query (reads/writes)
-#   world archetypes - matched against the query, then run as chunks
-#
-# The one placeholder is dispatch(): a manual typeid match that the future
-# compiler slice replaces with comptime index -> execute dispatch. When the
-# real tick lands, this whole file reduces to the declarations plus a
-# single tick call.
+# A declarative ECS program driven entirely by the compiler and the generic
+# runtime. The compiler validates the phase/processor graph at compile time
+# (cycles, missing phases, cross-phase edges, access conflicts, missing
+# executes are all errors), emits the schedule/query tables, and generates
+# comptime dispatch to each processor's execute. ecs.tick() consumes all of
+# it as plain data: this file is declarations plus tick calls.
 
 [[:fragment]]
 record pos_r
@@ -57,14 +48,26 @@ record render_phase_r
 
 # move and age are unordered with DISJOINT writes: the graph builder puts
 # them in one parallel-eligible stage, and the disjointness is what keeps
-# that legal once unordered write conflicts become a compile error.
+# that legal once execution goes concurrent.
 [[:processor]]
 [[(:ecs_read, vel_r)]]
 [[(:ecs_write, pos_r)]]
 [[(:ecs_phase, simulate_phase_r)]]
 record move_processor_r
 {
-	- execute(ctx<ecs.exec_ctx_r>) -> () { ^ (); }
+	- execute(ctx<ecs.exec_ctx_r>) -> ()
+	{
+		let ps<[pos_r, (), :mut]> = ctx.write(pos_r);
+		let vs<[vel_r, ()]> = ctx.read(vel_r);
+
+		for(let i<size> = 0_sz; i < ctx.length; i += 1_sz)
+		{
+			ps[i].x += vs[i].dx;
+			ps[i].y += vs[i].dy;
+		}
+
+		^ ();
+	}
 }
 
 [[:processor]]
@@ -72,124 +75,42 @@ record move_processor_r
 [[(:ecs_phase, simulate_phase_r)]]
 record age_processor_r
 {
-	- execute(ctx<ecs.exec_ctx_r>) -> () { ^ (); }
+	- execute(ctx<ecs.exec_ctx_r>) -> ()
+	{
+		let ages<[age_r, (), :mut]> = ctx.write(age_r);
+
+		for(let i<size> = 0_sz; i < ctx.length; i += 1_sz)
+		{
+			ages[i].ticks += 1_s4;
+		}
+
+		^ ();
+	}
 }
 
+# Rendering formats, which allocates: the body enters the ticking caller's
+# context by introducing the ctx binding from the chunk (execute itself
+# runs context-free, so its parameter is named chunk to leave the name
+# open).
 [[:processor]]
 [[(:ecs_read, pos_r)]]
 [[(:ecs_phase, render_phase_r)]]
 record draw_processor_r
 {
-	- execute(ctx<ecs.exec_ctx_r>) -> () { ^ (); }
-}
-
-# Does an archetype satisfy a processor's query? Every read and written
-# fragment must be a column. (Tag require/exclude matching rides the tick
-# slice - these queries use none.)
-+ matches?(arch<ecs.archetype_r*>, info<ecs.processor_info_r>) -> atom
-{
-	for(let i<size> = 0_sz; i < info.reads.length(); i += 1_sz)
+	- execute(chunk<ecs.exec_ctx_r>) -> ()
 	{
-		if(!arch.has_index?(info.reads.at(i)))
+		let ctx<context_r> = chunk.ctx;
+		let ps<[pos_r, ()]> = chunk.read(pos_r);
+
+		for(let i<size> = 0_sz; i < chunk.length; i += 1_sz)
 		{
-			^ :false;
+			let line<[c1]> = fmt.format("  entity {} at ({}, {})", (ecs.index(chunk.entities[i]), ps[i].x, ps[i].y));
+			os.println(line);
+			line.dispose;
 		}
+
+		^ ();
 	}
-
-	for(let i<size> = 0_sz; i < info.writes.length(); i += 1_sz)
-	{
-		if(!arch.has_index?(info.writes.at(i)))
-		{
-			^ :false;
-		}
-	}
-
-	^ :true;
-}
-
-# Rendering loops the archetype directly (a named function, since printing
-# needs context that a capture-less chunk lambda does not carry).
-++ draw_chunk(arch<ecs.archetype_r*>) -> ()
-{
-	for(let row<size> = 0_sz; row < arch.length; row += 1_sz)
-	{
-		let e<entity> = arch.entity_at(row);
-		let p<pos_r*> = arch.cell(pos_r, row);
-		let line<[c1]> = fmt.format("  entity {} at ({}, {})", (ecs.index(e), p.x, p.y));
-		os.println(line);
-		line.dispose;
-	}
-
-	^ ();
-}
-
-# The placeholder the compiler will replace: processor typeid -> body.
-++ dispatch(tid<typeid>, arch<ecs.archetype_r*>, dt<f4>) -> ()
-{
-	if(tid == typeof move_processor_r)
-	{
-		ecs.run_chunk(arch, dt, \ (ctx<ecs.exec_ctx_r>) -> ()
-		{
-			let ps<[pos_r, (), :mut]> = ctx.write(pos_r);
-			let vs<[vel_r, ()]> = ctx.read(vel_r);
-
-			for(let i<size> = 0_sz; i < ctx.length; i += 1_sz)
-			{
-				ps[i].x += vs[i].dx;
-				ps[i].y += vs[i].dy;
-			}
-
-			^ ();
-		});
-	}
-	elif(tid == typeof age_processor_r)
-	{
-		ecs.run_chunk(arch, dt, \ (ctx<ecs.exec_ctx_r>) -> ()
-		{
-			let ages<[age_r, (), :mut]> = ctx.write(age_r);
-
-			for(let i<size> = 0_sz; i < ctx.length; i += 1_sz)
-			{
-				ages[i].ticks += 1_s4;
-			}
-
-			^ ();
-		});
-	}
-	elif(tid == typeof draw_processor_r)
-	{
-		draw_chunk(arch);
-	}
-
-	^ ();
-}
-
-# The miniature tick: walk the emitted schedule stage by stage, match each
-# processor's emitted query against the world's archetypes, run the chunks.
-++ tick(w<ecs.world_r*>, dt<f4>) -> ()
-{
-	let sched<ecs.schedule_r> = ecs.schedule();
-	let prs<[ecs.processor_info_r, ()]> = ecs.processors();
-
-	for(let s<size> = 0_sz; s < sched.stages.length(); s += 1_sz)
-	{
-		let stage<ecs.stage_r> = sched.stages.at(s);
-
-		for(let p<size> = 0_sz; p < stage.procs.length(); p += 1_sz)
-		{
-			let info<ecs.processor_info_r> = prs.at(stage.procs.at(p) ~> u8 ~~> size);
-
-			for(let arch<ecs.archetype_r> in w.archetypes.mut_view)
-			{
-				if(!arch.empty? && matches?(&arch, info))
-				{
-					dispatch(info.tid, &arch, dt);
-				}
-			}
-		}
-	}
-
-	^ ();
 }
 
 ++ spawn_mover(w<ecs.world_r*>, x<s4>, y<s4>, dx<s4>, dy<s4>) -> ()
@@ -222,10 +143,10 @@ lp.y = 20_s4;
 w.add!(landmark, pos_r, lp);
 
 os.println("tick 1:");
-tick(&w, 1.0_f4);
+ecs.tick(&w, 1.0_f4);
 
 os.println("tick 2:");
-tick(&w, 1.0_f4);
+ecs.tick(&w, 1.0_f4);
 
 w.dispose;
 os.println("done.");
