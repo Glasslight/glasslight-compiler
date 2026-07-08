@@ -175,6 +175,10 @@ package basic;
 + phase?($t<typeid>) when typeinfo(t, :phase) -> atom { ^ :true; }
 + phase?($t<typeid>) -> atom { ^ :false; }
 
+# Return true if type is an ECS tag record.
++ tag?($t<typeid>) when typeinfo(t, :tag) -> atom { ^ :true; }
++ tag?($t<typeid>) -> atom { ^ :false; }
+
 # Return true if type can produce an unsized view.
 + viewable?($t<typeid>) when typeinfo(t, :viewable) -> atom { ^ :true; }
 + viewable?($t<typeid>) -> atom { ^ :false; }

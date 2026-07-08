@@ -30,10 +30,13 @@ record archetype_r
 	let alloc_initialized<atom> = :false;
 
 	# Returns the number of live rows.
-	- length() -> size { ^ self.count; }
+	- length -> size { ^ self.count; }
+
+	# Returns :true when the archetype has no live rows.
+	- empty? -> atom { ^ self.count == 0_sz; }
 
 	# Returns the number of fragment columns.
-	- column_count() -> size { ^ self.infos.length; }
+	- column_count -> size { ^ self.infos.length; }
 
 	# Returns :true when the archetype has a column for the fragment typeid.
 	- has_index?(tid<typeid>) -> atom
@@ -47,6 +50,13 @@ record archetype_r
 		}
 
 		^ :false;
+	}
+
+	# Bare-type form: arch.has_index?(pos_r).
+	- has_index?($t<typeid>) -> atom
+	{
+		let tid<typeid> = t;
+		^ self.has_index?(tid);
 	}
 
 	# Returns the column index for a fragment typeid. Unknown typeids are a
@@ -84,6 +94,12 @@ record archetype_r
 	- cell_ptr(tid<typeid>, row<size>) -> voidptr
 	{
 		^ self.cell_ptr_at(self.column_index(tid), row);
+	}
+
+	# Typed cell access: arch.cell(pos_r, row).
+	- cell($t<typeid>, row<size>) -> t*
+	{
+		^ self.cell_ptr(t, row) ~~> t*;
 	}
 
 	# Copies one fragment value into a cell. Pure byte transfer: the table

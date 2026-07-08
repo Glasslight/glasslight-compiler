@@ -21,13 +21,13 @@ record entity_registry_r
 	let next_index<u4> = 0_u4;
 
 	# Returns the number of live entities.
-	- live_count() -> size
+	- live_count -> size
 	{
 		^ (self.next_index ~> u8 ~~> size) - self.free_list.length;
 	}
 
 	# Returns the number of index slots ever allocated (live + recyclable).
-	- slot_count() -> size { ^ self.generations.length; }
+	- slot_count -> size { ^ self.generations.length; }
 
 	# Allocates an entity: reuses a destroyed index (with its already-bumped
 	# generation) when one is free, otherwise claims a fresh index.

@@ -35,6 +35,14 @@ record name_r
 	}
 }
 
+# A tag: an empty declared type that is part of archetype identity but
+# occupies no storage. Misspelling a tag is a compile error, not a silent
+# new archetype.
+[[:tag]]
+record fast_tag_r
+{
+}
+
 + make_pos(x<s4>, y<s4>) -> pos_r
 {
 	let p<pos_r>;
@@ -87,6 +95,36 @@ record name_r
 	^ ();
 }
 
+# One integration step, the ECS way: walk the archetypes and run the chunk
+# body over every chunk that has both pos and vel - tight SoA loops through
+# typed views, no per-entity lookups. This function IS the future processor:
+# when the scheduler lands, its body becomes a [[:processor]]'s execute and
+# the walk is driven by the compiler-emitted schedule.
+++ integrate(w<ecs.world_r*>, dt<f4>) -> ()
+{
+	for(let arch<ecs.archetype_r> in w.archetypes.mut_view)
+	{
+		if(!arch.empty? && arch.has_index?(pos_r) && arch.has_index?(vel_r))
+		{
+			ecs.run_chunk(&arch, dt, \ (ctx<ecs.exec_ctx_r>) -> ()
+			{
+				let ps<[pos_r, (), :mut]> = ctx.write(pos_r);
+				let vs<[vel_r, ()]> = ctx.read(vel_r);
+
+				for(let i<size> = 0_sz; i < ctx.length; i += 1_sz)
+				{
+					ps[i].x += vs[i].dx;
+					ps[i].y += vs[i].dy;
+				}
+
+				^ ();
+			});
+		}
+	}
+
+	^ ();
+}
+
 let w<ecs.world_r> = ecs.make_world();
 let creatures<[entity, :dynamic]> = make_array(entity, 3_sz);
 
@@ -97,36 +135,12 @@ creatures.append!(spawn_creature(&w, "rock", 20_s4, 20_s4));
 
 w.add!(creatures.at(0_sz), vel_r, make_vel(3_s4, 1_s4));
 w.add!(creatures.at(1_sz), vel_r, make_vel(1_s4, 0_s4));
-w.tag!(creatures.at(0_sz), :fast);
+w.tag!(creatures.at(0_sz), fast_tag_r);
 
 os.println("before:");
 report(&w, creatures.view);
 
-# One integration step, the ECS way: walk the archetypes and run the chunk
-# body over every chunk that has both pos and vel - tight SoA loops through
-# typed views, no per-entity lookups. (The compiler-emitted schedule will
-# drive this walk once processors land; today it is three lines by hand.)
-for(let ai<size> = 0_sz; ai < w.archetypes.length; ai += 1_sz)
-{
-	let arch<ecs.archetype_r*> = w.archetypes.data() + ai;
-
-	if(arch.length() > 0_sz && arch.has_index?(typeof pos_r) && arch.has_index?(typeof vel_r))
-	{
-		ecs.run_chunk(arch, 1.0_f4, \ (ctx<ecs.exec_ctx_r>) -> ()
-		{
-			let ps<[pos_r, (), :mut]> = ctx.write(pos_r);
-			let vs<[vel_r, ()]> = ctx.read(vel_r);
-
-			for(let i<size> = 0_sz; i < ctx.length(); i += 1_sz)
-			{
-				ps[i].x += vs[i].dx;
-				ps[i].y += vs[i].dy;
-			}
-
-			^ ();
-		});
-	}
-}
+integrate(&w, 1.0_f4);
 
 os.println("after one step:");
 report(&w, creatures.view);

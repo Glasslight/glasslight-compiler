@@ -1,0 +1,16 @@
+package ecs;
+
+intrinsic
+{
+	# Compiler-emitted tag table: one typeid per [[:tag]] record in the
+	# program, in registration order. Table position defines the tag's
+	# mask bit index. Empty view when ECS processing is suppressed
+	# (--no-ecs) or the program has no tags.
+	+ __glc_ecs_tags() -> [typeid, ()];
+}
+
+# Package-namespaced wrapper over the tag table intrinsic.
++ tags() -> [typeid, ()]
+{
+	^ __glc_ecs_tags();
+}

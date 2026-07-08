@@ -1,10 +1,9 @@
 package ecs;
 require core.common ~> .;
 
-# The resolved schedule ABI (compiler-emitted, consumed by the tick). Inert
-# definitions in this slice: they fix the byte-for-byte layout target for the
-# future __glc_ecs_schedule() emission, the same role fragment_info_r plays
-# for __glc_ecs_fragments().
+# The resolved schedule ABI (compiler-emitted, consumed by the tick). Field
+# order and types are a byte-for-byte contract with the compiler's schedule
+# emission - coordinate any layout change with that pass.
 
 # One ordered stage: processors within a stage may run concurrently; the
 # phase typeid marks the command-buffer flush boundary.
@@ -18,4 +17,22 @@ record stage_r
 record schedule_r
 {
 	let stages<[stage_r, ()]>;
+}
+
+intrinsic
+{
+	# Compiler-emitted resolved schedule: one stage_r per parallel group, in
+	# execution order. Consecutive stages sharing a phase are one band; a
+	# phase change between stages is the command-buffer flush boundary.
+	# procs are indices into __glc_ecs_processors(). Empty view when ECS
+	# processing is suppressed (--no-ecs) or the program has no processors.
+	+ __glc_ecs_schedule() -> [stage_r, ()];
+}
+
+# Package-namespaced wrapper: the schedule record over the emitted stages.
++ schedule() -> schedule_r
+{
+	let s<schedule_r>;
+	s.stages = __glc_ecs_schedule();
+	^ s;
 }

@@ -1,0 +1,39 @@
+package ecs;
+require core.common ~> .;
+
+# Per-processor query row, one per [[:processor]] record, emitted by the
+# compiler as constant image data. Field order and types are a byte-for-byte
+# contract with the compiler's processor table emission - coordinate any
+# layout change with that pass.
+#
+# The row carries only the QUERY (the matching inputs); there is no execute
+# or state fptr - dispatch is compile-time (see the ECS design doc).
+#
+# requires/excludes are [[:tag]] record typeids. The masks fold the same
+# lists into bits: a tag's bit index is its position in the ecs.tags()
+# table (64-tag program cap). Matching an archetype's tag mask is two ANDs:
+# (mask & required) == required && (mask & excluded) == 0.
+record processor_info_r
+{
+	let tid<typeid>;
+	let reads<[typeid, ()]>;
+	let writes<[typeid, ()]>;
+	let requires<[typeid, ()]>;
+	let excludes<[typeid, ()]>;
+	let required_mask<u8> = 0_u8;
+	let excluded_mask<u8> = 0_u8;
+}
+
+intrinsic
+{
+	# Compiler-emitted processor query table: one row per [[:processor]]
+	# record in the program. Empty view when ECS processing is suppressed
+	# (--no-ecs) or the program has no processors.
+	+ __glc_ecs_processors() -> [processor_info_r, ()];
+}
+
+# Package-namespaced wrapper over the query-table intrinsic.
++ processors() -> [processor_info_r, ()]
+{
+	^ __glc_ecs_processors();
+}

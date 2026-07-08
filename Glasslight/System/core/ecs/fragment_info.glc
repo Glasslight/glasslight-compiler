@@ -18,3 +18,17 @@ record fragment_info_r
 	let name<[c1, ()]>;
 	let dispose<fptr>;
 }
+
+intrinsic
+{
+	# Compiler-emitted fragment reflection table: one row per [[:fragment]]
+	# record in the program, dispose nil (reserved). Empty view when ECS
+	# processing is suppressed (--no-ecs) or the program has no fragments.
+	+ __glc_ecs_fragments() -> [fragment_info_r, ()];
+}
+
+# Package-namespaced wrapper over the reflection intrinsic.
++ fragments() -> [fragment_info_r, ()]
+{
+	^ __glc_ecs_fragments();
+}

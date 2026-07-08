@@ -13,19 +13,19 @@ record exec_ctx_r
 	let arch<archetype_r*> = nil;
 
 	# Returns the chunk's row count.
-	- length() -> size { ^ self.entities.length(); }
+	- length -> size { ^ self.entities.length(); }
 
 	# Read-only view over one fragment column's live rows.
 	- read($t<typeid>) when fragment?(t) -> [t, ()]
 	{
-		^ make_view(t, self.arch.column_base(t) ~~> t*, self.arch.length());
+		^ make_view(t, self.arch.column_base(t) ~~> t*, self.arch.length);
 	}
 
 	# Mutable view over one fragment column's live rows: subscripts are
 	# lvalues (writes are raw stores; the archetype owns element lifecycle).
 	- write($t<typeid>) when fragment?(t) -> [t, (), :mut]
 	{
-		^ make_mut_view(t, self.arch.column_base(t) ~~> t*, self.arch.length());
+		^ make_mut_view(t, self.arch.column_base(t) ~~> t*, self.arch.length);
 	}
 }
 
@@ -37,7 +37,7 @@ record exec_ctx_r
 	let ctx<exec_ctx_r>;
 	ctx.dt = dt;
 	ctx.arch = arch;
-	ctx.entities = make_view(entity, arch.entities ~~> entity*, arch.length());
+	ctx.entities = make_view(entity, arch.entities ~~> entity*, arch.length);
 	body(ctx);
 	^ ();
 }

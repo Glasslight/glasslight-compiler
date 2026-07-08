@@ -1,0 +1,48 @@
+package ecs;
+
+intrinsic
+{
+	# Total byte size and required alignment (max over all processors) of one
+	# world's processor instance block; (0, 1) when the program declares no
+	# processors or ECS processing is suppressed (--no-ecs). Instances are
+	# laid out in registration order, each offset rounded up to its own
+	# type's alignment.
+	+ __glc_ecs_processor_instances_size() -> (size, size);
+
+	# Default-constructs every processor instance into the block (field
+	# defaults run). The block must satisfy the size and alignment reported
+	# by __glc_ecs_processor_instances_size(). No-op when the program has no
+	# processors or ECS processing is suppressed.
+	+ __glc_ecs_init_processors(buf<voidptr>) -> ();
+
+	# Direct-calls '- dispose' on exactly the processors that define one, in
+	# reverse construction order. Processors are a closed compile-time set,
+	# so no function pointers are involved. No-op when there is nothing to
+	# dispose.
+	+ __glc_ecs_dispose_processors(buf<voidptr>) -> ();
+
+	# Comptime dispatch: index is a row index into __glc_ecs_processors()
+	# (the same indices stage_r.procs carries); calls that processor's
+	# '- execute' directly on its instance in the block - a generated
+	# switch, no function pointers. An out-of-range index, or any call when
+	# the program has no processors or ECS processing is suppressed, is a
+	# runtime error.
+	+ __glc_ecs_dispatch(index<u4>, buf<voidptr>, ctx<exec_ctx_r>) -> ();
+}
+
+# Package-namespaced wrapper over the layout intrinsic: the per-world
+# processor instance block's (size, alignment).
++ processor_instances_size -> (size, size)
+{
+	^ __glc_ecs_processor_instances_size();
+}
+
+# Package-namespaced dispatch: calls processor `index`'s '- execute' on this
+# world's instance. index is a row into processors() - the same indices
+# stage_r.procs carries. The init/dispose seams stay internal: the world's
+# lifecycle owns them.
++ dispatch(w<world_r*>, index<u4>, chunk<exec_ctx_r>) -> ()
+{
+	__glc_ecs_dispatch(index, w.processor_instances, chunk);
+	^ ();
+}

@@ -4,14 +4,16 @@ require core.array ~> .;
 require core.string ~> .;
 require core.hashmap ~> .;
 require core.error ~> error;
+require core.mem ~> mem;
 
 # The world: the entity registry + the archetype list + composition lookup.
 # Archetype identity is the sorted fragment typeid set plus the sorted tag
-# atom set; archetype index 0 is always the empty archetype (no fragment
-# columns), where every spawned entity starts. Lookup goes through the
-# composition-key hashmap: the key is the sorted tid bytes, a separator, and
-# the sorted tag atom bytes - exact equality, hashable, and the map owns the
-# inserted keys (pass-2 hashmap semantics).
+# typeid set (tags are [[:tag]] record types); archetype index 0 is always
+# the empty archetype (no fragment columns), where every spawned entity
+# starts. Lookup goes through the composition-key hashmap: the key is the
+# sorted fragment tid bytes, a separator, and the sorted tag tid bytes -
+# exact equality, hashable, and the map owns the inserted keys (pass-2
+# hashmap semantics).
 #
 # Ownership across transitions: cells are byte-copied to the target archetype
 # and the old row is removed WITHOUT disposal (swap_remove_no_dispose!) -
@@ -25,14 +27,20 @@ record world_r
 	let registry<entity_registry_r>;
 	let archetypes<[archetype_r, :dynamic]>;
 	let tids_by_arch<[[typeid, :dynamic], :dynamic]>;
-	let tags_by_arch<[[atom, :dynamic], :dynamic]>;
+	let tags_by_arch<[[typeid, :dynamic], :dynamic]>;
 	let archetype_map<[[c1] => u4]>;
 
+	# Per-world processor instance block: raw allocation and the aligned
+	# base the compiler-emitted seams operate on. Nil when the program has
+	# no processors or ECS processing is suppressed.
+	let processor_instances_raw<voidptr> = nil;
+	let processor_instances<voidptr> = nil;
+
 	# Returns the number of live entities.
-	- live_count() -> size { ^ self.registry.live_count(); }
+	- live_count -> size { ^ self.registry.live_count; }
 
 	# Returns the number of archetypes (including the empty archetype).
-	- archetype_count() -> size { ^ self.archetypes.length; }
+	- archetype_count -> size { ^ self.archetypes.length; }
 
 	# Pointer to an archetype by index. Invalidated when the archetype list
 	# grows - re-take after any find_or_create!.
@@ -53,7 +61,7 @@ record world_r
 	}
 
 	# Canonical composition key: sorted tid bytes, a separator, sorted tag bytes.
-	+ encode_key(tids<[typeid, ()]>, tags<[atom, ()]>) -> [c1]
+	+ encode_key(tids<[typeid, ()]>, tags<[typeid, ()]>) -> [c1]
 	{
 		let key<[c1]> = make_string((tids.length() + tags.length() + 1_sz) * 8_sz);
 
@@ -86,20 +94,6 @@ record world_r
 		^ ();
 	}
 
-	# Inserts a tag keeping the list sorted by raw value.
-	+ sorted_insert_tag(list<[atom, :dynamic]*>, tag<atom>) -> ()
-	{
-		let pos<size> = 0_sz;
-
-		while(pos < list.length && ((list.at(pos) ~~> u8) < (tag ~~> u8)))
-		{
-			pos += 1_sz;
-		}
-
-		list.insert_at!(tag, pos);
-		^ ();
-	}
-
 	# Owned copy of an archetype's sorted tid list, optionally dropping one tid.
 	- copy_tids(ai<u4>) -> [typeid, :dynamic]
 	{
@@ -126,18 +120,18 @@ record world_r
 	}
 
 	# Owned copy of an archetype's sorted tag list, optionally dropping one tag.
-	- copy_tags(ai<u4>) -> [atom, :dynamic]
+	- copy_tags(ai<u4>) -> [typeid, :dynamic]
 	{
-		let src<[atom, :dynamic]*> = self.tags_by_arch.data() + (ai ~> u8 ~~> size);
-		let result<[atom, :dynamic]> = make_array(atom, src.length);
+		let src<[typeid, :dynamic]*> = self.tags_by_arch.data() + (ai ~> u8 ~~> size);
+		let result<[typeid, :dynamic]> = make_array(typeid, src.length);
 		result.append!(src.view);
 		^ result;
 	}
 
-	- copy_tags_without(ai<u4>, dropped<atom>) -> [atom, :dynamic]
+	- copy_tags_without(ai<u4>, dropped<typeid>) -> [typeid, :dynamic]
 	{
-		let src<[atom, :dynamic]*> = self.tags_by_arch.data() + (ai ~> u8 ~~> size);
-		let result<[atom, :dynamic]> = make_array(atom, src.length);
+		let src<[typeid, :dynamic]*> = self.tags_by_arch.data() + (ai ~> u8 ~~> size);
+		let result<[typeid, :dynamic]> = make_array(typeid, src.length);
 
 		for(let i<size> = 0_sz; i < src.length; i += 1_sz)
 		{
@@ -152,7 +146,7 @@ record world_r
 
 	# Finds the archetype for a composition, creating it from the schema when
 	# new. Takes ownership of tids and tags (stored on create, disposed on hit).
-	- find_or_create!(tids<[typeid, :dynamic]>, tags<[atom, :dynamic]>, schema<[fragment_info_r, ()]>) -> u4
+	- find_or_create!(tids<[typeid, :dynamic]>, tags<[typeid, :dynamic]>, schema<[fragment_info_r, ()]>) -> u4
 	{
 		let key<[c1]> = world_r.encode_key(tids.view, tags.view);
 		let (found<atom>, existing<u4>) = self.archetype_map.get(key);
@@ -181,7 +175,7 @@ record world_r
 	{
 		let old<archetype_r*> = self.arch_at(old_ai);
 		let row_sz<size> = old_row ~> u8 ~~> size;
-		let last<size> = old.length() - 1_sz;
+		let last<size> = old.length - 1_sz;
 
 		if(row_sz != last)
 		{
@@ -220,7 +214,7 @@ record world_r
 		let (ai<u4>, row<u4>) = self.registry.location(e);
 		let arch<archetype_r*> = self.arch_at(ai);
 		let row_sz<size> = row ~> u8 ~~> size;
-		let last<size> = arch.length() - 1_sz;
+		let last<size> = arch.length - 1_sz;
 
 		if(row_sz != last)
 		{
@@ -249,15 +243,16 @@ record world_r
 		}
 
 		let (old_ai<u4>, old_row<u4>) = self.registry.location(e);
+		let added_tid<typeid> = t;
 
-		if(self.arch_at(old_ai).has_index?(t))
+		if(self.arch_at(old_ai).has_index?(added_tid))
 		{
 			error.runtime_error("world_r.add!: fragment already present");
 		}
 
 		let tids<[typeid, :dynamic]> = self.copy_tids(old_ai);
 		world_r.sorted_insert_tid(&tids, t);
-		let tags<[atom, :dynamic]> = self.copy_tags(old_ai);
+		let tags<[typeid, :dynamic]> = self.copy_tags(old_ai);
 
 		# Target schema: old rows (carrying their dispose pointers) + the new
 		# fragment's row, in tid order.
@@ -319,8 +314,9 @@ record world_r
 
 		let (old_ai<u4>, old_row<u4>) = self.registry.location(e);
 		let old_row_sz<size> = old_row ~> u8 ~~> size;
+		let removed_tid<typeid> = t;
 
-		if(!self.arch_at(old_ai).has_index?(t))
+		if(!self.arch_at(old_ai).has_index?(removed_tid))
 		{
 			^ :false;
 		}
@@ -331,7 +327,7 @@ record world_r
 		}
 
 		let tids<[typeid, :dynamic]> = self.copy_tids_without(old_ai, t);
-		let tags<[atom, :dynamic]> = self.copy_tags(old_ai);
+		let tags<[typeid, :dynamic]> = self.copy_tags(old_ai);
 
 		let schema<[fragment_info_r, :dynamic]> = make_array(fragment_info_r, tids.length);
 		let old_src<archetype_r*> = self.arch_at(old_ai);
@@ -371,7 +367,7 @@ record world_r
 
 	# Shared tag/untag migration: all fragments copy across; only the tag set
 	# changes. Takes ownership of the new tag list.
-	- retag!(e<entity>, old_ai<u4>, old_row<u4>, tags<[atom, :dynamic]>) -> ()
+	- retag!(e<entity>, old_ai<u4>, old_row<u4>, tags<[typeid, :dynamic]>) -> ()
 	{
 		let tids<[typeid, :dynamic]> = self.copy_tids(old_ai);
 		let target_ai<u4> = self.find_or_create!(tids, tags, self.arch_at(old_ai).infos.view);
@@ -395,41 +391,44 @@ record world_r
 	}
 
 	# Adds a tag (an archetype transition - tags are part of archetype
-	# identity). Tagging an already-tagged entity is a no-op returning :false.
-	- tag!(e<entity>, tag<atom>) -> atom
+	# identity). t must be a [[:tag]] record type. Tagging an already-tagged
+	# entity is a no-op returning :false.
+	- tag!(e<entity>, $t<typeid>) when tag?(t) -> atom
 	{
 		if(!self.registry.valid?(e))
 		{
 			^ :false;
 		}
 
-		if(self.has_tag?(e, tag))
+		if(self.has_tag?(e, t))
 		{
 			^ :false;
 		}
 
+		let tag_tid<typeid> = t;
 		let (old_ai<u4>, old_row<u4>) = self.registry.location(e);
-		let tags<[atom, :dynamic]> = self.copy_tags(old_ai);
-		world_r.sorted_insert_tag(&tags, tag);
+		let tags<[typeid, :dynamic]> = self.copy_tags(old_ai);
+		world_r.sorted_insert_tid(&tags, tag_tid);
 		self.retag!(e, old_ai, old_row, tags);
 		^ :true;
 	}
 
 	# Removes a tag. Untagging an untagged entity is a no-op returning :false.
-	- untag!(e<entity>, tag<atom>) -> atom
+	- untag!(e<entity>, $t<typeid>) when tag?(t) -> atom
 	{
 		if(!self.registry.valid?(e))
 		{
 			^ :false;
 		}
 
-		if(!self.has_tag?(e, tag))
+		if(!self.has_tag?(e, t))
 		{
 			^ :false;
 		}
 
+		let tag_tid<typeid> = t;
 		let (old_ai<u4>, old_row<u4>) = self.registry.location(e);
-		let tags<[atom, :dynamic]> = self.copy_tags_without(old_ai, tag);
+		let tags<[typeid, :dynamic]> = self.copy_tags_without(old_ai, tag_tid);
 		self.retag!(e, old_ai, old_row, tags);
 		^ :true;
 	}
@@ -443,23 +442,25 @@ record world_r
 		}
 
 		let (ai<u4>, _<u4>) = self.registry.location(e);
-		^ self.arch_at(ai).has_index?(t);
+		let tid<typeid> = t;
+		^ self.arch_at(ai).has_index?(tid);
 	}
 
-	# Returns :true when the entity is live and carries the tag.
-	- has_tag?(e<entity>, tag<atom>) -> atom
+	# Returns :true when the entity is live and carries the tag type.
+	- has_tag?(e<entity>, $t<typeid>) when tag?(t) -> atom
 	{
 		if(!self.registry.valid?(e))
 		{
 			^ :false;
 		}
 
+		let tag_tid<typeid> = t;
 		let (ai<u4>, _<u4>) = self.registry.location(e);
-		let tags<[atom, :dynamic]*> = self.tags_by_arch.data() + (ai ~> u8 ~~> size);
+		let tags<[typeid, :dynamic]*> = self.tags_by_arch.data() + (ai ~> u8 ~~> size);
 
 		for(let i<size> = 0_sz; i < tags.length; i += 1_sz)
 		{
-			if(tags.at(i) == tag)
+			if(tags.at(i) == tag_tid)
 			{
 				^ :true;
 			}
@@ -477,10 +478,21 @@ record world_r
 		^ self.arch_at(ai).cell_ptr(t, row ~> u8 ~~> size) ~~> t*;
 	}
 
-	# Tears down everything: each archetype disposes its live cells, the map
-	# disposes its owned keys, the registry frees the ledger.
+	# Tears down everything: processor instances dispose first (they may
+	# reference world data), then each archetype disposes its live cells,
+	# the map disposes its owned keys, the registry frees the ledger.
 	- dispose -> ()
 	{
+		if(!nil?(self.processor_instances))
+		{
+			__glc_ecs_dispose_processors(self.processor_instances);
+		}
+
+		if(!nil?(self.processor_instances_raw))
+		{
+			mem.free(self.processor_instances_raw);
+		}
+
 		self.archetypes.dispose;
 		self.tids_by_arch.dispose;
 		self.tags_by_arch.dispose;
@@ -497,14 +509,37 @@ record world_r
 	result.registry = make_registry();
 	result.archetypes = make_array(archetype_r, 4_sz);
 	result.tids_by_arch = make_array([typeid, :dynamic], 4_sz);
-	result.tags_by_arch = make_array([atom, :dynamic], 4_sz);
+	result.tags_by_arch = make_array([typeid, :dynamic], 4_sz);
 	result.archetype_map = make_hashmap_with_capacity([c1], u4, 8_sz);
 
 	let empty_schema<[fragment_info_r, :dynamic]> = make_array(fragment_info_r, 0_sz);
 	let empty_tids<[typeid, :dynamic]> = make_array(typeid, 0_sz);
-	let empty_tags<[atom, :dynamic]> = make_array(atom, 0_sz);
+	let empty_tags<[typeid, :dynamic]> = make_array(typeid, 0_sz);
 	result.find_or_create!(empty_tids, empty_tags, empty_schema.view);
 	empty_schema.dispose;
+
+	# Processor instances: allocate the compiler-reported block (over-sized
+	# by the alignment so the base can be rounded up manually - mem.alloc
+	# has no alignment parameter), then default-construct every instance.
+	let (isize<size>, ialign<size>) = __glc_ecs_processor_instances_size();
+
+	if(isize > 0_sz)
+	{
+		let raw<voidptr> = mem.alloc(isize + ialign);
+		result.processor_instances_raw = raw;
+
+		let base<u8> = raw ~~> u8;
+		let rem<u8> = base % (ialign ~~> u8);
+		let aligned<u8> = base;
+
+		if(rem != 0_u8)
+		{
+			aligned = base + ((ialign ~~> u8) - rem);
+		}
+
+		result.processor_instances = aligned ~~> voidptr;
+		__glc_ecs_init_processors(result.processor_instances);
+	}
 
 	^ result;
 }
