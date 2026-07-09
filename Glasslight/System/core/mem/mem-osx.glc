@@ -22,3 +22,14 @@ require core.ffi.mem ~> .;
 {
 	^ __glc_mem_realloc(ptr, bytes);
 }
+
++ alloc_aligned(bytes<basic.size>, align<basic.size>) -> basic.voidptr
+{
+	^ __glc_mem_alloc_aligned(bytes, align);
+}
+
++ free_aligned(ptr<basic.voidptr>) -> ()
+{
+	__glc_mem_free_aligned(ptr);
+	^ ();
+}

@@ -14,3 +14,27 @@ intrinsic
 {
 	^ __glc_ecs_tags();
 }
+
+# Folds a tag tid list to its dense bitmask: each tag's bit is its position
+# in the emitted tag table. Tids absent from the table contribute no bit
+# (only possible when the table is suppressed empty under --no-ecs, where
+# nothing consumes masks).
++ tag_mask_of(tag_tids<[typeid, ()]>) -> u8
+{
+	let table<[typeid, ()]> = tags();
+	let mask<u8> = 0_u8;
+
+	for(let i<size> = 0_sz; i < tag_tids.length(); i += 1_sz)
+	{
+		for(let bit<size> = 0_sz; bit < table.length(); bit += 1_sz)
+		{
+			if(table.at(bit) == tag_tids.at(i))
+			{
+				mask = mask | (1_u8 << bit);
+				break;
+			}
+		}
+	}
+
+	^ mask;
+}

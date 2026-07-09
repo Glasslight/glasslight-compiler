@@ -6,6 +6,12 @@ require core.format ~> fmt;
 require core.os.print ~> os;
 require core.ecs ~> ecs;
 
+# The intro ECS example, fully declarative: fragments and a tag describe
+# the data, processors declare their queries and ordering, and the program
+# is spawns plus ecs.tick calls. The compiler validates the graph at
+# compile time, emits the schedule and query tables, and generates the
+# dispatch; the generic runtime consumes them as plain data.
+
 # Plain-data fragments: no lifecycle, no dispose, zero overhead.
 [[:fragment]]
 record pos_r
@@ -37,10 +43,65 @@ record name_r
 
 # A tag: an empty declared type that is part of archetype identity but
 # occupies no storage. Misspelling a tag is a compile error, not a silent
-# new archetype.
+# new archetype - and processor queries match on it below.
 [[:tag]]
 record fast_tag_r
 {
+}
+
+[[:phase]]
+record step_phase_r
+{
+}
+
+# The integration step as a processor: the query (read vel, write pos) is
+# declared, matching archetypes arrive as chunks, and the body is a tight
+# SoA loop through typed views - no per-entity lookups.
+[[:processor]]
+[[(:ecs_read, vel_r)]]
+[[(:ecs_write, pos_r)]]
+[[(:ecs_phase, step_phase_r)]]
+record move_processor_r
+{
+	- execute(ectx<ecs.exec_ctx_r>) -> ()
+	{
+		let ps<[pos_r, (), :mut]> = ectx.write(pos_r);
+		let vs<[vel_r, ()]> = ectx.read(vel_r);
+
+		for(let i<size> = 0_sz; i < ectx.length; i += 1_sz)
+		{
+			ps[i].x += vs[i].dx;
+			ps[i].y += vs[i].dy;
+		}
+
+		^ ();
+	}
+}
+
+# Tag matching: fast creatures take a second step each tick. The require
+# means this processor only ever sees archetypes carrying fast_tag_r - the
+# untagged never pay for a check.
+[[:processor]]
+[[(:ecs_read, vel_r)]]
+[[(:ecs_write, pos_r)]]
+[[(:ecs_require, fast_tag_r)]]
+[[(:ecs_after, move_processor_r)]]
+[[(:ecs_phase, step_phase_r)]]
+record sprint_processor_r
+{
+	- execute(ectx<ecs.exec_ctx_r>) -> ()
+	{
+		let ps<[pos_r, (), :mut]> = ectx.write(pos_r);
+		let vs<[vel_r, ()]> = ectx.read(vel_r);
+
+		for(let i<size> = 0_sz; i < ectx.length; i += 1_sz)
+		{
+			ps[i].x += vs[i].dx;
+			ps[i].y += vs[i].dy;
+		}
+
+		^ ();
+	}
 }
 
 + make_pos(x<s4>, y<s4>) -> pos_r
@@ -74,6 +135,8 @@ record fast_tag_r
 	^ e;
 }
 
+# Reporting stays a plain function: it follows entity handles across
+# archetypes, which is direct-access work, not a chunked query.
 ++ report(w<ecs.world_r*>, creatures<[entity, ()]>) -> ()
 {
 	for(let i<size> = 0_sz; i < creatures.length(); i += 1_sz)
@@ -95,40 +158,10 @@ record fast_tag_r
 	^ ();
 }
 
-# One integration step, the ECS way: walk the archetypes and run the chunk
-# body over every chunk that has both pos and vel - tight SoA loops through
-# typed views, no per-entity lookups. This function IS the future processor:
-# when the scheduler lands, its body becomes a [[:processor]]'s execute and
-# the walk is driven by the compiler-emitted schedule.
-++ integrate(w<ecs.world_r*>, dt<f4>) -> ()
-{
-	for(let arch<ecs.archetype_r> in w.archetypes.mut_view)
-	{
-		if(!arch.empty? && arch.has_index?(pos_r) && arch.has_index?(vel_r))
-		{
-			ecs.run_chunk(&arch, dt, \ (ctx<ecs.exec_ctx_r>) -> ()
-			{
-				let ps<[pos_r, (), :mut]> = ctx.write(pos_r);
-				let vs<[vel_r, ()]> = ctx.read(vel_r);
-
-				for(let i<size> = 0_sz; i < ctx.length; i += 1_sz)
-				{
-					ps[i].x += vs[i].dx;
-					ps[i].y += vs[i].dy;
-				}
-
-				^ ();
-			});
-		}
-	}
-
-	^ ();
-}
-
 let w<ecs.world_r> = ecs.make_world();
 let creatures<[entity, :dynamic]> = make_array(entity, 3_sz);
 
-# Three creatures; two can move; one is tagged.
+# Three creatures; two can move; the rabbit is fast - it sprints.
 creatures.append!(spawn_creature(&w, "rabbit", 0_s4, 0_s4));
 creatures.append!(spawn_creature(&w, "turtle", 10_s4, 5_s4));
 creatures.append!(spawn_creature(&w, "rock", 20_s4, 20_s4));
@@ -140,9 +173,9 @@ w.tag!(creatures.at(0_sz), fast_tag_r);
 os.println("before:");
 report(&w, creatures.view);
 
-integrate(&w, 1.0_f4);
+ecs.tick(&w, 1.0_f4);
 
-os.println("after one step:");
+os.println("after one tick:");
 report(&w, creatures.view);
 
 # The rock erodes: its name string is disposed by the world, automatically.
@@ -151,7 +184,8 @@ w.destroy!(creatures.at(2_sz));
 os.println("after the rock erodes:");
 report(&w, creatures.view);
 
-# World teardown disposes every surviving name. No manual cleanup anywhere.
+# World teardown disposes every surviving name - and the processor
+# instances. No manual cleanup anywhere.
 w.dispose;
 creatures.dispose;
 os.println("done.");

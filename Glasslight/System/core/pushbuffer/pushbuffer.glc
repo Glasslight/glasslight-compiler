@@ -1,0 +1,308 @@
+package pushbuffer;
+require core.common ~> .;
+require core.mem ~> .;
+require core.error ~> error;
+
+# A push buffer: a single-writer, single-consumer stream of tagged records
+# over one contiguous growable region. Producers append {tag, payload};
+# the consumer replays front-to-back in record order (FIFO is the stream
+# order). The container never interprets tags or payloads - vocabulary and
+# replay belong to the domain - with one exception: the reserved :call tag
+# (see drain) whose payload the container itself knows how to execute.
+#
+# Concurrency model: the buffer never synchronizes. Parallel producers each
+# get their own buffer; a coordinator replays them in a canonical order.
+#
+# Growth moves memory, which is safe because recording and replay never
+# interleave: payload pointers are only handed out by advance!/drain, after
+# recording is done. The base is 16-byte aligned; payloads requiring more
+# than 16-byte alignment are not supported.
+#
+# Ownership: a typed push! is a birth site - the buffer owns the recorded
+# value (disposer captured) until the consumer advances past it, at which
+# point the bytes belong to the consumer (move semantics; the buffer never
+# disposes consumed records). reset! and dispose run the disposers of the
+# unconsumed tail only.
+[[:disposable]]
+record push_buffer_r
+{
+	let data<voidptr> = nil;
+	let capacity<size> = 0_sz;
+	let write<size> = 0_sz;
+	let read<size> = 0_sz;
+	let records<size> = 0_sz;
+	let alloc<allocator_r>;
+
+	# Current record, valid after advance! returns :true.
+	let cur_tag<atom> = :none;
+	let cur_payload<voidptr> = nil;
+	let cur_size<size> = 0_sz;
+	let cur_align<size> = 0_sz;
+	let cur_disposer<fptr>;
+
+	# Record encoding (private, not ABI): headers are 8-aligned -
+	# {tag<atom>, size<size>, align<size>, disposer<fptr>} - the payload
+	# starts at the next align-rounded offset, and the following record at
+	# the 8-rounded payload end. The reader recomputes the same offsets the
+	# writer used.
+
+	+ round_up(v<size>, a<size>) -> size
+	{
+		let r<size> = v % a;
+		if(r == 0_sz)
+		{
+			^ v;
+		}
+
+		^ v + (a - r);
+	}
+
+	- ensure!(needed<size>) -> ()
+	{
+		if(needed <= self.capacity)
+		{
+			^ ();
+		}
+
+		let new_cap<size> = self.capacity * 2_sz;
+		if(new_cap < needed)
+		{
+			new_cap = needed;
+		}
+		if(new_cap < 64_sz)
+		{
+			new_cap = 64_sz;
+		}
+
+		if(nil?(self.data))
+		{
+			self.data = allocator_alloc_aligned(self.alloc, new_cap, 16_sz);
+		}
+		else
+		{
+			self.data = allocator_realloc(self.alloc, self.data, new_cap);
+		}
+
+		if(nil?(self.data))
+		{
+			error.runtime_error("push_buffer_r: out of memory");
+		}
+
+		self.capacity = new_cap;
+		^ ();
+	}
+
+	# Appends a record and returns the payload destination for in-place
+	# construction. The general producer path; push! wraps it with a copy.
+	- push_reserve!(tag<atom>, size<size>, align<size>, disposer<fptr>) -> voidptr
+	{
+		let header_off<size> = push_buffer_r.round_up(self.write, 8_sz);
+		let payload_off<size> = push_buffer_r.round_up(header_off + 32_sz, align);
+		let end<size> = push_buffer_r.round_up(payload_off + size, 8_sz);
+		self.ensure!(end);
+
+		let base<u8> = self.data ~~> u8;
+		*((base + (header_off ~~> u8)) ~~> atom*) = tag;
+		*((base + (header_off ~~> u8) + 8_u8) ~~> size*) = size;
+		*((base + (header_off ~~> u8) + 16_u8) ~~> size*) = align;
+		*((base + (header_off ~~> u8) + 24_u8) ~~> fptr*) = disposer;
+
+		self.write = end;
+		self.records += 1_sz;
+		^ (base + (payload_off ~~> u8)) ~~> voidptr;
+	}
+
+	# Appends a record, copying the payload in.
+	- push!(tag<atom>, bytes<voidptr>, size<size>, align<size>, disposer<fptr>) -> ()
+	{
+		let dst<voidptr> = self.push_reserve!(tag, size, align, disposer);
+		__glc_mem_copy(dst, bytes, size);
+		^ ();
+	}
+
+	# Typed form: a birth site - the buffer takes ownership of the value
+	# (disposer captured from the type).
+	- push!(tag<atom>, $t<typeid>, value<t>) -> ()
+	{
+		let v<t> = value;
+		let dst<voidptr> = self.push_reserve!(tag, typeinfo(t, :bytes), typeinfo(t, :alignment), disposer_of(t));
+		__glc_mem_copy(dst, &v ~~> voidptr, typeinfo(t, :bytes));
+		^ ();
+	}
+
+	# The :call vocabulary: a self-interpreting record. The payload is
+	# {fn<fptr>, args} with args at the align-rounded offset past the fn;
+	# drain executes fn(args, ctx_arg). fn must be a context-free
+	# (voidptr, voidptr) -> (). Owning args dispose like any record when
+	# the tail is abandoned.
+	- push_call!(fn<fptr>, $t<typeid>, args<t>) -> ()
+	{
+		let a<t> = args;
+		let align<size> = typeinfo(t, :alignment);
+		if(align < 8_sz)
+		{
+			align = 8_sz;
+		}
+
+		let args_off<size> = push_buffer_r.round_up(8_sz, align);
+		let dst<voidptr> = self.push_reserve!(:call, args_off + typeinfo(t, :bytes), align, disposer_of(t));
+		*(dst ~~> fptr*) = fn;
+		__glc_mem_copy(((dst ~~> u8) + (args_off ~~> u8)) ~~> voidptr, &a ~~> voidptr, typeinfo(t, :bytes));
+		^ ();
+	}
+
+	# Advances to the next record; :false when the stream is consumed. The
+	# advanced-past record's payload belongs to the consumer.
+	- advance! -> atom
+	{
+		if(self.read >= self.write)
+		{
+			^ :false;
+		}
+
+		let header_off<size> = push_buffer_r.round_up(self.read, 8_sz);
+		let base<u8> = self.data ~~> u8;
+		self.cur_tag = *((base + (header_off ~~> u8)) ~~> atom*);
+		self.cur_size = *((base + (header_off ~~> u8) + 8_u8) ~~> size*);
+		self.cur_align = *((base + (header_off ~~> u8) + 16_u8) ~~> size*);
+		self.cur_disposer = *((base + (header_off ~~> u8) + 24_u8) ~~> fptr*);
+
+		let payload_off<size> = push_buffer_r.round_up(header_off + 32_sz, self.cur_align);
+		self.cur_payload = (base + (payload_off ~~> u8)) ~~> voidptr;
+		self.read = push_buffer_r.round_up(payload_off + self.cur_size, 8_sz);
+		^ :true;
+	}
+
+	- tag -> atom { ^ self.cur_tag; }
+	- payload -> voidptr { ^ self.cur_payload; }
+	- payload_size -> size { ^ self.cur_size; }
+
+	# Executes the current :call record: fn(args, ctx_arg).
+	- run_call(ctx_arg<voidptr>) -> ()
+	{
+		let fn<fptr> = *(self.cur_payload ~~> fptr*);
+		let args_off<size> = push_buffer_r.round_up(8_sz, self.cur_align);
+		let args<voidptr> = ((self.cur_payload ~~> u8) + (args_off ~~> u8)) ~~> voidptr;
+		(fn ~> (voidptr, voidptr) -> ())(args, ctx_arg);
+		^ ();
+	}
+
+	# Executes the stream's :call records in order: fn(args, ctx_arg).
+	# Records with other tags are skipped - for mixed-vocabulary streams
+	# use the handler overload below.
+	- drain(ctx_arg<voidptr>) -> ()
+	{
+		while(self.advance!)
+		{
+			if(self.cur_tag == :call)
+			{
+				self.run_call(ctx_arg);
+			}
+		}
+
+		^ ();
+	}
+
+	# Mixed-vocabulary drain: :call records execute as above; every other
+	# record goes to the handler as (tag, payload, payload_size, ctx_arg).
+	# Handled records follow the consumed-ownership rule - the handler owns
+	# their bytes.
+	- drain(ctx_arg<voidptr>, handler<(atom, voidptr, size, voidptr) -> ()>) -> ()
+	{
+		while(self.advance!)
+		{
+			if(self.cur_tag == :call)
+			{
+				self.run_call(ctx_arg);
+			}
+			else
+			{
+				handler(self.cur_tag, self.cur_payload, self.cur_size, ctx_arg);
+			}
+		}
+
+		^ ();
+	}
+
+	- empty? -> atom { ^ self.read >= self.write; }
+
+	# Records pushed since creation or the last reset!.
+	- count -> size { ^ self.records; }
+
+	# Disposes the unconsumed tail's owned payloads (from the read cursor;
+	# consumed records belong to their consumer).
+	- dispose_tail -> ()
+	{
+		let cursor<size> = self.read;
+		let base<u8> = self.data ~~> u8;
+
+		while(cursor < self.write)
+		{
+			let header_off<size> = push_buffer_r.round_up(cursor, 8_sz);
+			let tag<atom> = *((base + (header_off ~~> u8)) ~~> atom*);
+			let size<size> = *((base + (header_off ~~> u8) + 8_u8) ~~> size*);
+			let align<size> = *((base + (header_off ~~> u8) + 16_u8) ~~> size*);
+			let disposer<fptr> = *((base + (header_off ~~> u8) + 24_u8) ~~> fptr*);
+
+			let payload_off<size> = push_buffer_r.round_up(header_off + 32_sz, align);
+
+			if(!nil?(disposer ~~> voidptr))
+			{
+				let target_off<size> = payload_off;
+				if(tag == :call)
+				{
+					target_off = payload_off + push_buffer_r.round_up(8_sz, align);
+				}
+
+				(disposer ~> (voidptr) -> ())((base + (target_off ~~> u8)) ~~> voidptr);
+			}
+
+			cursor = push_buffer_r.round_up(payload_off + size, 8_sz);
+		}
+
+		^ ();
+	}
+
+	# Disposes the unconsumed tail and rewinds for reuse, keeping capacity.
+	- reset! -> ()
+	{
+		self.dispose_tail;
+		self.write = 0_sz;
+		self.read = 0_sz;
+		self.records = 0_sz;
+		^ ();
+	}
+
+	- dispose -> ()
+	{
+		self.dispose_tail;
+
+		if(!nil?(self.data))
+		{
+			allocator_free(self.alloc, self.data);
+		}
+
+		self.data = nil;
+		self.capacity = 0_sz;
+		self.write = 0_sz;
+		self.read = 0_sz;
+		self.records = 0_sz;
+		^ ();
+	}
+}
+
+# Creates a push buffer drawing from the creating context's allocator.
+# initial may be zero - the first push allocates.
+++ make_push_buffer(initial<size>) -> push_buffer_r
+{
+	let result<push_buffer_r>;
+	result.alloc = ctx.main;
+
+	if(initial > 0_sz)
+	{
+		result.data = allocator_alloc_aligned(result.alloc, initial, 16_sz);
+		result.capacity = initial;
+	}
+
+	^ result;
+}

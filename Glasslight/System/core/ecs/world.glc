@@ -4,7 +4,6 @@ require core.array ~> .;
 require core.string ~> .;
 require core.hashmap ~> .;
 require core.error ~> error;
-require core.mem ~> mem;
 
 # The world: the entity registry + the archetype list + composition lookup.
 # Archetype identity is the sorted fragment typeid set plus the sorted tag
@@ -27,13 +26,15 @@ record world_r
 	let registry<entity_registry_r>;
 	let archetypes<[archetype_r, :dynamic]>;
 	let tids_by_arch<[[typeid, :dynamic], :dynamic]>;
-	let tags_by_arch<[[typeid, :dynamic], :dynamic]>;
 	let archetype_map<[[c1] => u4]>;
 
-	# Per-world processor instance block: raw allocation and the aligned
-	# base the compiler-emitted seams operate on. Nil when the program has
-	# no processors or ECS processing is suppressed.
-	let processor_instances_raw<voidptr> = nil;
+	# The world's allocator, captured from the creating context - the same
+	# source the archetypes draw from.
+	let alloc<allocator_r>;
+
+	# Per-world processor instance block the compiler-emitted seams operate
+	# on; allocated aligned from the world's allocator. Nil when the
+	# program has no processors or ECS processing is suppressed.
 	let processor_instances<voidptr> = nil;
 
 	# Returns the number of live entities.
@@ -122,22 +123,22 @@ record world_r
 	# Owned copy of an archetype's sorted tag list, optionally dropping one tag.
 	- copy_tags(ai<u4>) -> [typeid, :dynamic]
 	{
-		let src<[typeid, :dynamic]*> = self.tags_by_arch.data() + (ai ~> u8 ~~> size);
-		let result<[typeid, :dynamic]> = make_array(typeid, src.length);
-		result.append!(src.view);
+		let arch<archetype_r*> = self.arch_at(ai);
+		let result<[typeid, :dynamic]> = make_array(typeid, arch.tags.length);
+		result.append!(arch.tags.view);
 		^ result;
 	}
 
 	- copy_tags_without(ai<u4>, dropped<typeid>) -> [typeid, :dynamic]
 	{
-		let src<[typeid, :dynamic]*> = self.tags_by_arch.data() + (ai ~> u8 ~~> size);
-		let result<[typeid, :dynamic]> = make_array(typeid, src.length);
+		let arch<archetype_r*> = self.arch_at(ai);
+		let result<[typeid, :dynamic]> = make_array(typeid, arch.tags.length);
 
-		for(let i<size> = 0_sz; i < src.length; i += 1_sz)
+		for(let i<size> = 0_sz; i < arch.tags.length; i += 1_sz)
 		{
-			if(!(src.at(i) == dropped))
+			if(!(arch.tags.at(i) == dropped))
 			{
-				result.append!(src.at(i));
+				result.append!(arch.tags.at(i));
 			}
 		}
 
@@ -160,10 +161,11 @@ record world_r
 		}
 
 		let arch<archetype_r> = make_archetype(schema);
+		arch.tag_mask = tag_mask_of(tags.view);
+		arch.tags = tags;
 		let new_ai<u4> = self.archetypes.length ~~> u8 ~> u4;
 		self.archetypes.append!(arch);
 		self.tids_by_arch.append!(tids);
-		self.tags_by_arch.append!(tags);
 		self.archetype_map.set!(key, new_ai);
 
 		^ new_ai;
@@ -202,6 +204,32 @@ record world_r
 		^ e;
 	}
 
+	# Allocates an entity handle WITHOUT placing it in any archetype - the
+	# deferred-spawn primitive. The handle is valid immediately (commands
+	# can be recorded against it), queries answer :false, and structural
+	# verbs no-op until place_reserved! runs at flush.
+	- reserve! -> entity { ^ self.registry.reserve!; }
+
+	# Returns :true when the handle is a live reservation awaiting placement.
+	- reserved?(e<entity>) -> atom { ^ self.registry.reserved?(e); }
+
+	# Places a reserved entity into the empty archetype, making it a normal
+	# live entity - the flush-time completion of a deferred spawn. Placing
+	# a non-reserved or dead handle is a no-op returning :false.
+	- place_reserved!(e<entity>) -> atom
+	{
+		if(!self.registry.reserved?(e))
+		{
+			^ :false;
+		}
+
+		let empty<archetype_r*> = self.arch_at(0_u4);
+		let row<size> = empty.reserve_row!;
+		empty.write_entity(row, e);
+		self.registry.set_location!(e, 0_u4, row ~~> u8 ~> u4);
+		^ :true;
+	}
+
 	# Destroys an entity: its fragments DIE - the disposing removal runs their
 	# dispose - and the handle goes stale. Invalid/stale handles are a no-op.
 	- destroy!(e<entity>) -> atom
@@ -209,6 +237,13 @@ record world_r
 		if(!self.registry.valid?(e))
 		{
 			^ :false;
+		}
+
+		# A reserved entity has no archetype row - retiring the handle is
+		# the whole job (a cancelled deferred spawn).
+		if(self.registry.reserved?(e))
+		{
+			^ self.registry.destroy!(e);
 		}
 
 		let (ai<u4>, row<u4>) = self.registry.location(e);
@@ -231,27 +266,28 @@ record world_r
 		^ :true;
 	}
 
-	# Adds a fragment: the entity migrates to the archetype with its current
-	# composition plus t. The value's ownership transfers to the world (the
-	# caller treats it as consumed). Adding a fragment the entity already has
-	# is a caller bug and aborts.
-	- add!(e<entity>, $t<typeid>, value<t>) -> atom
+	# Runtime-typed add core: migrates the entity to the archetype with its
+	# current composition plus tid, copying the fragment bytes in. The
+	# fragment's layout and disposer arrive as data - the command buffer
+	# carries them from the typed record site to the flush. Ownership of the
+	# bytes transfers on :true; on :false the caller still owns them. Adding
+	# a fragment the entity already has is a caller bug and aborts.
+	- add_raw!(e<entity>, tid<typeid>, bytes<voidptr>, size<size>, align<size>, disposer<fptr>) -> atom
 	{
-		if(!self.registry.valid?(e))
+		if(!self.registry.valid?(e) || self.registry.reserved?(e))
 		{
 			^ :false;
 		}
 
 		let (old_ai<u4>, old_row<u4>) = self.registry.location(e);
-		let added_tid<typeid> = t;
 
-		if(self.arch_at(old_ai).has_index?(added_tid))
+		if(self.arch_at(old_ai).has_index?(tid))
 		{
 			error.runtime_error("world_r.add!: fragment already present");
 		}
 
 		let tids<[typeid, :dynamic]> = self.copy_tids(old_ai);
-		world_r.sorted_insert_tid(&tids, t);
+		world_r.sorted_insert_tid(&tids, tid);
 		let tags<[typeid, :dynamic]> = self.copy_tags(old_ai);
 
 		# Target schema: old rows (carrying their dispose pointers) + the new
@@ -260,21 +296,21 @@ record world_r
 
 		for(let i<size> = 0_sz; i < tids.length; i += 1_sz)
 		{
-			let tid<typeid> = tids.at(i);
+			let row_tid<typeid> = tids.at(i);
 
-			if(tid == t)
+			if(row_tid == tid)
 			{
 				let info<fragment_info_r>;
-				info.tid = t;
-				info.size = typeinfo(t, :bytes);
-				info.align = typeinfo(t, :alignment);
-				info.dispose = disposer_of(t);
+				info.tid = tid;
+				info.size = size;
+				info.align = align;
+				info.dispose = disposer;
 				schema.append!(info);
 			}
 			else
 			{
 				let old<archetype_r*> = self.arch_at(old_ai);
-				schema.append!(old.infos.at(old.column_index(tid)));
+				schema.append!(old.infos.at(old.column_index(row_tid)));
 			}
 		}
 
@@ -290,11 +326,11 @@ record world_r
 
 		for(let i<size> = 0_sz; i < old.infos.length; i += 1_sz)
 		{
-			let tid<typeid> = old.infos.at(i).tid;
-			target.write_cell(tid, dst_row, old.cell_ptr_at(i, old_row_sz));
+			let row_tid<typeid> = old.infos.at(i).tid;
+			target.write_cell(row_tid, dst_row, old.cell_ptr_at(i, old_row_sz));
 		}
 
-		target.write_cell(t, dst_row, &value ~~> voidptr);
+		target.write_cell(tid, dst_row, bytes);
 		target.write_entity(dst_row, e);
 		self.registry.set_location!(e, target_ai, dst_row ~~> u8 ~> u4);
 
@@ -302,12 +338,21 @@ record world_r
 		^ :true;
 	}
 
+	# Adds a fragment: sugar over add_raw! - the typed call site is the
+	# birth point where layout and disposer are captured. The value's
+	# ownership transfers to the world (the caller treats it as consumed).
+	- add!(e<entity>, $t<typeid>, value<t>) -> atom
+	{
+		let v<t> = value;
+		^ self.add_raw!(e, t, &v ~~> voidptr, typeinfo(t, :bytes), typeinfo(t, :alignment), disposer_of(t));
+	}
+
 	# Removes a fragment: the entity migrates to the archetype without t, and
 	# the discarded fragment is DISPOSED (return would transfer; discard
 	# disposes). Removing an absent fragment is a no-op returning :false.
 	- remove!(e<entity>, $t<typeid>) -> atom
 	{
-		if(!self.registry.valid?(e))
+		if(!self.registry.valid?(e) || self.registry.reserved?(e))
 		{
 			^ :false;
 		}
@@ -395,7 +440,7 @@ record world_r
 	# entity is a no-op returning :false.
 	- tag!(e<entity>, $t<typeid>) when tag?(t) -> atom
 	{
-		if(!self.registry.valid?(e))
+		if(!self.registry.valid?(e) || self.registry.reserved?(e))
 		{
 			^ :false;
 		}
@@ -416,7 +461,7 @@ record world_r
 	# Removes a tag. Untagging an untagged entity is a no-op returning :false.
 	- untag!(e<entity>, $t<typeid>) when tag?(t) -> atom
 	{
-		if(!self.registry.valid?(e))
+		if(!self.registry.valid?(e) || self.registry.reserved?(e))
 		{
 			^ :false;
 		}
@@ -436,7 +481,7 @@ record world_r
 	# Returns :true when the entity is live and has the fragment.
 	- has?(e<entity>, $t<typeid>) -> atom
 	{
-		if(!self.registry.valid?(e))
+		if(!self.registry.valid?(e) || self.registry.reserved?(e))
 		{
 			^ :false;
 		}
@@ -449,24 +494,14 @@ record world_r
 	# Returns :true when the entity is live and carries the tag type.
 	- has_tag?(e<entity>, $t<typeid>) when tag?(t) -> atom
 	{
-		if(!self.registry.valid?(e))
+		if(!self.registry.valid?(e) || self.registry.reserved?(e))
 		{
 			^ :false;
 		}
 
 		let tag_tid<typeid> = t;
 		let (ai<u4>, _<u4>) = self.registry.location(e);
-		let tags<[typeid, :dynamic]*> = self.tags_by_arch.data() + (ai ~> u8 ~~> size);
-
-		for(let i<size> = 0_sz; i < tags.length; i += 1_sz)
-		{
-			if(tags.at(i) == tag_tid)
-			{
-				^ :true;
-			}
-		}
-
-		^ :false;
+		^ self.arch_at(ai).has_tag_tid?(tag_tid);
 	}
 
 	# Typed pointer to one entity's fragment - a BORROW, invalidated by the
@@ -486,16 +521,12 @@ record world_r
 		if(!nil?(self.processor_instances))
 		{
 			__glc_ecs_dispose_processors(self.processor_instances);
-		}
-
-		if(!nil?(self.processor_instances_raw))
-		{
-			mem.free(self.processor_instances_raw);
+			allocator_free(self.alloc, self.processor_instances);
+			self.processor_instances = nil;
 		}
 
 		self.archetypes.dispose;
 		self.tids_by_arch.dispose;
-		self.tags_by_arch.dispose;
 		self.archetype_map.dispose;
 		self.registry.dispose;
 		^ ();
@@ -506,10 +537,10 @@ record world_r
 ++ make_world() -> world_r
 {
 	let result<world_r>;
+	result.alloc = ctx.main;
 	result.registry = make_registry();
 	result.archetypes = make_array(archetype_r, 4_sz);
 	result.tids_by_arch = make_array([typeid, :dynamic], 4_sz);
-	result.tags_by_arch = make_array([typeid, :dynamic], 4_sz);
 	result.archetype_map = make_hashmap_with_capacity([c1], u4, 8_sz);
 
 	let empty_schema<[fragment_info_r, :dynamic]> = make_array(fragment_info_r, 0_sz);
@@ -518,26 +549,14 @@ record world_r
 	result.find_or_create!(empty_tids, empty_tags, empty_schema.view);
 	empty_schema.dispose;
 
-	# Processor instances: allocate the compiler-reported block (over-sized
-	# by the alignment so the base can be rounded up manually - mem.alloc
-	# has no alignment parameter), then default-construct every instance.
+	# Processor instances: allocate the compiler-reported block from the
+	# world's allocator at the reported alignment, then default-construct
+	# every instance.
 	let (isize<size>, ialign<size>) = __glc_ecs_processor_instances_size();
 
 	if(isize > 0_sz)
 	{
-		let raw<voidptr> = mem.alloc(isize + ialign);
-		result.processor_instances_raw = raw;
-
-		let base<u8> = raw ~~> u8;
-		let rem<u8> = base % (ialign ~~> u8);
-		let aligned<u8> = base;
-
-		if(rem != 0_u8)
-		{
-			aligned = base + ((ialign ~~> u8) - rem);
-		}
-
-		result.processor_instances = aligned ~~> voidptr;
+		result.processor_instances = allocator_alloc_aligned(result.alloc, isize, ialign);
 		__glc_ecs_init_processors(result.processor_instances);
 	}
 

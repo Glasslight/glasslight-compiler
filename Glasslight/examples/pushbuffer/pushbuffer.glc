@@ -1,0 +1,179 @@
+package main;
+require core.common ~> .;
+require core.pushbuffer ~> pb;
+require core.string ~> .;
+require core.format ~> fmt;
+require core.os.print ~> os;
+
+# The push buffer: a single-writer, single-consumer stream of tagged
+# records, replayed in record order. This demo keeps a tiny score journal
+# two ways:
+#
+#   1 - a closed domain vocabulary (:award / :penalty records),
+#   traversed with an advance! loop and matched by tag.
+#
+#   2 - a mixed stream: the same domain records plus :call records
+#   (deferred work that knows how to run itself), consumed by one
+#   drain - the handler applies domain records, :call records
+#   execute themselves, all in FIFO order.
+#
+#   3 - ownership: a :disposable payload. The typed push! is a birth
+#   site - the buffer owns the value until the consumer advances
+#   past it; teardown disposes only the abandoned tail.
+
+record points_r
+{
+	let amount<s4> = 0_s4;
+}
+
+record clamp_args_r
+{
+	let limit<s4> = 0_s4;
+}
+
+# The state a replay acts on - threaded through drain as ctx_arg.
+record journal_r
+{
+	let score<s4> = 0_s4;
+}
+
+# An owning payload: the note owns a heap string, so the record is
+# :disposable and the push buffer captures its disposer at push time.
+[[:disposable]]
+record note_r
+{
+	let text<[c1]>;
+
+	- dispose -> ()
+	{
+		self.text.dispose;
+		^ ();
+	}
+}
+
+++ push_note(buf<pb.push_buffer_r*>, text<[c1, ()]>) -> ()
+{
+	let n<note_r>;
+	n.text = make_string(text);
+	buf.push!(:note, note_r, n);
+	^ ();
+}
+
++ push_points(buf<pb.push_buffer_r*>, tag<atom>, amount<s4>) -> ()
+{
+	let p<points_r>;
+	p.amount = amount;
+	buf.push!(tag, points_r, p);
+	^ ();
+}
+
+# the domain owns the replay loop - advance! walks the stream,
+# the tag says what the payload means.
+++ replay(buf<pb.push_buffer_r*>, j<journal_r*>) -> ()
+{
+	while(buf.advance!)
+	{
+		if(buf.tag == :award)
+		{
+			j.score += (buf.payload ~~> points_r*).amount;
+		}
+		elif(buf.tag == :penalty)
+		{
+			j.score -= (buf.payload ~~> points_r*).amount;
+		}
+	}
+
+	^ ();
+}
+
+++ report(label<[c1, ()]>, j<journal_r*>) -> ()
+{
+	let line<[c1]> = fmt.format("  {}: score {}", (label, j.score));
+	os.println(line);
+	line.dispose;
+	^ ();
+}
+
+let j<journal_r>;
+let buf<pb.push_buffer_r> = pb.make_push_buffer(64_sz);
+
+# Closed vocabulary, domain-owned traversal.
+os.println("act 1 - tagged records, advance! traversal:");
+push_points(&buf, :award, 100_s4);
+push_points(&buf, :award, 250_s4);
+push_points(&buf, :penalty, 40_s4);
+replay(&buf, &j);
+report("after replay", &j);
+
+# reset! rewinds for reuse and keeps the capacity - recording is
+# allocation-free from here on.
+buf.reset!;
+
+# A mixed stream. Domain records interleave with :call
+# records; a single drain consumes everything in record order.
+os.println("act 2 - mixed stream, one drain:");
+
+let clamp_fn<(voidptr, voidptr) -> ()> = \ (a<voidptr>, c<voidptr>) -> ()
+{
+	let args<clamp_args_r*> = a ~~> clamp_args_r*;
+	let jj<journal_r*> = c ~~> journal_r*;
+
+	if(jj.score > args.limit)
+	{
+		jj.score = args.limit;
+	}
+
+	os.println("  [call] clamped");
+	^ ();
+};
+
+let handler<(atom, voidptr, size, voidptr) -> ()> = \ (tag<atom>, payload<voidptr>, psize<size>, c<voidptr>) -> ()
+{
+	let jj<journal_r*> = c ~~> journal_r*;
+
+	if(tag == :award)
+	{
+		jj.score += (payload ~~> points_r*).amount;
+	}
+	elif(tag == :penalty)
+	{
+		jj.score -= (payload ~~> points_r*).amount;
+	}
+
+	^ ();
+};
+
+push_points(&buf, :award, 500_s4);          # 310 + 500 = 810
+
+let clamp<clamp_args_r>;
+clamp.limit = 600_s4;
+buf.push_call!(clamp_fn ~> fptr, clamp_args_r, clamp);   # 810 -> 600
+
+push_points(&buf, :penalty, 50_s4);         # 600 - 50 = 550
+
+buf.drain(&j ~~> voidptr, handler);
+report("after drain", &j);
+
+buf.reset!;
+
+# Three notes go in; we read one and abandon the rest. The consumed note is ours
+# to dispose; the abandoned tail is the buffer's, cleaned up automatically at
+# teardown - no leaks, no manual bookkeeping.
+os.println("act 3 - disposable payloads, tail ownership:");
+push_note(&buf, "the rabbit sprints");
+push_note(&buf, "the turtle endures");
+push_note(&buf, "the rock erodes");
+
+if(buf.advance!)
+{
+	let n<note_r*> = buf.payload ~~> note_r*;
+	let line<[c1]> = fmt.format("  consumed: {}", (n.text.view,));
+	os.println(line);
+	line.dispose;
+	n.dispose;
+}
+
+os.println("  (two notes abandoned - buffer disposes them at teardown)");
+
+buf.dispose;
+os.println("done.");

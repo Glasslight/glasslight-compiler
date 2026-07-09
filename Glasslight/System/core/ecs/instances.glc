@@ -27,7 +27,7 @@ intrinsic
 	# switch, no function pointers. An out-of-range index, or any call when
 	# the program has no processors or ECS processing is suppressed, is a
 	# runtime error.
-	+ __glc_ecs_dispatch(index<u4>, buf<voidptr>, ctx<exec_ctx_r>) -> ();
+	+ __glc_ecs_dispatch(index<u4>, buf<voidptr>, ectx<exec_ctx_r>) -> ();
 }
 
 # Package-namespaced wrapper over the layout intrinsic: the per-world
@@ -41,8 +41,8 @@ intrinsic
 # world's instance. index is a row into processors() - the same indices
 # stage_r.procs carries. The init/dispose seams stay internal: the world's
 # lifecycle owns them.
-+ dispatch(w<world_r*>, index<u4>, chunk<exec_ctx_r>) -> ()
++ dispatch(w<world_r*>, index<u4>, ectx<exec_ctx_r>) -> ()
 {
-	__glc_ecs_dispatch(index, w.processor_instances, chunk);
+	__glc_ecs_dispatch(index, w.processor_instances, ectx);
 	^ ();
 }

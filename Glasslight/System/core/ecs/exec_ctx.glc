@@ -1,6 +1,7 @@
 package ecs;
 require core.common ~> .;
 require core.context ~> .;
+require core.builtin ~> .;
 
 # The per-chunk execution context handed to a processor body, by value. A
 # chunk is one archetype's live rows; the entities view's length is the row
@@ -12,9 +13,9 @@ require core.context ~> .;
 # context-free; one that needs context (allocation, formatting) enters it
 # by introducing the binding:
 #
-#   - execute(chunk<exec_ctx_r>) -> ()
+#   - execute(ectx<exec_ctx_r>) -> ()
 #   {
-#       let ctx<context_r> = chunk.ctx;
+#       let ctx<context_r> = ectx.ctx;
 #       ...
 #   }
 record exec_ctx_r
@@ -24,12 +25,32 @@ record exec_ctx_r
 	let arch<archetype_r*> = nil;
 	let ctx<context_r>;
 
+	# Access validation: the tick stamps the serving processor's query row
+	# and flips checked, and read/write then verify - in checked builds
+	# (__glc_ecs_checks, constif so disabled builds compile the gate out) -
+	# that the body stays within its declared access. The schedule's
+	# conflict guarantee is computed from those declarations; an undeclared
+	# access would void it silently. Hand-built chunks leave checked off
+	# and run unchecked.
+	let info<processor_info_r>;
+	let checked<atom> = :false;
+
 	# Returns the chunk's row count.
 	- length -> size { ^ self.entities.length(); }
 
-	# Read-only view over one fragment column's live rows.
+	# Read-only view over one fragment column's live rows. Declaring a
+	# write grants read (the query's write access subsumes it).
 	- read($t<typeid>) when fragment?(t) -> [t, ()]
 	{
+		constif(__glc_ecs_checks)
+		{
+			let tid<typeid> = t;
+			if(self.checked && !contains_tid?(self.info.reads, tid) && !contains_tid?(self.info.writes, tid))
+			{
+				error.runtime_error("ecs: read of a fragment the processor's query does not declare");
+			}
+		}
+
 		^ make_view(t, self.arch.column_base(t) ~~> t*, self.arch.length);
 	}
 
@@ -37,20 +58,29 @@ record exec_ctx_r
 	# lvalues (writes are raw stores; the archetype owns element lifecycle).
 	- write($t<typeid>) when fragment?(t) -> [t, (), :mut]
 	{
+		constif(__glc_ecs_checks)
+		{
+			let tid<typeid> = t;
+			if(self.checked && !contains_tid?(self.info.writes, tid))
+			{
+				error.runtime_error("ecs: write of a fragment the processor's query does not declare");
+			}
+		}
+
 		^ make_mut_view(t, self.arch.column_base(t) ~~> t*, self.arch.length);
 	}
 }
 
-# Stub chunk driver: builds the ctx for one archetype and invokes the body
-# once. Query matching, the schedule walk, and comptime processor dispatch
-# arrive with the compiler emission slices - this is the hand-driven path.
-++ run_chunk(arch<archetype_r*>, dt<f4>, body<(exec_ctx_r) -> ()>) -> ()
+# True when the typeid list contains tid.
++ contains_tid?(list<[typeid, ()]>, tid<typeid>) -> atom
 {
-	let chunk<exec_ctx_r>;
-	chunk.dt = dt;
-	chunk.arch = arch;
-	chunk.entities = make_view(entity, arch.entities ~~> entity*, arch.length);
-	chunk.ctx = ctx;
-	body(chunk);
-	^ ();
+	for(let i<size> = 0_sz; i < list.length(); i += 1_sz)
+	{
+		if(list.at(i) == tid)
+		{
+			^ :true;
+		}
+	}
+
+	^ :false;
 }

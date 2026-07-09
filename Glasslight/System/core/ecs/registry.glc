@@ -5,7 +5,9 @@ require core.array ~> .;
 # The entity ledger: index allocation with generation-based stale detection,
 # LIFO index recycling, and the entity -> (archetype index, row) location map
 # the world maintains on transitions. Archetype indices are plain integers
-# here; storage lives in archetype_r.
+# here; storage lives in archetype_r. A reserved entity (see reserve!) is
+# live in the ledger but placed in no archetype yet - its location carries
+# the reserved_marker sentinel until the world places it.
 #
 # Generation 0 is reserved for invalid/null handles (see entity.glc), so live
 # generations start at 1. destroy! bumps the slot's generation, which stales
@@ -46,6 +48,43 @@ record entity_registry_r
 		self.entity_row.append!(0_u4);
 
 		^ make_entity(idx, 1_u4);
+	}
+
+	# Sentinel archetype index marking a reserved-but-unplaced entity.
+	+ reserved_marker -> u4 { ^ 0xFFFFFFFF_u4; }
+
+	# Allocates an entity handle without placement: the ledger knows it
+	# (valid? answers :true, live_count counts it) but it lives in no
+	# archetype until the world places it. The deferred-spawn reservation
+	# primitive - commands recorded against the handle replay after the
+	# flush places it.
+	- reserve! -> entity
+	{
+		if(self.free_list.length > 0_sz)
+		{
+			let (_<atom>, idx<u4>) = self.free_list.take_last!;
+			self.entity_archetype[idx ~> u8 ~~> size] = entity_registry_r.reserved_marker;
+			^ make_entity(idx, self.generations.at(idx ~> u8 ~~> size));
+		}
+
+		let idx<u4> = self.next_index;
+		self.next_index += 1_u4;
+		self.generations.append!(1_u4);
+		self.entity_archetype.append!(entity_registry_r.reserved_marker);
+		self.entity_row.append!(0_u4);
+
+		^ make_entity(idx, 1_u4);
+	}
+
+	# Returns :true when the handle is a live reservation awaiting placement.
+	- reserved?(e<entity>) -> atom
+	{
+		if(!self.valid?(e))
+		{
+			^ :false;
+		}
+
+		^ self.entity_archetype.at(index(e) ~> u8 ~~> size) == entity_registry_r.reserved_marker;
 	}
 
 	# Returns :true when the handle's generation matches the slot's live

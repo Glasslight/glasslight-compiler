@@ -55,12 +55,12 @@ record render_phase_r
 [[(:ecs_phase, simulate_phase_r)]]
 record move_processor_r
 {
-	- execute(ctx<ecs.exec_ctx_r>) -> ()
+	- execute(ectx<ecs.exec_ctx_r>) -> ()
 	{
-		let ps<[pos_r, (), :mut]> = ctx.write(pos_r);
-		let vs<[vel_r, ()]> = ctx.read(vel_r);
+		let ps<[pos_r, (), :mut]> = ectx.write(pos_r);
+		let vs<[vel_r, ()]> = ectx.read(vel_r);
 
-		for(let i<size> = 0_sz; i < ctx.length; i += 1_sz)
+		for(let i<size> = 0_sz; i < ectx.length; i += 1_sz)
 		{
 			ps[i].x += vs[i].dx;
 			ps[i].y += vs[i].dy;
@@ -75,11 +75,11 @@ record move_processor_r
 [[(:ecs_phase, simulate_phase_r)]]
 record age_processor_r
 {
-	- execute(ctx<ecs.exec_ctx_r>) -> ()
+	- execute(ectx<ecs.exec_ctx_r>) -> ()
 	{
-		let ages<[age_r, (), :mut]> = ctx.write(age_r);
+		let ages<[age_r, (), :mut]> = ectx.write(age_r);
 
-		for(let i<size> = 0_sz; i < ctx.length; i += 1_sz)
+		for(let i<size> = 0_sz; i < ectx.length; i += 1_sz)
 		{
 			ages[i].ticks += 1_s4;
 		}
@@ -89,22 +89,22 @@ record age_processor_r
 }
 
 # Rendering formats, which allocates: the body enters the ticking caller's
-# context by introducing the ctx binding from the chunk (execute itself
-# runs context-free, so its parameter is named chunk to leave the name
-# open).
+# context by introducing the ctx binding from the chunk. The execute
+# parameter is named ectx by convention - ctx stays reserved for the
+# implicit context.
 [[:processor]]
 [[(:ecs_read, pos_r)]]
 [[(:ecs_phase, render_phase_r)]]
 record draw_processor_r
 {
-	- execute(chunk<ecs.exec_ctx_r>) -> ()
+	- execute(ectx<ecs.exec_ctx_r>) -> ()
 	{
-		let ctx<context_r> = chunk.ctx;
-		let ps<[pos_r, ()]> = chunk.read(pos_r);
+		let ctx<context_r> = ectx.ctx;
+		let ps<[pos_r, ()]> = ectx.read(pos_r);
 
-		for(let i<size> = 0_sz; i < chunk.length; i += 1_sz)
+		for(let i<size> = 0_sz; i < ectx.length; i += 1_sz)
 		{
-			let line<[c1]> = fmt.format("  entity {} at ({}, {})", (ecs.index(chunk.entities[i]), ps[i].x, ps[i].y));
+			let line<[c1]> = fmt.format("  entity {} at ({}, {})", (ecs.index(ectx.entities[i]), ps[i].x, ps[i].y));
 			os.println(line);
 			line.dispose;
 		}

@@ -37,6 +37,9 @@ intrinsic
 	# :true when building a debug configuration.
 	+ __glc_debug -> atom;
 
+	# :true when ECS access validation is enabled.
+	+ __glc_ecs_checks -> atom;
+
 	# :true when compiling in test mode.
 	+ __glc_test -> atom;
 

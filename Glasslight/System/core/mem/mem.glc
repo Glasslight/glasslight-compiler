@@ -1,3 +1,4 @@
+# alloc_aligned takes a power-of-two alignment and pairs with free_aligned, never free.
 package mem;
 require core.basic ~> .;
 
@@ -55,6 +56,35 @@ intrinsic
 {
 	let raw<voidptr> = ptr ~~> voidptr;
 	free(raw);
+
+	^ ();
+}
+
+# Allocate aligned memory for a given type (alignment of the type).
++ alloc_aligned($t<typeid>) -> t*
+{
+	let bytes<size> = typeinfo(t, :bytes);
+	let align<size> = typeinfo(t, :alignment);
+	let raw<voidptr> = alloc_aligned(bytes, align);
+
+	^ raw ~~> t*;
+}
+
+# Allocate aligned memory for a given type (number of instances).
++ alloc_aligned($t<typeid>, $count<size>) -> t*
+{
+	const bytes<size> = typeinfo(t, :bytes) * count;
+	let align<size> = typeinfo(t, :alignment);
+	let raw<voidptr> = alloc_aligned(bytes, align);
+
+	^ raw ~~> t*;
+}
+
+# Free memory for a given typed aligned allocation.
++ free_aligned($t<typeid>, ptr<t*>) -> ()
+{
+	let raw<voidptr> = ptr ~~> voidptr;
+	free_aligned(raw);
 
 	^ ();
 }
