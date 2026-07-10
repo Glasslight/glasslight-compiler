@@ -2,12 +2,16 @@ package ecs;
 require core.common ~> .;
 require core.context ~> .;
 require core.builtin ~> .;
+require core.mem ~> .;
+require core.pushbuffer ~> .;
 
 # The per-chunk execution context handed to a processor body, by value. A
 # chunk is one archetype's live rows; the entities view's length is the row
 # count. The ctx and every view it hands out are BORROWS into the archetype -
-# invalidated by any structural change (bodies do not structurally mutate;
-# deferred commands are a later slice).
+# invalidated by any structural change. Bodies do not structurally mutate
+# the world directly - the deferred verbs below (spawn!/destroy!/add!/
+# remove!/tag!/untag!) record commands that replay at the next band
+# boundary.
 #
 # The ctx field carries the ticking caller's context. Execute bodies run
 # context-free; one that needs context (allocation, formatting) enters it
@@ -34,6 +38,11 @@ record exec_ctx_r
 	# and run unchecked.
 	let info<processor_info_r>;
 	let checked<atom> = :false;
+
+	# The ticking world - the deferred verbs record into its command
+	# stream. Stamped by the tick; hand-built chunks that want the verbs
+	# stamp it themselves.
+	let w<world_r*> = nil;
 
 	# Returns the chunk's row count.
 	- length -> size { ^ self.entities.length(); }
@@ -68,6 +77,94 @@ record exec_ctx_r
 		}
 
 		^ make_mut_view(t, self.arch.column_base(t) ~~> t*, self.arch.length);
+	}
+
+	# --- Deferred structural verbs: the command-buffer recording surface.
+	# Same names and shapes as the world's verbs, but nothing happens now -
+	# each call records a command that replays, in record order, at the
+	# next band boundary (phase change or tick end). Handles that die
+	# before the flush make their commands no-ops.
+
+	# Deferred spawn: the handle is a live reservation immediately - valid,
+	# storable, recordable-against - and the entity is placed at the flush.
+	- spawn! -> entity
+	{
+		let e<entity> = self.w.reserve!;
+		let c<cmd_entity_r>;
+		c.e = e;
+		self.w.commands.push!(:ecs_spawn, cmd_entity_r, c);
+		^ e;
+	}
+
+	# Deferred destroy.
+	- destroy!(e<entity>) -> ()
+	{
+		let c<cmd_entity_r>;
+		c.e = e;
+		self.w.commands.push!(:ecs_destroy, cmd_entity_r, c);
+		^ ();
+	}
+
+	# Deferred fragment add: the typed call site is the birth point - the
+	# fragment's layout and disposer are captured into the payload, and the
+	# buffer owns the value until the flush moves it into the world.
+	- add!(e<entity>, $t<typeid>, value<t>) when fragment?(t) -> ()
+	{
+		let v<t> = value;
+		let hdr<cmd_add_r>;
+		hdr.e = e;
+		hdr.tid = t;
+		hdr.fsize = typeinfo(t, :bytes);
+		hdr.falign = typeinfo(t, :alignment);
+		hdr.fdisposer = disposer_of(t);
+
+		let frag_off<size> = add_fragment_offset(typeinfo(t, :alignment));
+		let align<size> = typeinfo(t, :alignment);
+		if(align < 8_sz)
+		{
+			align = 8_sz;
+		}
+
+		let rec_disposer<fptr>;
+		constif(contains_disposable?(t))
+		{
+			rec_disposer = add_command_disposer();
+		}
+
+		let dst<voidptr> = self.w.commands.push_reserve!(:ecs_add, frag_off + typeinfo(t, :bytes), align, rec_disposer);
+		__glc_mem_copy(dst, &hdr ~~> voidptr, typeinfo(cmd_add_r, :bytes));
+		__glc_mem_copy(((dst ~~> u8) + (frag_off ~~> u8)) ~~> voidptr, &v ~~> voidptr, typeinfo(t, :bytes));
+		^ ();
+	}
+
+	# Deferred fragment remove.
+	- remove!(e<entity>, $t<typeid>) when fragment?(t) -> ()
+	{
+		let c<cmd_entity_tid_r>;
+		c.e = e;
+		c.tid = t;
+		self.w.commands.push!(:ecs_remove, cmd_entity_tid_r, c);
+		^ ();
+	}
+
+	# Deferred tag add.
+	- tag!(e<entity>, $t<typeid>) when tag?(t) -> ()
+	{
+		let c<cmd_entity_tid_r>;
+		c.e = e;
+		c.tid = t;
+		self.w.commands.push!(:ecs_tag, cmd_entity_tid_r, c);
+		^ ();
+	}
+
+	# Deferred tag remove.
+	- untag!(e<entity>, $t<typeid>) when tag?(t) -> ()
+	{
+		let c<cmd_entity_tid_r>;
+		c.e = e;
+		c.tid = t;
+		self.w.commands.push!(:ecs_untag, cmd_entity_tid_r, c);
+		^ ();
 	}
 }
 

@@ -1,0 +1,158 @@
+package job_queue;
+require core.common ~> .;
+require core.array ~> .;
+require core.atomic ~> .;
+require core.thread ~> .;
+require core.error ~> error;
+
+# The work queue: many producers submit batches of jobs, many consumers
+# pop them. Locked v1 - a mutex and a condition variable do the work;
+# items are chunky (a whole processor task), so contention is low and
+# correctness wins. The API is shaped so a lock-free or work-stealing
+# swap stays invisible to callers.
+#
+# A job is (fn, data, counter): a context-free function, its payload, and
+# the OWNING BATCH's completion counter. The queue never touches the
+# counter - it stores it opaquely; the EXECUTOR decrements after running
+# fn, which is what makes per-batch barriers honest on a SHARED pool (the
+# app-wide model: one worker pool, the ECS its dominant tenant, other
+# systems injecting occasional batches - each waits only on its own
+# counter, never on the pool).
+#
+# fn signature: (ctx<context_r>, data<voidptr>) -> () - called as fn(data):
+# the executor's OWN thread context threads into the call implicitly (the
+# name-based context model extends to fn values), which is exactly the #95
+# worker-context design. Passing ctx explicitly is a type error.
+#
+# Unlike the index pool there is no phase-separated contract here: the
+# mutex is the correctness story, and every operation is legal from any
+# thread at any time.
+record job_r
+{
+	let fn<fptr>;
+	let data<voidptr> = nil;
+	let counter<atomic_u4*> = nil;
+}
+
+[[:disposable]]
+record job_queue_r
+{
+	# FIFO storage: a dynamic array with a head cursor; the array rewinds
+	# when drained, so steady-state batches reuse capacity.
+	let items<[job_r, :dynamic]>;
+	let head<size> = 0_sz;
+
+	let m<mutex_r>;
+	let cv<cond_r>;
+	let down<atom> = :false;
+
+	# Pops the front item. Caller holds the lock.
+	- pop_locked -> (atom, job_r)
+	{
+		let empty_job<job_r>;
+
+		if(self.head >= self.items.length)
+		{
+			^ (:false, empty_job);
+		}
+
+		let j<job_r> = self.items.at(self.head);
+		self.head += 1_sz;
+
+		if(self.head == self.items.length)
+		{
+			self.items.clear!;
+			self.head = 0_sz;
+		}
+
+		^ (:true, j);
+	}
+
+	# Appends a batch and wakes every blocked consumer.
+	- submit_batch!(jobs<[job_r, ()]>) -> ()
+	{
+		mutex_lock(&self.m);
+
+		for(let i<size> = 0_sz; i < jobs.length(); i += 1_sz)
+		{
+			self.items.append!(jobs.at(i));
+		}
+
+		mutex_unlock(&self.m);
+		cond_broadcast(&self.cv);
+		^ ();
+	}
+
+	# Non-blocking pop - the barrier-waiting thread drains opportunistically.
+	- try_pop! -> (atom, job_r)
+	{
+		mutex_lock(&self.m);
+		let (ok<atom>, j<job_r>) = self.pop_locked;
+		mutex_unlock(&self.m);
+		^ (ok, j);
+	}
+
+	# Blocking pop - idle workers park here between batches. Returns
+	# (:false, _) only after shutdown! with the queue drained.
+	- pop_blocking! -> (atom, job_r)
+	{
+		mutex_lock(&self.m);
+
+		while(self.head >= self.items.length && !self.down)
+		{
+			cond_wait(&self.cv, &self.m);
+		}
+
+		let (ok<atom>, j<job_r>) = self.pop_locked;
+		mutex_unlock(&self.m);
+		^ (ok, j);
+	}
+
+	# Signals teardown: wakes every blocked consumer; blocking pops report
+	# :false once the remaining items drain.
+	- shutdown! -> ()
+	{
+		mutex_lock(&self.m);
+		self.down = :true;
+		mutex_unlock(&self.m);
+		cond_broadcast(&self.cv);
+		^ ();
+	}
+
+	- pending -> size
+	{
+		mutex_lock(&self.m);
+		let n<size> = self.items.length - self.head;
+		mutex_unlock(&self.m);
+		^ n;
+	}
+
+	- dispose -> ()
+	{
+		self.items.dispose;
+		mutex_destroy(&self.m);
+		cond_destroy(&self.cv);
+		^ ();
+	}
+}
+
+# Initializes a queue in place. In-place because mutex_r/cond_r must not
+# move after init - the same discipline as the thread package itself.
+++ job_queue_init(q<job_queue_r*>) -> ()
+{
+	q.items = make_array(job_r, 16_sz);
+	q.head = 0_sz;
+	q.down = :false;
+
+	if(mutex_init(&q.m) != :ok)
+	{
+		error.runtime_error("job_queue_r: mutex init failed");
+	}
+
+	if(cond_init(&q.cv) != :ok)
+	{
+		error.runtime_error("job_queue_r: cond init failed");
+	}
+
+	^ ();
+}

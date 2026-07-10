@@ -47,9 +47,10 @@ require core.common ~> .;
 # Within a stage, processors run sequentially in stage order; a stage's
 # processors are conflict-free by construction, so the order is
 # unobservable (running them concurrently is a later slice). A phase change
-# between stages is the band boundary where deferred structural commands
-# will flush once command buffers exist. Until then, execute bodies must
-# not structurally change the world (spawn/despawn/add!/remove!): the
+# between stages is the band boundary: deferred structural commands
+# (recorded through the chunk's verbs) flush there and at tick end, so a
+# band's structural effects are visible to the next band within the same
+# tick. Execute bodies never structurally change the world directly - the
 # chunk's views are borrows into the archetype.
 #
 # With no processors, or under --no-ecs, the schedule is empty and the
@@ -59,9 +60,21 @@ require core.common ~> .;
 	let sched<schedule_r> = schedule();
 	let procs<[processor_info_r, ()]> = processors();
 
+	w.in_tick = :true;
+	let prev_phase<typeid>;
+
 	for(let si<size> = 0_sz; si < sched.stages.length(); si += 1_sz)
 	{
 		let stage<stage_r> = sched.stages.at(si);
+
+		# A phase change between stages is the band boundary - flush the
+		# deferred commands so this band sees the previous band's effects.
+		if(si > 0_sz && !(stage.phase == prev_phase))
+		{
+			w.flush_commands!;
+		}
+
+		prev_phase = stage.phase;
 
 		for(let pi<size> = 0_sz; pi < stage.procs.length(); pi += 1_sz)
 		{
@@ -84,10 +97,13 @@ require core.common ~> .;
 				ectx.ctx = ctx;
 				ectx.info = info;
 				ectx.checked = :true;
+				ectx.w = w;
 				dispatch(w, index, ectx);
 			}
 		}
 	}
 
+	w.flush_commands!;
+	w.in_tick = :false;
 	^ ();
 }

@@ -3,6 +3,8 @@ require core.common ~> .;
 require core.array ~> .;
 require core.string ~> .;
 require core.hashmap ~> .;
+require core.pushbuffer ~> .;
+require core.builtin ~> .;
 require core.error ~> error;
 
 # The world: the entity registry + the archetype list + composition lookup.
@@ -31,6 +33,17 @@ record world_r
 	# The world's allocator, captured from the creating context - the same
 	# source the archetypes draw from.
 	let alloc<allocator_r>;
+
+	# The deferred structural command stream (see commands.glc): recorded
+	# through exec_ctx_r during a tick, replayed by flush_commands! at band
+	# boundaries and tick end. One buffer, reused across ticks - recording
+	# is allocation-free once capacity settles.
+	let commands<push_buffer_r>;
+
+	# :true while a tick runs. Under checks, direct structural verbs abort
+	# mid-tick (the chunk's views are borrows; the deferred verbs exist for
+	# this); the flush suspends the flag for its own replay.
+	let in_tick<atom> = :false;
 
 	# Per-world processor instance block the compiler-emitted seams operate
 	# on; allocated aligned from the world's allocator. Nil when the
@@ -193,9 +206,25 @@ record world_r
 		^ ();
 	}
 
+	# Under checks: aborts on a direct structural change mid-tick. Compiled
+	# out entirely when checks are off.
+	- check_structural_ok -> ()
+	{
+		constif(__glc_ecs_checks)
+		{
+			if(self.in_tick)
+			{
+				error.runtime_error("ecs: direct structural change during a tick - record through the chunk's deferred verbs");
+			}
+		}
+
+		^ ();
+	}
+
 	# Creates an entity in the empty archetype.
 	- spawn! -> entity
 	{
+		self.check_structural_ok;
 		let e<entity> = self.registry.spawn!;
 		let empty<archetype_r*> = self.arch_at(0_u4);
 		let row<size> = empty.reserve_row!;
@@ -218,6 +247,8 @@ record world_r
 	# a non-reserved or dead handle is a no-op returning :false.
 	- place_reserved!(e<entity>) -> atom
 	{
+		self.check_structural_ok;
+
 		if(!self.registry.reserved?(e))
 		{
 			^ :false;
@@ -234,6 +265,8 @@ record world_r
 	# dispose - and the handle goes stale. Invalid/stale handles are a no-op.
 	- destroy!(e<entity>) -> atom
 	{
+		self.check_structural_ok;
+
 		if(!self.registry.valid?(e))
 		{
 			^ :false;
@@ -274,6 +307,8 @@ record world_r
 	# a fragment the entity already has is a caller bug and aborts.
 	- add_raw!(e<entity>, tid<typeid>, bytes<voidptr>, size<size>, align<size>, disposer<fptr>) -> atom
 	{
+		self.check_structural_ok;
+
 		if(!self.registry.valid?(e) || self.registry.reserved?(e))
 		{
 			^ :false;
@@ -347,11 +382,14 @@ record world_r
 		^ self.add_raw!(e, t, &v ~~> voidptr, typeinfo(t, :bytes), typeinfo(t, :alignment), disposer_of(t));
 	}
 
-	# Removes a fragment: the entity migrates to the archetype without t, and
-	# the discarded fragment is DISPOSED (return would transfer; discard
-	# disposes). Removing an absent fragment is a no-op returning :false.
-	- remove!(e<entity>, $t<typeid>) -> atom
+	# Runtime-typed remove core: the entity migrates to the archetype
+	# without tid, and the discarded fragment is DISPOSED via its schema
+	# row's captured disposer (return would transfer; discard disposes).
+	# Removing an absent fragment is a no-op returning :false.
+	- remove_tid!(e<entity>, tid<typeid>) -> atom
 	{
+		self.check_structural_ok;
+
 		if(!self.registry.valid?(e) || self.registry.reserved?(e))
 		{
 			^ :false;
@@ -359,27 +397,29 @@ record world_r
 
 		let (old_ai<u4>, old_row<u4>) = self.registry.location(e);
 		let old_row_sz<size> = old_row ~> u8 ~~> size;
-		let removed_tid<typeid> = t;
 
-		if(!self.arch_at(old_ai).has_index?(removed_tid))
+		if(!self.arch_at(old_ai).has_index?(tid))
 		{
 			^ :false;
 		}
 
-		constif(contains_disposable?(t))
+		let old_src<archetype_r*> = self.arch_at(old_ai);
+		let col<size> = old_src.column_index(tid);
+		let row_dispose<fptr> = old_src.infos.at(col).dispose;
+
+		if(!nil?(row_dispose ~~> voidptr))
 		{
-			(self.arch_at(old_ai).cell_ptr(t, old_row_sz) ~~> t*).dispose;
+			(row_dispose ~> (voidptr) -> ())(old_src.cell_ptr_at(col, old_row_sz));
 		}
 
-		let tids<[typeid, :dynamic]> = self.copy_tids_without(old_ai, t);
+		let tids<[typeid, :dynamic]> = self.copy_tids_without(old_ai, tid);
 		let tags<[typeid, :dynamic]> = self.copy_tags(old_ai);
 
 		let schema<[fragment_info_r, :dynamic]> = make_array(fragment_info_r, tids.length);
-		let old_src<archetype_r*> = self.arch_at(old_ai);
 
 		for(let i<size> = 0_sz; i < old_src.infos.length; i += 1_sz)
 		{
-			if(!(old_src.infos.at(i).tid == t))
+			if(!(old_src.infos.at(i).tid == tid))
 			{
 				schema.append!(old_src.infos.at(i));
 			}
@@ -395,11 +435,11 @@ record world_r
 
 		for(let i<size> = 0_sz; i < old.infos.length; i += 1_sz)
 		{
-			let tid<typeid> = old.infos.at(i).tid;
+			let row_tid<typeid> = old.infos.at(i).tid;
 
-			if(!(tid == t))
+			if(!(row_tid == tid))
 			{
-				target.write_cell(tid, dst_row, old.cell_ptr_at(i, old_row_sz));
+				target.write_cell(row_tid, dst_row, old.cell_ptr_at(i, old_row_sz));
 			}
 		}
 
@@ -408,6 +448,12 @@ record world_r
 
 		self.remove_old_row!(old_ai, old_row);
 		^ :true;
+	}
+
+	# Removes a fragment: sugar over remove_tid!.
+	- remove!(e<entity>, $t<typeid>) -> atom
+	{
+		^ self.remove_tid!(e, t);
 	}
 
 	# Shared tag/untag migration: all fragments copy across; only the tag set
@@ -435,47 +481,65 @@ record world_r
 		^ ();
 	}
 
-	# Adds a tag (an archetype transition - tags are part of archetype
-	# identity). t must be a [[:tag]] record type. Tagging an already-tagged
-	# entity is a no-op returning :false.
-	- tag!(e<entity>, $t<typeid>) when tag?(t) -> atom
+	# Runtime-typed tag core (an archetype transition - tags are part of
+	# archetype identity). The tid must name a [[:tag]] record type - typed
+	# call sites guarantee it. Tagging an already-tagged entity is a no-op
+	# returning :false.
+	- tag_tid!(e<entity>, tag_tid<typeid>) -> atom
 	{
+		self.check_structural_ok;
+
 		if(!self.registry.valid?(e) || self.registry.reserved?(e))
 		{
 			^ :false;
 		}
 
-		if(self.has_tag?(e, t))
+		let (old_ai<u4>, old_row<u4>) = self.registry.location(e);
+
+		if(self.arch_at(old_ai).has_tag_tid?(tag_tid))
 		{
 			^ :false;
 		}
 
-		let tag_tid<typeid> = t;
-		let (old_ai<u4>, old_row<u4>) = self.registry.location(e);
 		let tags<[typeid, :dynamic]> = self.copy_tags(old_ai);
 		world_r.sorted_insert_tid(&tags, tag_tid);
 		self.retag!(e, old_ai, old_row, tags);
 		^ :true;
 	}
 
-	# Removes a tag. Untagging an untagged entity is a no-op returning :false.
-	- untag!(e<entity>, $t<typeid>) when tag?(t) -> atom
+	# Adds a tag: sugar over tag_tid!.
+	- tag!(e<entity>, $t<typeid>) when tag?(t) -> atom
 	{
+		^ self.tag_tid!(e, t);
+	}
+
+	# Runtime-typed untag core. Untagging an untagged entity is a no-op
+	# returning :false.
+	- untag_tid!(e<entity>, tag_tid<typeid>) -> atom
+	{
+		self.check_structural_ok;
+
 		if(!self.registry.valid?(e) || self.registry.reserved?(e))
 		{
 			^ :false;
 		}
 
-		if(!self.has_tag?(e, t))
+		let (old_ai<u4>, old_row<u4>) = self.registry.location(e);
+
+		if(!self.arch_at(old_ai).has_tag_tid?(tag_tid))
 		{
 			^ :false;
 		}
 
-		let tag_tid<typeid> = t;
-		let (old_ai<u4>, old_row<u4>) = self.registry.location(e);
 		let tags<[typeid, :dynamic]> = self.copy_tags_without(old_ai, tag_tid);
 		self.retag!(e, old_ai, old_row, tags);
 		^ :true;
+	}
+
+	# Removes a tag: sugar over untag_tid!.
+	- untag!(e<entity>, $t<typeid>) when tag?(t) -> atom
+	{
+		^ self.untag_tid!(e, t);
 	}
 
 	# Returns :true when the entity is live and has the fragment.
@@ -513,11 +577,108 @@ record world_r
 		^ self.arch_at(ai).cell_ptr(t, row ~> u8 ~~> size) ~~> t*;
 	}
 
-	# Tears down everything: processor instances dispose first (they may
-	# reference world data), then each archetype disposes its live cells,
-	# the map disposes its owned keys, the registry frees the ledger.
+	# Replays and clears the deferred command stream - the band-boundary
+	# flush. Commands apply in record order (FIFO). Stale-handle policy:
+	# shipping no-ops (a no-op'd add's payload is disposed here - the flush
+	# owns consumed records); under checks, a data-losing command against a
+	# dead entity aborts (spawn and destroy stay silent - a cancelled
+	# reservation and an already-dead target lose nothing).
+	- flush_commands! -> ()
+	{
+		# The flush is the sanctioned mutation window - suspend the
+		# mid-tick guard for the replay.
+		let was_in_tick<atom> = self.in_tick;
+		self.in_tick = :false;
+
+		while(self.commands.advance!)
+		{
+			if(self.commands.tag == :ecs_spawn)
+			{
+				let placed<atom> = self.place_reserved!((self.commands.payload ~~> cmd_entity_r*).e);
+			}
+			elif(self.commands.tag == :ecs_destroy)
+			{
+				let destroyed<atom> = self.destroy!((self.commands.payload ~~> cmd_entity_r*).e);
+			}
+			elif(self.commands.tag == :ecs_add)
+			{
+				let hdr<cmd_add_r*> = self.commands.payload ~~> cmd_add_r*;
+
+				constif(__glc_ecs_checks)
+				{
+					if(!self.registry.valid?(hdr.e))
+					{
+						error.runtime_error("ecs: deferred add! targets a dead entity");
+					}
+				}
+
+				let frag<voidptr> = ((self.commands.payload ~~> u8) + (add_fragment_offset(hdr.falign) ~~> u8)) ~~> voidptr;
+
+				if(!self.add_raw!(hdr.e, hdr.tid, frag, hdr.fsize, hdr.falign, hdr.fdisposer))
+				{
+					if(!nil?(hdr.fdisposer ~~> voidptr))
+					{
+						(hdr.fdisposer ~> (voidptr) -> ())(frag);
+					}
+				}
+			}
+			elif(self.commands.tag == :ecs_remove)
+			{
+				let c<cmd_entity_tid_r*> = self.commands.payload ~~> cmd_entity_tid_r*;
+
+				constif(__glc_ecs_checks)
+				{
+					if(!self.registry.valid?(c.e))
+					{
+						error.runtime_error("ecs: deferred remove! targets a dead entity");
+					}
+				}
+
+				let removed<atom> = self.remove_tid!(c.e, c.tid);
+			}
+			elif(self.commands.tag == :ecs_tag)
+			{
+				let c<cmd_entity_tid_r*> = self.commands.payload ~~> cmd_entity_tid_r*;
+
+				constif(__glc_ecs_checks)
+				{
+					if(!self.registry.valid?(c.e))
+					{
+						error.runtime_error("ecs: deferred tag! targets a dead entity");
+					}
+				}
+
+				let tagged<atom> = self.tag_tid!(c.e, c.tid);
+			}
+			elif(self.commands.tag == :ecs_untag)
+			{
+				let c<cmd_entity_tid_r*> = self.commands.payload ~~> cmd_entity_tid_r*;
+
+				constif(__glc_ecs_checks)
+				{
+					if(!self.registry.valid?(c.e))
+					{
+						error.runtime_error("ecs: deferred untag! targets a dead entity");
+					}
+				}
+
+				let untagged<atom> = self.untag_tid!(c.e, c.tid);
+			}
+		}
+
+		self.commands.reset!;
+		self.in_tick = was_in_tick;
+		^ ();
+	}
+
+	# Tears down everything: unflushed commands dispose their payloads,
+	# processor instances dispose next (they may reference world data),
+	# then each archetype disposes its live cells, the map disposes its
+	# owned keys, the registry frees the ledger.
 	- dispose -> ()
 	{
+		self.commands.dispose;
+
 		if(!nil?(self.processor_instances))
 		{
 			__glc_ecs_dispose_processors(self.processor_instances);
@@ -542,6 +703,7 @@ record world_r
 	result.archetypes = make_array(archetype_r, 4_sz);
 	result.tids_by_arch = make_array([typeid, :dynamic], 4_sz);
 	result.archetype_map = make_hashmap_with_capacity([c1], u4, 8_sz);
+	result.commands = make_push_buffer(0_sz);
 
 	let empty_schema<[fragment_info_r, :dynamic]> = make_array(fragment_info_r, 0_sz);
 	let empty_tids<[typeid, :dynamic]> = make_array(typeid, 0_sz);

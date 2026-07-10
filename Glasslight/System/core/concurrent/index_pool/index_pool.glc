@@ -1,0 +1,184 @@
+package index_pool;
+require core.common ~> .;
+require core.array ~> .;
+require core.atomic ~> .;
+require core.error ~> error;
+
+# An atomic index pool: claims dense u4 slot identities from parallel code
+# between synchronization points. The first consumer is the ECS registry's
+# reservation tier; render proxies, particle slots, and other
+# parallel-claim handle systems are the anticipated reuses. u4 is a
+# deliberate contract, not an accident: pool indices are dense by
+# construction (they key parallel arrays sized by capacity), so 2^32 - 1
+# slots is the niche's ceiling - a sparse or larger identity space wants a
+# different structure. The top value (0xFFFFFFFF) is the empty-list
+# sentinel and is never handed out.
+#
+# PHASE-SEPARATED CONTRACT (see "Phase-Separated Concurrency" in
+# docs/plans/ecs-language-level-design.md): acquire! is safe from any
+# number of threads; release!, grow!, and reset! belong to SERIAL WINDOWS
+# only (stage barriers, band-boundary flushes, tick edges). Because
+# nothing re-enters the free list during the concurrent phase, a popped
+# index can never reappear at the head mid-CAS - the classic ABA hazard
+# cannot occur, and the plain CAS-pop below is correct without tagged
+# heads or generation counters. The contract is enforced, not assumed:
+# begin_concurrent!/end_concurrent! bracket the parallel phase, and a
+# serial-only operation inside the bracket aborts in debug builds.
+#
+# Memory ordering: seq_cst on every atomic operation (v1 policy - relax
+# only with profiler evidence). The happens-before that matters: a
+# release! in a serial window is ordered before the next begin_concurrent!
+# by the caller's own thread joins, not by this type.
+#
+# Exhaustion reports (:false, 0) from acquire! - the pool never grows on
+# its own; capacity policy (fixed budget, headroom growth in serial
+# windows, crash-vs-degrade) belongs to the consumer.
+[[:disposable]]
+record index_pool_r
+{
+	# links[i] = the next free index after i; entries are only written in
+	# serial windows and are stable during the concurrent phase.
+	let links<[u4, :dynamic]>;
+	let capacity<size> = 0_sz;
+
+	# Atomic storage, held as plain u4 so the record stays movable
+	# (returning atomic fields by value is illegal); every access goes
+	# through the typed atomic pointers below.
+	let head<u4> = 0xFFFFFFFF_u4;
+	let high_water<u4> = 0_u4;
+
+	let mode<atom> = :serial;
+
+	# The empty-free-list sentinel; also why 0xFFFFFFFF is never a valid
+	# index.
+	+ empty_head -> u4 { ^ 0xFFFFFFFF_u4; }
+
+	- head_ptr -> atomic_u4* { ^ &self.head ~~> atomic_u4*; }
+	- high_water_ptr -> atomic_u4* { ^ &self.high_water ~~> atomic_u4*; }
+
+	# In debug builds: aborts on a serial-only operation during the
+	# concurrent phase. Compiled out in release.
+	- check_serial -> ()
+	{
+		constif(__glc_debug)
+		{
+			if(self.mode == :concurrent)
+			{
+				error.runtime_error("index_pool_r: structural op during the concurrent phase - releases and growth belong to serial windows");
+			}
+		}
+
+		^ ();
+	}
+
+	# Enters the concurrent phase: from here until end_concurrent!, only
+	# acquire! and the observers are legal.
+	- begin_concurrent! -> ()
+	{
+		self.mode = :concurrent;
+		^ ();
+	}
+
+	- end_concurrent! -> ()
+	{
+		self.mode = :serial;
+		^ ();
+	}
+
+	# Claims an index: pops the free list, or takes a fresh index below
+	# capacity. Returns (:false, 0) on exhaustion - the caller owns the
+	# policy. Safe from any number of threads concurrently.
+	- acquire! -> (atom, u4)
+	{
+		let cur<u4> = load(self.head_ptr, :seq_cst);
+
+		while(cur != index_pool_r.empty_head)
+		{
+			# Reading links[cur] may race a winning pop elsewhere; the
+			# CAS below detects it and retries with the observed head.
+			let nxt<u4> = self.links.at(cur ~> u8 ~~> size);
+			let (won<atom>, seen<u4>) = compare_exchange(self.head_ptr, cur, nxt, :seq_cst, :seq_cst);
+
+			# compare_exchange reports :ok / :fail - BOTH truthy as bare
+			# atoms; the status must be compared, never truth-tested.
+			if(won == :ok)
+			{
+				^ (:true, cur);
+			}
+
+			cur = seen;
+		}
+
+		let fresh<u4> = fetch_add(self.high_water_ptr, 1_u4, :seq_cst);
+
+		if((fresh ~> u8 ~~> size) < self.capacity)
+		{
+			^ (:true, fresh);
+		}
+
+		# Overshot capacity: undo our bump so high_water stays honest
+		# telemetry (concurrent overshooters each undo their own).
+		let over<u4> = fetch_sub(self.high_water_ptr, 1_u4, :seq_cst);
+		^ (:false, 0_u4);
+	}
+
+	# Returns an index to the free list. SERIAL WINDOWS ONLY.
+	- release!(idx<u4>) -> ()
+	{
+		self.check_serial;
+		self.links[idx ~> u8 ~~> size] = load(self.head_ptr, :seq_cst);
+		store(self.head_ptr, idx, :seq_cst);
+		^ ();
+	}
+
+	# Raises capacity. SERIAL WINDOWS ONLY. Never called = the fixed-budget
+	# posture; called from flush/tick-edge headroom checks = the discovery
+	# posture.
+	- grow!(new_capacity<size>) -> ()
+	{
+		self.check_serial;
+
+		while(self.links.length < new_capacity)
+		{
+			self.links.append!(0_u4);
+		}
+
+		self.capacity = new_capacity;
+		^ ();
+	}
+
+	# Rewinds to empty. SERIAL WINDOWS ONLY.
+	- reset! -> ()
+	{
+		self.check_serial;
+		store(self.head_ptr, index_pool_r.empty_head, :seq_cst);
+		store(self.high_water_ptr, 0_u4, :seq_cst);
+		^ ();
+	}
+
+	# Telemetry: indices ever handed out fresh - what the discovered-budget
+	# workflow reads at serial points.
+	- watermark -> u4 { ^ load(self.high_water_ptr, :seq_cst); }
+
+	- dispose -> ()
+	{
+		self.links.dispose;
+		self.capacity = 0_sz;
+		^ ();
+	}
+}
+
+# Creates a pool with the given capacity (indices 0..capacity-1).
+++ make_index_pool(capacity<size>) -> index_pool_r
+{
+	let result<index_pool_r>;
+	result.links = make_array(u4, capacity);
+
+	for(let i<size> = 0_sz; i < capacity; i += 1_sz)
+	{
+		result.links.append!(0_u4);
+	}
+
+	result.capacity = capacity;
+	^ result;
+}

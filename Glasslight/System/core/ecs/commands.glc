@@ -1,0 +1,66 @@
+package ecs;
+require core.common ~> .;
+require core.pushbuffer ~> .;
+
+# The ECS command vocabulary over the core push buffer: deferred structural
+# verbs recorded during a tick (through exec_ctx_r) and replayed by the
+# world at band boundaries. The container stays domain-blind - the entity,
+# tid, and fragment bytes all live INSIDE the payload, never in the
+# container's record format.
+#
+# Tags and payloads:
+#   :ecs_spawn, :ecs_destroy          - cmd_entity_r
+#   :ecs_remove, :ecs_tag, :ecs_untag - cmd_entity_tid_r
+#   :ecs_add                          - cmd_add_r header, then the fragment
+#                                       bytes at the falign-rounded offset
+
+record cmd_entity_r
+{
+	let e<entity>;
+}
+
+record cmd_entity_tid_r
+{
+	let e<entity>;
+	let tid<typeid>;
+}
+
+# The :ecs_add payload header. The fragment's layout and disposer travel as
+# data from the typed record site (the birth point) to the flush, where
+# add_raw! consumes them.
+record cmd_add_r
+{
+	let e<entity>;
+	let tid<typeid>;
+	let fsize<size> = 0_sz;
+	let falign<size> = 0_sz;
+	let fdisposer<fptr>;
+}
+
+# Offset of the fragment bytes within an :ecs_add payload.
++ add_fragment_offset(falign<size>) -> size
+{
+	^ push_buffer_r.round_up(typeinfo(cmd_add_r, :bytes), falign);
+}
+
+# Record-level disposer for :ecs_add commands abandoned in the buffer
+# (world torn down or reset before the flush): runs the fragment's own
+# disposer against the bytes at their payload offset, so an unflushed add
+# never leaks. Registered only for fragments that contain disposables.
++ add_command_disposer() -> fptr
+{
+	let g<(voidptr) -> ()> = \ (p<voidptr>) -> ()
+	{
+		let hdr<cmd_add_r*> = p ~~> cmd_add_r*;
+
+		if(!nil?(hdr.fdisposer ~~> voidptr))
+		{
+			let frag<u8> = (p ~~> u8) + (add_fragment_offset(hdr.falign) ~~> u8);
+			(hdr.fdisposer ~> (voidptr) -> ())(frag ~~> voidptr);
+		}
+
+		^ ();
+	};
+
+	^ g ~> fptr;
+}
