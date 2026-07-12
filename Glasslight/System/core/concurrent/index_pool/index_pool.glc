@@ -53,6 +53,21 @@ record index_pool_r
 	# index.
 	+ empty_head -> u4 { ^ 0xFFFFFFFF_u4; }
 
+	# Largest legal capacity: indices stay below the sentinel.
+	+ max_capacity -> size { ^ 0xFFFFFFFF_u4 ~> u8 ~~> size; }
+
+	# Aborts on a capacity past the u4 index ceiling - a wider identity
+	# space wants a different structure.
+	+ check_capacity(c<size>) -> ()
+	{
+		if(c > index_pool_r.max_capacity)
+		{
+			error.runtime_error("index_pool_r: capacity exceeds the u4 index ceiling");
+		}
+
+		^ ();
+	}
+
 	- head_ptr -> atomic_u4* { ^ &self.head ~~> atomic_u4*; }
 	- high_water_ptr -> atomic_u4* { ^ &self.high_water ~~> atomic_u4*; }
 
@@ -109,34 +124,59 @@ record index_pool_r
 			cur = seen;
 		}
 
-		let fresh<u4> = fetch_add(self.high_water_ptr, 1_u4, :seq_cst);
+		# Fresh claim: a non-wrapping CAS raise. high_water never passes
+		# capacity, so it cannot wrap at the u4 ceiling and watermark
+		# stays monotonic under contention.
+		let fresh<u4> = load(self.high_water_ptr, :seq_cst);
 
-		if((fresh ~> u8 ~~> size) < self.capacity)
+		while((fresh ~> u8 ~~> size) < self.capacity)
 		{
-			^ (:true, fresh);
+			let (won<atom>, seen<u4>) = compare_exchange(self.high_water_ptr, fresh, fresh + 1_u4, :seq_cst, :seq_cst);
+
+			if(won == :ok)
+			{
+				^ (:true, fresh);
+			}
+
+			fresh = seen;
 		}
 
-		# Overshot capacity: undo our bump so high_water stays honest
-		# telemetry (concurrent overshooters each undo their own).
-		let over<u4> = fetch_sub(self.high_water_ptr, 1_u4, :seq_cst);
 		^ (:false, 0_u4);
 	}
 
-	# Returns an index to the free list. SERIAL WINDOWS ONLY.
+	# Returns an index to the free list. SERIAL WINDOWS ONLY. The caller
+	# owns release discipline: idx must be live (claimed and not yet
+	# released) - a double release corrupts the free list. Debug builds
+	# catch indices never claimed at all.
 	- release!(idx<u4>) -> ()
 	{
 		self.check_serial;
+
+		constif(__glc_debug)
+		{
+			if(idx >= load(self.high_water_ptr, :seq_cst))
+			{
+				error.runtime_error("index_pool_r: release of an index never claimed");
+			}
+		}
+
 		self.links[idx ~> u8 ~~> size] = load(self.head_ptr, :seq_cst);
 		store(self.head_ptr, idx, :seq_cst);
 		^ ();
 	}
 
-	# Raises capacity. SERIAL WINDOWS ONLY. Never called = the fixed-budget
-	# posture; called from flush/tick-edge headroom checks = the discovery
-	# posture.
+	# Raises capacity; a smaller or equal request is a no-op - the pool
+	# never shrinks. SERIAL WINDOWS ONLY.
 	- grow!(new_capacity<size>) -> ()
 	{
 		self.check_serial;
+
+		if(new_capacity <= self.capacity)
+		{
+			^ ();
+		}
+
+		index_pool_r.check_capacity(new_capacity);
 
 		while(self.links.length < new_capacity)
 		{
@@ -156,12 +196,13 @@ record index_pool_r
 		^ ();
 	}
 
-	# Telemetry: indices ever handed out fresh - what the discovered-budget
-	# workflow reads at serial points.
+	# Telemetry: fresh indices ever claimed. Monotonic and never above
+	# capacity - safe to sample from any phase.
 	- watermark -> u4 { ^ load(self.high_water_ptr, :seq_cst); }
 
 	- dispose -> ()
 	{
+		self.check_serial;
 		self.links.dispose;
 		self.capacity = 0_sz;
 		^ ();
@@ -171,6 +212,8 @@ record index_pool_r
 # Creates a pool with the given capacity (indices 0..capacity-1).
 ++ make_index_pool(capacity<size>) -> index_pool_r
 {
+	index_pool_r.check_capacity(capacity);
+
 	let result<index_pool_r>;
 	result.links = make_array(u4, capacity);
 

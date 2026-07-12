@@ -37,10 +37,12 @@ record job_r
 [[:disposable]]
 record job_queue_r
 {
-	# FIFO storage: a dynamic array with a head cursor; the array rewinds
-	# when drained, so steady-state batches reuse capacity.
+	# FIFO storage: a ring over a fixed-length array (length == capacity
+	# always). Memory stays bounded by the pending count; growth doubles
+	# under the lock, copying the pending run in order.
 	let items<[job_r, :dynamic]>;
 	let head<size> = 0_sz;
+	let count<size> = 0_sz;
 
 	let m<mutex_r>;
 	let cv<cond_r>;
@@ -51,21 +53,40 @@ record job_queue_r
 	{
 		let empty_job<job_r>;
 
-		if(self.head >= self.items.length)
+		if(self.count == 0_sz)
 		{
 			^ (:false, empty_job);
 		}
 
 		let j<job_r> = self.items.at(self.head);
-		self.head += 1_sz;
+		self.head = (self.head + 1_sz) % self.items.length;
+		self.count -= 1_sz;
+		^ (:true, j);
+	}
 
-		if(self.head == self.items.length)
+	# Doubles the ring, copying the pending run in order. Caller holds
+	# the lock.
+	- grow_locked! -> ()
+	{
+		let old_cap<size> = self.items.length;
+		let bigger<[job_r, :dynamic]> = make_array(job_r, old_cap * 2_sz);
+
+		for(let i<size> = 0_sz; i < self.count; i += 1_sz)
 		{
-			self.items.clear!;
-			self.head = 0_sz;
+			bigger.append!(self.items.at((self.head + i) % old_cap));
 		}
 
-		^ (:true, j);
+		let filler<job_r>;
+
+		while(bigger.length < old_cap * 2_sz)
+		{
+			bigger.append!(filler);
+		}
+
+		self.items.dispose;
+		self.items = bigger;
+		self.head = 0_sz;
+		^ ();
 	}
 
 	# Appends a batch and wakes every blocked consumer.
@@ -75,7 +96,13 @@ record job_queue_r
 
 		for(let i<size> = 0_sz; i < jobs.length(); i += 1_sz)
 		{
-			self.items.append!(jobs.at(i));
+			if(self.count == self.items.length)
+			{
+				self.grow_locked!;
+			}
+
+			self.items[(self.head + self.count) % self.items.length] = jobs.at(i);
+			self.count += 1_sz;
 		}
 
 		mutex_unlock(&self.m);
@@ -98,7 +125,7 @@ record job_queue_r
 	{
 		mutex_lock(&self.m);
 
-		while(self.head >= self.items.length && !self.down)
+		while(self.count == 0_sz && !self.down)
 		{
 			cond_wait(&self.cv, &self.m);
 		}
@@ -122,7 +149,17 @@ record job_queue_r
 	- pending -> size
 	{
 		mutex_lock(&self.m);
-		let n<size> = self.items.length - self.head;
+		let n<size> = self.count;
+		mutex_unlock(&self.m);
+		^ n;
+	}
+
+	# Telemetry: the ring's current storage capacity - what the
+	# boundedness regression watches.
+	- capacity -> size
+	{
+		mutex_lock(&self.m);
+		let n<size> = self.items.length;
 		mutex_unlock(&self.m);
 		^ n;
 	}
@@ -141,7 +178,16 @@ record job_queue_r
 ++ job_queue_init(q<job_queue_r*>) -> ()
 {
 	q.items = make_array(job_r, 16_sz);
+
+	let filler<job_r>;
+
+	while(q.items.length < 16_sz)
+	{
+		q.items.append!(filler);
+	}
+
 	q.head = 0_sz;
+	q.count = 0_sz;
 	q.down = :false;
 
 	if(mutex_init(&q.m) != :ok)

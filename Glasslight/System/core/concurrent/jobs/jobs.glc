@@ -6,31 +6,13 @@ require core.thread ~> .;
 require core.concurrent.job_queue ~> .;
 require core.error ~> error;
 
-# The job pool: persistent workers draining a shared job_queue_r. The
-# general dedicated-pool facility - applications create pools and hand
-# them to task domains. The ratified usage model is ONE app-wide pool
-# with the ECS as its dominant tenant and other systems injecting
-# occasional batches; per-batch completion counters keep every consumer's
-# barrier honest under that sharing.
-#
-# Contexts: each worker binds its OWN per-worker arena state to
-# ctx.transient at bootstrap (the default __glc_init_ctx arena state is a
-# GLOBAL - sharing it across threads would race). ctx.main stays the
-# malloc-backed default: thread-safe, cross-thread-free-safe, the primary
-# allocator throughout the codebase. The transient arena is exactly the
-# temp-allocation lane: scratch dies at the owner-defined reset
-# (reset_worker_arenas!, quiescent pools only); letting it escape into
-# durable structures is the author's bug.
-#
-# Waiting: wait! drains the queue alongside the workers - a waiting
-# thread executes whatever it pops (any batch's jobs - work is work)
-# under ITS OWN context, then spin+yields on the batch counter. Because
-# waiters drain, a job may itself submit a sub-batch and wait! on it
-# without deadlocking the pool.
+# Job pool: persistent workers draining a shared job_queue_r. One app-wide
+# pool, per-batch counters as barriers. ctx.main durable; ctx.transient is
+# a per-worker arena, reset only at quiescence. wait! drains alongside the
+# workers, so jobs may nest sub-batch waits without deadlock.
 
 # The completion handle: one atomic counter, stamped into every job of
-# the batch by submit_batch!. Counters are general completion tokens -
-# an async operation can hold one that its continuation settles.
+# the batch by submit_batch!.
 record batch_r
 {
 	# Atomic storage as plain u4 (records with atomic fields cannot move
@@ -68,9 +50,8 @@ record job_pool_r
 	let arenas<[arena_allocator_state_r, :dynamic]>;
 	let worker_count<size> = 0_sz;
 
-	# Stamps the batch's counter into every job, arms the counter, and
-	# hands the batch to the queue. The jobs array is the caller's; its
-	# counter fields are overwritten here.
+	# Stamps and arms the batch's counter into every job, then hands the
+	# batch to the queue.
 	- submit_batch!(jobs<[job_r, :dynamic]*>, b<batch_r*>) -> ()
 	{
 		let n<size> = jobs.length;
@@ -86,10 +67,8 @@ record job_pool_r
 		^ ();
 	}
 
-	# Resets every worker's transient arena. LEGAL ONLY AT POOL-LEVEL
-	# QUIESCENCE (no jobs in flight anywhere - my barrier does not mean
-	# your jobs finished): a shared pool's reset policy belongs to
-	# whoever owns the sharing arrangement.
+	# Resets every worker's transient arena. Legal only at pool-level
+	# quiescence - a settled barrier does not mean the pool is idle.
 	- reset_worker_arenas! -> ()
 	{
 		for(let i<size> = 0_sz; i < self.arenas.length; i += 1_sz)
@@ -123,8 +102,8 @@ record job_pool_r
 	}
 }
 
-# Runs one job under the ambient context and settles its counter - the
-# executor contract, shared by workers and waiters.
+# Runs one job under the ambient context and settles its counter. Caller
+# contract: the ambient ctx.transient must be thread-private.
 ++ run_job(j<job_r>) -> ()
 {
 	(j.fn ~> (context_r, voidptr) -> ())(j.data);
@@ -137,10 +116,8 @@ record job_pool_r
 	^ ();
 }
 
-# Creates the pool in place (it embeds a mutex - it must not move):
-# spawns worker_count named workers, each parked on the queue's blocking
-# pop with its own transient arena bound. worker_count may be zero - all
-# work is then done by whoever wait!s (the degenerate serial pool).
+# Creates the pool in place (embeds a mutex - must not move). worker_count
+# may be zero: all work is then done by whoever wait!s.
 ++ job_pool_init(p<job_pool_r*>, worker_count<size>, name<[c1, :c]>) -> ()
 {
 	job_queue_init(&p.q);
@@ -171,8 +148,9 @@ record job_pool_r
 		let boot<worker_boot_r*> = user_data ~~> worker_boot_r*;
 		let named<atom> = thread_set_name(boot.name);
 
-		# The landmine fix: bind THIS worker's transient to its own
-		# pool-owned arena state, not the global one.
+		# Per-worker transient arena. Copy ctx first - assignments on the
+		# passed-in ctx do not thread to callees.
+		let ctx<context_r> = ctx;
 		ctx.transient = make_arena_allocator(boot.arena, make_default_allocator, 4096_sz);
 
 		while(:true)
@@ -194,7 +172,9 @@ record job_pool_r
 	{
 		let (spawned<atom>, t<thread_r>) = spawn_default(worker_entry, (p.boots.data() + i) ~~> voidptr);
 
-		if(!spawned)
+		# spawn_default reports :ok/:failed - both truthy; compare, never
+		# truth-test status atoms.
+		if(spawned != :ok)
 		{
 			error.runtime_error("job_pool_r: worker spawn failed");
 		}
@@ -205,12 +185,17 @@ record job_pool_r
 	^ ();
 }
 
-# The batch barrier: drains the queue alongside the workers (executing
-# ANY batch's jobs under the caller's own context), then spin+yields on
-# the counter for stragglers. Safe to call from inside a job - waiters
-# make progress by draining.
+# The batch barrier: drains the queue alongside the workers (any batch's
+# jobs), then spin+yields on the counter. Safe to call from inside a job.
+# Jobs drain under a wait-local arena - waiters must not share the global.
 ++ wait!(p<job_pool_r*>, b<batch_r*>) -> ()
 {
+	let wait_arena<arena_allocator_state_r>;
+
+	# Copy ctx - assignments on the passed-in ctx do not thread to callees.
+	let ctx<context_r> = ctx;
+	ctx.transient = make_arena_allocator(&wait_arena, make_default_allocator, 4096_sz);
+
 	while(!b.done?)
 	{
 		let (ok<atom>, j<job_r>) = p.q.try_pop!;
@@ -225,5 +210,6 @@ record job_pool_r
 		}
 	}
 
+	arena_allocator_release!(&wait_arena);
 	^ ();
 }

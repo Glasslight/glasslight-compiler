@@ -8,13 +8,15 @@ Frame-local scratch allocator backed by caller-supplied storage.
 Expected usage:
 - declare a local byte buffer and scratch_allocator_state_r in the owning function
 - construct the allocator with make_scratch_allocator(&state, buf.data(), cap)
-- assign it to a local context allocator when temporary allocations should use the buffer
+- copy the ambient context into a local ctx and assign the allocator on the
+  copy (field assignments on the passed-in ctx do not thread to callees)
 - keep all allocated values within the lifetime of the buffer and state
 
 Example:
 	let buf<[u1, 1024_sz]>;
 	let state<scratch_allocator_state_r>;
 
+	let ctx<context_r> = ctx;
 	ctx.main = make_scratch_allocator(&state, buf.data(), 1024_sz);
 
 This allocator uses bump allocation, rewinds only when freeing the most recent block,
