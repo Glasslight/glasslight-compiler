@@ -16,8 +16,11 @@ record thread_r
 record thread_spawn_config_r
 {
 	let name<[c1, :c]> = nil;
+	# Requested stack reservation. Zero uses the platform default.
 	let stack_bytes<size> = 0_sz;
 }
+
+const stack_size_param_is_a_reservation<u4> = 0x00010000_u4;
 
 record thread_args_r
 {
@@ -80,7 +83,14 @@ foreign "Kernel32" ~> .
 	args.user_data = user_data;
 	args.args_alloc = a;
 
-	let native_handle<kernel32.handle_t> = CreateThread(nil, config.stack_bytes, &__glc_thread_bootstrap_win64 ~> fptr, raw, 0_u4, nil);
+	let creation_flags<u4> = 0_u4;
+
+	if(config.stack_bytes > 0_sz)
+	{
+		creation_flags = stack_size_param_is_a_reservation;
+	}
+
+	let native_handle<kernel32.handle_t> = CreateThread(nil, config.stack_bytes, &__glc_thread_bootstrap_win64 ~> fptr, raw, creation_flags, nil);
 
 	if(!os_handle.valid_native_handle?(native_handle))
 	{

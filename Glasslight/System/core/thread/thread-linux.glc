@@ -13,6 +13,7 @@ record thread_r
 record thread_spawn_config_r
 {
 	let name<[c1, :c]> = nil;
+	# Requested stack reservation. Zero uses the platform default.
 	let stack_bytes<size> = 0_sz;
 }
 
@@ -119,8 +120,21 @@ foreign "c" ~> .
 
 	if(config.stack_bytes > 0_sz)
 	{
-		pthread_attr_init(&attr);
-		pthread_attr_setstacksize(&attr, config.stack_bytes);
+		if(pthread_attr_init(&attr) != 0_s4)
+		{
+			allocator_free(a, raw);
+			let failed<thread_r>;
+			^ (:failed, failed);
+		}
+
+		if(pthread_attr_setstacksize(&attr, config.stack_bytes) != 0_s4)
+		{
+			pthread_attr_destroy(&attr);
+			allocator_free(a, raw);
+			let failed<thread_r>;
+			^ (:failed, failed);
+		}
+
 		has_attr = :true;
 	}
 
