@@ -36,22 +36,31 @@ foreign "Kernel32" ~> .
 	^ :ok;
 }
 
-# No-op on Windows: CONDITION_VARIABLE has no cleanup.
-+ cond_destroy(cv<cond_r*>) -> ()
+# No-op on Windows: CONDITION_VARIABLE has no cleanup. Returns :ok always.
++ cond_destroy(cv<cond_r*>) -> atom
 {
-	^ ();
+	^ :ok;
 }
 
 # Atomically unlock `*m` and block until signaled, then relock `*m`.
-+ cond_wait(cv<cond_r*>, m<mutex_r*>) -> ()
+# Returns :ok, or :failed when the wait never happened - under INFINITE a
+# FALSE return is never a timeout.
++ cond_wait(cv<cond_r*>, m<mutex_r*>) -> atom
 {
-	let _rc<atom> = SleepConditionVariableSRW(cv, m, kernel32.INFINITE, 0_u4);
-	^ ();
+	let rc<atom> = SleepConditionVariableSRW(cv, m, kernel32.INFINITE, 0_u4);
+
+	if(rc == :true)
+	{
+		^ :ok;
+	}
+
+	^ :failed;
 }
 
 # Wait until signaled or until `timeout_ns` elapses on the monotonic clock.
 # Returns :signaled if the cond was notified (or a spurious wake happened),
-# :timedout if the deadline expired.
+# :timedout if the deadline expired, :failed on error (invalid cv, or `*m`
+# not held).
 #
 # SleepConditionVariableSRW takes a relative millisecond timeout and is bound
 # by the system timer granularity (~15.6ms by default). It can therefore wake
@@ -85,21 +94,28 @@ foreign "Kernel32" ~> .
 		{
 			^ :signaled;
 		}
+
+		if(kernel32.GetLastError() != kernel32.win32_error_code_e.error_timeout)
+		{
+			^ :failed;
+		}
 	}
 
 	^ :timedout;
 }
 
-# Wake one thread waiting on `*cv`.
-+ cond_signal(cv<cond_r*>) -> ()
+# Wake one thread waiting on `*cv`. WakeConditionVariable is void. Returns
+# :ok always.
++ cond_signal(cv<cond_r*>) -> atom
 {
 	WakeConditionVariable(cv);
-	^ ();
+	^ :ok;
 }
 
-# Wake all threads waiting on `*cv`.
-+ cond_broadcast(cv<cond_r*>) -> ()
+# Wake all threads waiting on `*cv`. WakeAllConditionVariable is void.
+# Returns :ok always.
++ cond_broadcast(cv<cond_r*>) -> atom
 {
 	WakeAllConditionVariable(cv);
-	^ ();
+	^ :ok;
 }

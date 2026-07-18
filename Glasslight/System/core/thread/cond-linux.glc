@@ -57,6 +57,9 @@ foreign "c" ~> .
 	+ pthread_condattr_setclock(attr<pthread_condattr_r*>, clock<s4>) -> s4;
 }
 
+# pthread_cond_timedwait returns this when the deadline passes.
+const ETIMEDOUT<s4> = 110_s4;
+
 # Initialize a condition variable in place, bound to CLOCK_MONOTONIC so
 # cond_wait_timeout deadlines are immune to wall-clock jumps. Returns :ok or :failed.
 + cond_init(cv<cond_r*>) -> atom
@@ -88,23 +91,40 @@ foreign "c" ~> .
 	^ :failed;
 }
 
-# Release resources held by `*cv`.
-+ cond_destroy(cv<cond_r*>) -> ()
+# Release resources held by `*cv`. Returns :ok, or :failed when the cv is
+# invalid or still waited on.
++ cond_destroy(cv<cond_r*>) -> atom
 {
-	let _rc<s4> = pthread_cond_destroy(cv);
-	^ ();
+	let rc<s4> = pthread_cond_destroy(cv);
+
+	if(rc == 0_s4)
+	{
+		^ :ok;
+	}
+
+	^ :failed;
 }
 
 # Atomically unlock `*m` and block until signaled, then relock `*m`.
-+ cond_wait(cv<cond_r*>, m<mutex_r*>) -> ()
+# Returns :ok, or :failed when the wait never happened (invalid cv, or `*m`
+# not held by the calling thread) - on :failed the unlock-wait-relock
+# contract did not execute.
++ cond_wait(cv<cond_r*>, m<mutex_r*>) -> atom
 {
-	let _rc<s4> = pthread_cond_wait(cv, m);
-	^ ();
+	let rc<s4> = pthread_cond_wait(cv, m);
+
+	if(rc == 0_s4)
+	{
+		^ :ok;
+	}
+
+	^ :failed;
 }
 
 # Wait until signaled or until `timeout_ns` (measured on CLOCK_MONOTONIC) elapses.
 # Returns :signaled if the cond was notified (or a spurious wake happened),
-# :timedout if the deadline expired.
+# :timedout if the deadline expired, :failed on error (invalid cv, or `*m`
+# not held).
 + cond_wait_timeout(cv<cond_r*>, m<mutex_r*>, timeout_ns<s8>) -> atom
 {
 	let deadline<s8> = time.deadline_from_timeout_ns(timeout_ns);
@@ -118,19 +138,36 @@ foreign "c" ~> .
 		^ :signaled;
 	}
 
-	^ :timedout;
+	if(rc == ETIMEDOUT)
+	{
+		^ :timedout;
+	}
+
+	^ :failed;
 }
 
-# Wake one thread waiting on `*cv`.
-+ cond_signal(cv<cond_r*>) -> ()
+# Wake one thread waiting on `*cv`. Returns :ok, or :failed on an invalid cv.
++ cond_signal(cv<cond_r*>) -> atom
 {
-	let _rc<s4> = pthread_cond_signal(cv);
-	^ ();
+	let rc<s4> = pthread_cond_signal(cv);
+
+	if(rc == 0_s4)
+	{
+		^ :ok;
+	}
+
+	^ :failed;
 }
 
-# Wake all threads waiting on `*cv`.
-+ cond_broadcast(cv<cond_r*>) -> ()
+# Wake all threads waiting on `*cv`. Returns :ok, or :failed on an invalid cv.
++ cond_broadcast(cv<cond_r*>) -> atom
 {
-	let _rc<s4> = pthread_cond_broadcast(cv);
-	^ ();
+	let rc<s4> = pthread_cond_broadcast(cv);
+
+	if(rc == 0_s4)
+	{
+		^ :ok;
+	}
+
+	^ :failed;
 }

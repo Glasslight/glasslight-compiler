@@ -60,18 +60,18 @@ foreign "c" ~> .
 	^ :failed;
 }
 
-# Release resources held by `*m`.
-+ recursive_mutex_destroy(m<recursive_mutex_r*>) -> ()
+# Release resources held by `*m`. Returns :ok, or :failed when the mutex is
+# invalid or still in use.
++ recursive_mutex_destroy(m<recursive_mutex_r*>) -> atom
 {
-	mutex_destroy(m);
-	^ ();
+	^ mutex_destroy(m);
 }
 
 # Acquire `*m`. A thread that already owns `*m` increments the lock count.
-+ recursive_mutex_lock(m<recursive_mutex_r*>) -> ()
+# Returns :ok, or :failed when the lock was not acquired.
++ recursive_mutex_lock(m<recursive_mutex_r*>) -> atom
 {
-	mutex_lock(m);
-	^ ();
+	^ mutex_lock(m);
 }
 
 # Attempt to acquire `*m` without blocking. Returns :locked (acquired or already
@@ -81,9 +81,9 @@ foreign "c" ~> .
 	^ mutex_trylock(m);
 }
 
-# Release one level of ownership of `*m`.
-+ recursive_mutex_unlock(m<recursive_mutex_r*>) -> ()
+# Release one level of ownership of `*m`. Returns :ok, or :failed when the
+# release did not happen.
++ recursive_mutex_unlock(m<recursive_mutex_r*>) -> atom
 {
-	mutex_unlock(m);
-	^ ();
+	^ mutex_unlock(m);
 }

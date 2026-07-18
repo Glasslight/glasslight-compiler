@@ -33,20 +33,22 @@ foreign "Kernel32" ~> .
 	^ :ok;
 }
 
-# No-op on Windows: SRWLOCK has no cleanup.
-+ mutex_destroy(m<mutex_r*>) -> ()
+# No-op on Windows: SRWLOCK has no cleanup. Returns :ok always.
++ mutex_destroy(m<mutex_r*>) -> atom
 {
-	^ ();
+	^ :ok;
 }
 
-# Block until `*m` is acquired by the calling thread.
-+ mutex_lock(m<mutex_r*>) -> ()
+# Block until `*m` is acquired by the calling thread. AcquireSRWLockExclusive
+# is void - it cannot report failure. Returns :ok always.
++ mutex_lock(m<mutex_r*>) -> atom
 {
 	AcquireSRWLockExclusive(m);
-	^ ();
+	^ :ok;
 }
 
-# Attempt to acquire `*m` without blocking. Returns :locked or :busy.
+# Attempt to acquire `*m` without blocking. Returns :locked or :busy; the
+# BOOLEAN carries no error channel, so :failed is unreachable on Windows.
 + mutex_trylock(m<mutex_r*>) -> atom
 {
 	let rc<u1> = TryAcquireSRWLockExclusive(m);
@@ -59,9 +61,9 @@ foreign "Kernel32" ~> .
 	^ :busy;
 }
 
-# Release `*m`.
-+ mutex_unlock(m<mutex_r*>) -> ()
+# Release `*m`. ReleaseSRWLockExclusive is void. Returns :ok always.
++ mutex_unlock(m<mutex_r*>) -> atom
 {
 	ReleaseSRWLockExclusive(m);
-	^ ();
+	^ :ok;
 }

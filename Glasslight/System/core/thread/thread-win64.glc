@@ -313,6 +313,12 @@ foreign "Kernel32" ~> .
 		^ (:failed, 0_u8);
 	}
 
-	let _restore<size> = SetThreadAffinityMask(native_handle, prev);
+	let restored<size> = SetThreadAffinityMask(native_handle, prev);
+
+	if(restored == 0_sz)
+	{
+		^ (:failed, 0_u8);
+	}
+
 	^ (:ok, prev ~~> u8);
 }

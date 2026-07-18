@@ -57,6 +57,9 @@ foreign "c" ~> .
 	+ pthread_mutex_unlock(m<mutex_r*>) -> s4;
 }
 
+# pthread_mutex_trylock returns this when the mutex is already held.
+const EBUSY<s4> = 16_s4;
+
 # Initialize a non-recursive mutex in place. Returns :ok or :failed.
 + mutex_init(m<mutex_r*>) -> atom
 {
@@ -70,21 +73,37 @@ foreign "c" ~> .
 	^ :failed;
 }
 
-# Release resources held by `*m`.
-+ mutex_destroy(m<mutex_r*>) -> ()
+# Release resources held by `*m`. Returns :ok, or :failed when the mutex is
+# invalid or still in use (locked, or waited on through a cond).
++ mutex_destroy(m<mutex_r*>) -> atom
 {
-	let _rc<s4> = pthread_mutex_destroy(m);
-	^ ();
+	let rc<s4> = pthread_mutex_destroy(m);
+
+	if(rc == 0_s4)
+	{
+		^ :ok;
+	}
+
+	^ :failed;
 }
 
-# Block until `*m` is acquired by the calling thread.
-+ mutex_lock(m<mutex_r*>) -> ()
+# Block until `*m` is acquired by the calling thread. Returns :ok, or :failed
+# when the lock was not acquired (invalid mutex, self-deadlock, recursion
+# overflow) - on :failed the caller does NOT hold the lock.
++ mutex_lock(m<mutex_r*>) -> atom
 {
-	let _rc<s4> = pthread_mutex_lock(m);
-	^ ();
+	let rc<s4> = pthread_mutex_lock(m);
+
+	if(rc == 0_s4)
+	{
+		^ :ok;
+	}
+
+	^ :failed;
 }
 
-# Attempt to acquire `*m` without blocking. Returns :locked or :busy.
+# Attempt to acquire `*m` without blocking. Returns :locked, :busy when the
+# mutex is already held, or :failed on error (e.g. invalid mutex).
 + mutex_trylock(m<mutex_r*>) -> atom
 {
 	let rc<s4> = pthread_mutex_trylock(m);
@@ -94,12 +113,25 @@ foreign "c" ~> .
 		^ :locked;
 	}
 
-	^ :busy;
+	if(rc == EBUSY)
+	{
+		^ :busy;
+	}
+
+	^ :failed;
 }
 
-# Release `*m`.
-+ mutex_unlock(m<mutex_r*>) -> ()
+# Release `*m`. Returns :ok, or :failed when the release did not happen
+# (invalid mutex, or the calling thread is not the owner; not-owner detection
+# is best-effort on default POSIX mutexes).
++ mutex_unlock(m<mutex_r*>) -> atom
 {
-	let _rc<s4> = pthread_mutex_unlock(m);
-	^ ();
+	let rc<s4> = pthread_mutex_unlock(m);
+
+	if(rc == 0_s4)
+	{
+		^ :ok;
+	}
+
+	^ :failed;
 }

@@ -42,12 +42,18 @@ foreign "Kernel32" ~> .
 	^ (:ok, k);
 }
 
-# Release the TLS slot.
-+ tls_key_destroy(k<tls_key_r>) -> ()
+# Release the TLS slot. Returns :ok, or :failed on an invalid slot.
++ tls_key_destroy(k<tls_key_r>) -> atom
 {
 	let index<u4> = k.native ~> u4;
-	let _freed<atom> = TlsFree(index);
-	^ ();
+	let freed<atom> = TlsFree(index);
+
+	if(freed == :true)
+	{
+		^ :ok;
+	}
+
+	^ :failed;
 }
 
 # Return the calling thread's value for `k`, or nil if never set.
@@ -57,10 +63,17 @@ foreign "Kernel32" ~> .
 	^ TlsGetValue(index);
 }
 
-# Set the calling thread's value for `k`.
-+ tls_set(k<tls_key_r>, v<voidptr>) -> ()
+# Set the calling thread's value for `k`. Returns :ok, or :failed when the
+# value was NOT stored (invalid slot).
++ tls_set(k<tls_key_r>, v<voidptr>) -> atom
 {
 	let index<u4> = k.native ~> u4;
-	let _set<atom> = TlsSetValue(index, v);
-	^ ();
+	let stored<atom> = TlsSetValue(index, v);
+
+	if(stored == :true)
+	{
+		^ :ok;
+	}
+
+	^ :failed;
 }

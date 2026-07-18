@@ -44,12 +44,18 @@ foreign "libSystem.B.tbd" ~> .
 	^ (:ok, k);
 }
 
-# Release the TLS key.
-+ tls_key_destroy(k<tls_key_r>) -> ()
+# Release the TLS key. Returns :ok, or :failed on an invalid key.
++ tls_key_destroy(k<tls_key_r>) -> atom
 {
 	let key<pthread_key_t> = k.native ~> pthread_key_t;
-	let _rc<s4> = pthread_key_delete(key);
-	^ ();
+	let rc<s4> = pthread_key_delete(key);
+
+	if(rc == 0_s4)
+	{
+		^ :ok;
+	}
+
+	^ :failed;
 }
 
 # Return the calling thread's value for `k`, or nil if never set.
@@ -59,10 +65,17 @@ foreign "libSystem.B.tbd" ~> .
 	^ pthread_getspecific(key);
 }
 
-# Set the calling thread's value for `k`.
-+ tls_set(k<tls_key_r>, v<voidptr>) -> ()
+# Set the calling thread's value for `k`. Returns :ok, or :failed when the
+# value was NOT stored (invalid key, or out of memory).
++ tls_set(k<tls_key_r>, v<voidptr>) -> atom
 {
 	let key<pthread_key_t> = k.native ~> pthread_key_t;
-	let _rc<s4> = pthread_setspecific(key, v);
-	^ ();
+	let rc<s4> = pthread_setspecific(key, v);
+
+	if(rc == 0_s4)
+	{
+		^ :ok;
+	}
+
+	^ :failed;
 }

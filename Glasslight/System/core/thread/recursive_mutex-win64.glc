@@ -42,18 +42,20 @@ foreign "Kernel32" ~> .
 	^ :ok;
 }
 
-# Release resources held by `*m`.
-+ recursive_mutex_destroy(m<recursive_mutex_r*>) -> ()
+# Release resources held by `*m`. DeleteCriticalSection is void. Returns
+# :ok always.
++ recursive_mutex_destroy(m<recursive_mutex_r*>) -> atom
 {
 	DeleteCriticalSection(m);
-	^ ();
+	^ :ok;
 }
 
 # Acquire `*m`. A thread that already owns `*m` increments the lock count.
-+ recursive_mutex_lock(m<recursive_mutex_r*>) -> ()
+# EnterCriticalSection is void. Returns :ok always.
++ recursive_mutex_lock(m<recursive_mutex_r*>) -> atom
 {
 	EnterCriticalSection(m);
-	^ ();
+	^ :ok;
 }
 
 # Attempt to acquire `*m` without blocking. Returns :locked (acquired by or already
@@ -70,9 +72,10 @@ foreign "Kernel32" ~> .
 	^ :busy;
 }
 
-# Release one level of ownership of `*m`.
-+ recursive_mutex_unlock(m<recursive_mutex_r*>) -> ()
+# Release one level of ownership of `*m`. LeaveCriticalSection is void.
+# Returns :ok always.
++ recursive_mutex_unlock(m<recursive_mutex_r*>) -> atom
 {
 	LeaveCriticalSection(m);
-	^ ();
+	^ :ok;
 }

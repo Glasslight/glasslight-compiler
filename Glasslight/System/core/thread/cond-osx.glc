@@ -37,6 +37,9 @@ foreign "libSystem.B.tbd" ~> .
 	+ pthread_cond_broadcast(cv<cond_r*>) -> s4;
 }
 
+# pthread_cond_timedwait_relative_np returns this when the timeout elapses.
+const ETIMEDOUT<s4> = 60_s4;
+
 # Initialize a condition variable in place. Returns :ok or :failed.
 + cond_init(cv<cond_r*>) -> atom
 {
@@ -50,23 +53,39 @@ foreign "libSystem.B.tbd" ~> .
 	^ :failed;
 }
 
-# Release resources held by `*cv`.
-+ cond_destroy(cv<cond_r*>) -> ()
+# Release resources held by `*cv`. Returns :ok, or :failed when the cv is
+# invalid or still waited on.
++ cond_destroy(cv<cond_r*>) -> atom
 {
-	let _rc<s4> = pthread_cond_destroy(cv);
-	^ ();
+	let rc<s4> = pthread_cond_destroy(cv);
+
+	if(rc == 0_s4)
+	{
+		^ :ok;
+	}
+
+	^ :failed;
 }
 
 # Atomically unlock `*m` and block until signaled, then relock `*m`.
-+ cond_wait(cv<cond_r*>, m<mutex_r*>) -> ()
+# Returns :ok, or :failed when the wait never happened (invalid cv, or `*m`
+# not held by the calling thread) - on :failed the unlock-wait-relock
+# contract did not execute.
++ cond_wait(cv<cond_r*>, m<mutex_r*>) -> atom
 {
-	let _rc<s4> = pthread_cond_wait(cv, m);
-	^ ();
+	let rc<s4> = pthread_cond_wait(cv, m);
+
+	if(rc == 0_s4)
+	{
+		^ :ok;
+	}
+
+	^ :failed;
 }
 
 # Wait until signaled or until `timeout_ns` elapses. Returns :signaled if the
 # cond was notified (or a spurious wake happened), :timedout if the duration
-# expired.
+# expired, :failed on error (invalid cv, or `*m` not held).
 + cond_wait_timeout(cv<cond_r*>, m<mutex_r*>, timeout_ns<s8>) -> atom
 {
 	let reltime<c.timespec_r>;
@@ -79,19 +98,36 @@ foreign "libSystem.B.tbd" ~> .
 		^ :signaled;
 	}
 
-	^ :timedout;
+	if(rc == ETIMEDOUT)
+	{
+		^ :timedout;
+	}
+
+	^ :failed;
 }
 
-# Wake one thread waiting on `*cv`.
-+ cond_signal(cv<cond_r*>) -> ()
+# Wake one thread waiting on `*cv`. Returns :ok, or :failed on an invalid cv.
++ cond_signal(cv<cond_r*>) -> atom
 {
-	let _rc<s4> = pthread_cond_signal(cv);
-	^ ();
+	let rc<s4> = pthread_cond_signal(cv);
+
+	if(rc == 0_s4)
+	{
+		^ :ok;
+	}
+
+	^ :failed;
 }
 
-# Wake all threads waiting on `*cv`.
-+ cond_broadcast(cv<cond_r*>) -> ()
+# Wake all threads waiting on `*cv`. Returns :ok, or :failed on an invalid cv.
++ cond_broadcast(cv<cond_r*>) -> atom
 {
-	let _rc<s4> = pthread_cond_broadcast(cv);
-	^ ();
+	let rc<s4> = pthread_cond_broadcast(cv);
+
+	if(rc == 0_s4)
+	{
+		^ :ok;
+	}
+
+	^ :failed;
 }

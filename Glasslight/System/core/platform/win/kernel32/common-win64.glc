@@ -87,5 +87,6 @@ enum win32_error_code_e : u4
 	error_operation_aborted   = 995_u4,
 	error_io_pending          = 997_u4,
 	error_not_found           = 1168_u4,
-	error_privilege_not_held  = 1314_u4
+	error_privilege_not_held  = 1314_u4,
+	error_timeout             = 1460_u4
 }
