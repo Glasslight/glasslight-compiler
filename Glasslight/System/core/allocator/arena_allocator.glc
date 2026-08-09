@@ -1,5 +1,7 @@
 package allocator;
 require core.basic ~> .;
+require core.builtin ~> .;
+require core.error ~> error;
 require core.mem ~> mem;
 
 # Internal arena block descriptor.
@@ -48,17 +50,45 @@ record arena_allocator_header_r
 	^ (payload - header_bytes) ~~> arena_allocator_header_r*;
 }
 
+# Checks the request alignment; aborts in debug builds when invalid.
++ arena_allocator_align_ok?(align<size>) -> atom
+{
+	constif(__glc_debug)
+	{
+		if(!valid_align?(align))
+		{
+			error.runtime_error("arena allocator: alignment must be zero or a power of two");
+		}
+	}
+
+	^ valid_align?(align);
+}
+
+# Returns the payload placement alignment, floored so the header stays on its natural boundary.
++ arena_allocator_placement_align(align<size>) -> size
+{
+	let resolved<size> = effective_align(align);
+	let floor<size> = typeinfo(arena_allocator_header_r, :alignment);
+
+	if(resolved < floor)
+	{
+		^ floor;
+	}
+
+	^ resolved;
+}
+
 # Return the minimum payload bytes needed for a request.
 + arena_allocator_min_payload(bytes<size>, align<size>) -> size
 {
-	let resolved_align<size> = effective_align(align);
+	let placement_align<size> = arena_allocator_placement_align(align);
 	let header_bytes<size> = typeinfo(arena_allocator_header_r, :bytes);
 
-	^ header_bytes + bytes + (resolved_align - 1_sz);
+	^ header_bytes + bytes + (placement_align - 1_sz);
 }
 
-# Allocate and append a new internal arena block.
-+ arena_allocator_append_block(state<arena_allocator_state_r*>, min_payload<size>) -> arena_allocator_block_r*
+# Allocate a new internal arena block and link it after the given block (nil for an empty arena).
++ arena_allocator_append_block(state<arena_allocator_state_r*>, min_payload<size>, after<arena_allocator_block_r*>) -> arena_allocator_block_r*
 {
 	let payload_bytes<size> = state.default_block_size;
 
@@ -68,6 +98,12 @@ record arena_allocator_header_r
 	}
 
 	let raw_bytes<size> = typeinfo(arena_allocator_block_r, :bytes) + payload_bytes;
+
+	if(raw_bytes < payload_bytes)
+	{
+		^ nil;
+	}
+
 	let raw<voidptr> = allocator_alloc(state.backing, raw_bytes);
 
 	if(nil?(raw))
@@ -81,16 +117,13 @@ record arena_allocator_header_r
 	block.capacity = payload_bytes;
 	block.offset = 0_sz;
 
-	if(nil?(state.head))
+	if(nil?(after))
 	{
 		state.head = raw;
-		state.tail = raw;
 	}
 	else
 	{
-		let tail<arena_allocator_block_r*> = arena_allocator_as_block(state.tail);
-		tail.next_block = block ~~> voidptr;
-		state.tail = raw;
+		after.next_block = block ~~> voidptr;
 	}
 
 	^ block;
@@ -99,19 +132,31 @@ record arena_allocator_header_r
 # Allocate from one arena block and write the per-allocation header.
 + arena_allocator_alloc_in_block(block<arena_allocator_block_r*>, bytes<size>, align<size>) -> voidptr
 {
-	let resolved_align<size> = effective_align(align);
+	let placement_align<size> = arena_allocator_placement_align(align);
 	let header_bytes<size> = typeinfo(arena_allocator_header_r, :bytes);
 	let block_start<size> = block.offset;
 	let block_base<u1*> = block.base;
 	let block_base_addr<size> = block_base ~~> size;
-	let payload_addr<size> = align_up(block_base_addr + block_start + header_bytes, resolved_align);
-	let payload_offset<size> = payload_addr - block_base_addr;
-	let end_offset<size> = payload_offset + bytes;
+	let payload_addr<size> = align_up(block_base_addr + block_start + header_bytes, placement_align);
 
-	if(end_offset > block.capacity)
+	if(payload_addr < block_base_addr)
 	{
 		^ nil;
 	}
+
+	let payload_offset<size> = payload_addr - block_base_addr;
+
+	if(payload_offset > block.capacity)
+	{
+		^ nil;
+	}
+
+	if(bytes > block.capacity - payload_offset)
+	{
+		^ nil;
+	}
+
+	let end_offset<size> = payload_offset + bytes;
 
 	let header<arena_allocator_header_r*> = (payload_addr - header_bytes) ~~> arena_allocator_header_r*;
 	header.size = bytes;
@@ -127,9 +172,14 @@ record arena_allocator_header_r
 	let current<arena_allocator_block_r*> = nil;
 	let min_payload<size> = arena_allocator_min_payload(bytes, align);
 
+	if(min_payload < bytes)
+	{
+		^ nil;
+	}
+
 	if(nil?(state.tail))
 	{
-		current = arena_allocator_append_block(state, min_payload);
+		current = arena_allocator_append_block(state, min_payload, nil);
 		if(nil?(current))
 		{
 			^ nil;
@@ -156,7 +206,7 @@ record arena_allocator_header_r
 
 		if(nil?(current.next_block))
 		{
-			current = arena_allocator_append_block(state, min_payload);
+			current = arena_allocator_append_block(state, min_payload, current);
 			if(nil?(current))
 			{
 				^ nil;
@@ -165,7 +215,6 @@ record arena_allocator_header_r
 		else
 		{
 			current = arena_allocator_as_block(current.next_block);
-			state.tail = current ~~> voidptr;
 		}
 	}
 
@@ -230,6 +279,11 @@ record arena_allocator_header_r
 	{
 		case :alloc =>
 		{
+			if(!arena_allocator_align_ok?(align))
+			{
+				^ nil;
+			}
+
 			^ arena_allocator_alloc_impl(state, bytes, align);
 		}
 
@@ -250,6 +304,11 @@ record arena_allocator_header_r
 
 		case :realloc =>
 		{
+			if(!arena_allocator_align_ok?(align))
+			{
+				^ nil;
+			}
+
 			if(nil?(ptr))
 			{
 				^ arena_allocator_alloc_impl(state, bytes, align);
@@ -276,20 +335,25 @@ record arena_allocator_header_r
 			if(ptr == state.last_ptr && !nil?(state.last_block))
 			{
 				let block<arena_allocator_block_r*> = arena_allocator_as_block(state.last_block);
-				let resolved_align<size> = effective_align(align);
+				let placement_align<size> = arena_allocator_placement_align(align);
 				let header_bytes<size> = typeinfo(arena_allocator_header_r, :bytes);
 				let block_base<u1*> = block.base;
 				let block_base_addr<size> = block_base ~~> size;
-				let payload_addr<size> = align_up(block_base_addr + header.block_start + header_bytes, resolved_align);
-				let payload_offset<size> = payload_addr - block_base_addr;
-				let end_offset<size> = payload_offset + bytes;
+				let payload_addr<size> = align_up(block_base_addr + header.block_start + header_bytes, placement_align);
 
-				if(end_offset <= block.capacity)
+				if(payload_addr >= block_base_addr)
 				{
-					header.size = bytes;
-					block.offset = end_offset;
-					state.last_size = bytes;
-					^ ptr;
+					let payload_offset<size> = payload_addr - block_base_addr;
+
+					if(payload_offset <= block.capacity && bytes <= block.capacity - payload_offset)
+					{
+						let end_offset<size> = payload_offset + bytes;
+
+						header.size = bytes;
+						block.offset = end_offset;
+						state.last_size = bytes;
+						^ ptr;
+					}
 				}
 			}
 

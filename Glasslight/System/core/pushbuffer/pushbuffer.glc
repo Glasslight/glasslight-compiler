@@ -14,15 +14,35 @@ require core.error ~> error;
 # get their own buffer; a coordinator replays them in a canonical order.
 #
 # Growth moves memory, which is safe because recording and replay never
-# interleave: payload pointers are only handed out by advance!/drain, after
-# recording is done. The base is 16-byte aligned; payloads requiring more
-# than 16-byte alignment are not supported.
+# interleave: replay payload pointers are only handed out by
+# advance!/drain, after recording is done. The one recording-time pointer
+# - the payload destination push_reserve! hands to the producer - is
+# valid only until the next buffer operation (see Aliasing below).
+# The base is 16-byte aligned; payloads requiring more than 16-byte
+# alignment are not supported.
+#
+# Aliasing: the raw push! copies from the caller's pointer after reserving
+# space, so the source byte range must not overlap the buffer's storage.
+# Every pointer returned by push_reserve! is valid only until the next
+# buffer operation: finish constructing the payload before anything that
+# can reserve, push, grow, replay, reset!, or dispose (growth always
+# moves the storage; reset! and dispose end the payload's lifetime).
+# Consuming a record does not lift the ban: consumed bytes still live in
+# the buffer's storage - copy them out before re-pushing. Debug builds abort
+# when a raw push! source range overlaps the current storage (zero-size
+# sources are exempt - an empty range overlaps nothing, and a zero-size
+# record's payload pointer may be one-past-the-end and is not
+# dereferenceable); a stale source into storage a previous growth
+# already freed is equally invalid but not detectable here. Release
+# builds pay nothing.
 #
 # Ownership: a typed push! is a birth site - the buffer owns the recorded
 # value (disposer captured) until the consumer advances past it, at which
 # point the bytes belong to the consumer (move semantics; the buffer never
 # disposes consumed records). reset! and dispose run the disposers of the
-# unconsumed tail only.
+# unconsumed tail only. Size-0 records are never disposed: a zero-byte
+# payload owns nothing, so a disposer passed with a size-0 raw push! is
+# ignored at teardown.
 [[:disposable]]
 record push_buffer_r
 {
@@ -74,20 +94,26 @@ record push_buffer_r
 			new_cap = 64_sz;
 		}
 
-		if(nil?(self.data))
-		{
-			self.data = allocator_alloc_aligned(self.alloc, new_cap, 16_sz);
-		}
-		else
-		{
-			self.data = allocator_realloc(self.alloc, self.data, new_cap);
-		}
-
-		if(nil?(self.data))
+		# Growth allocates fresh 16-aligned storage and copies - realloc
+		# carries no alignment request, so it can drop the documented
+		# 16-byte base guarantee (e.g. scratch resolves align 0 to 8).
+		let grown<voidptr> = allocator_alloc_aligned(self.alloc, new_cap, 16_sz);
+		if(nil?(grown))
 		{
 			error.runtime_error("push_buffer_r: out of memory");
 		}
 
+		if(!nil?(self.data))
+		{
+			if(self.write > 0_sz)
+			{
+				__glc_mem_copy(grown, self.data, self.write);
+			}
+
+			allocator_free(self.alloc, self.data);
+		}
+
+		self.data = grown;
 		self.capacity = new_cap;
 		^ ();
 	}
@@ -112,9 +138,29 @@ record push_buffer_r
 		^ (base + (payload_off ~~> u8)) ~~> voidptr;
 	}
 
-	# Appends a record, copying the payload in.
+	# Appends a record, copying the payload in. The source range must not
+	# overlap this buffer's storage (see the aliasing contract above).
 	- push!(tag<atom>, bytes<voidptr>, size<size>, align<size>, disposer<fptr>) -> ()
 	{
+		constif(__glc_debug)
+		{
+			# Checked at entry, against the pre-reserve storage: a check
+			# after the reserve would pass whenever growth moves the
+			# storage - the dangerous case. The overlap test is over the
+			# full source range in wrap-safe subtract form; zero-size
+			# sources are exempt (an empty range overlaps nothing).
+			if(!nil?(self.data) && size > 0_sz)
+			{
+				let src<u8> = bytes ~~> u8;
+				let base<u8> = self.data ~~> u8;
+
+				if(((src - base) < (self.capacity ~~> u8)) || ((base - src) < (size ~~> u8)))
+				{
+					error.runtime_error("push_buffer_r: push! source aliases the buffer - the source range must not overlap the buffer's storage");
+				}
+			}
+		}
+
 		let dst<voidptr> = self.push_reserve!(tag, size, align, disposer);
 		__glc_mem_copy(dst, bytes, size);
 		^ ();
@@ -246,7 +292,7 @@ record push_buffer_r
 
 			let payload_off<size> = push_buffer_r.round_up(header_off + 32_sz, align);
 
-			if(!nil?(disposer ~~> voidptr))
+			if(size > 0_sz && !nil?(disposer ~~> voidptr))
 			{
 				let target_off<size> = payload_off;
 				if(tag == :call)

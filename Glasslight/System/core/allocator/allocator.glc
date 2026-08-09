@@ -1,5 +1,7 @@
 package allocator;
 require core.basic ~> .;
+require core.builtin ~> .;
+require core.error ~> error;
 
 # Allocator operation type.
 atomenum alloc_op_e
@@ -38,15 +40,34 @@ record allocator_r
 + effective_align(0_sz) -> size { ^ typeinfo(voidptr, :alignment); }
 + effective_align(align<size>) -> size { ^ align; }
 
+# Check if alignment is valid: 0_sz (the default request) or a power of two.
++ valid_align?(align<size>) -> atom
+{
+	^ (align & (align - 1_sz)) == 0_sz;
+}
+
 # Allocate memory using an allocator.
 + allocator_alloc(a<allocator_r>, bytes<size>) -> voidptr
 {
 	^ a.func(:alloc, a.user_data, nil, bytes, 0_sz);
 }
 
-# Allocate aligned memory using an allocator.
+# Allocate aligned memory using an allocator; the alignment must be a nonzero power of two.
 + allocator_alloc_aligned(a<allocator_r>, bytes<size>, align<size>) -> voidptr
 {
+	constif(__glc_debug)
+	{
+		if(align == 0_sz || !valid_align?(align))
+		{
+			error.runtime_error("allocator: alignment must be a nonzero power of two");
+		}
+	}
+
+	if(align == 0_sz || !valid_align?(align))
+	{
+		^ nil;
+	}
+
 	^ a.func(:alloc, a.user_data, nil, bytes, align);
 }
 

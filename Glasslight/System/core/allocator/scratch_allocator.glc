@@ -1,5 +1,7 @@
 package allocator;
 require core.basic ~> .;
+require core.builtin ~> .;
+require core.error ~> error;
 require core.mem ~> mem;
 
 #[
@@ -49,21 +51,63 @@ record scratch_allocator_header_r
 	^ (payload - header_bytes) ~~> scratch_allocator_header_r*;
 }
 
+# Validates the alignment domain for a request: 0_sz (use the default) or a
+# power of two. Debug builds abort so the caller bug surfaces at the call
+# site; release rejects through the normal nil failure path.
++ scratch_allocator_align_ok?(align<size>) -> atom
+{
+	constif(__glc_debug)
+	{
+		if(!valid_align?(align))
+		{
+			error.runtime_error("scratch allocator: alignment must be zero or a power of two");
+		}
+	}
+
+	^ valid_align?(align);
+}
+
+# Returns the payload placement alignment, floored so the header stays on its natural boundary.
++ scratch_allocator_placement_align(align<size>) -> size
+{
+	let resolved<size> = effective_align(align);
+	let floor<size> = typeinfo(scratch_allocator_header_r, :alignment);
+
+	if(resolved < floor)
+	{
+		^ floor;
+	}
+
+	^ resolved;
+}
+
 # Allocates a new block from the scratch buffer and records its header.
 + scratch_allocator_alloc_impl(state<scratch_allocator_state_r*>, bytes<size>, align<size>) -> voidptr
 {
-	let resolved_align<size> = effective_align(align);
+	let placement_align<size> = scratch_allocator_placement_align(align);
 	let header_bytes<size> = typeinfo(scratch_allocator_header_r, :bytes);
 	let block_start<size> = state.offset;
 	let base_addr<size> = state.base ~~> size;
-	let payload_addr<size> = align_up(base_addr + block_start + header_bytes, resolved_align);
-	let payload_offset<size> = payload_addr - base_addr;
-	let end_offset<size> = payload_offset + bytes;
+	let payload_addr<size> = align_up(base_addr + block_start + header_bytes, placement_align);
 
-	if(end_offset > state.capacity)
+	if(payload_addr < base_addr)
 	{
 		^ nil;
 	}
+
+	let payload_offset<size> = payload_addr - base_addr;
+
+	if(payload_offset > state.capacity)
+	{
+		^ nil;
+	}
+
+	if(bytes > state.capacity - payload_offset)
+	{
+		^ nil;
+	}
+
+	let end_offset<size> = payload_offset + bytes;
 
 	let header<scratch_allocator_header_r*> = (state.base + payload_offset - header_bytes) ~~> scratch_allocator_header_r*;
 	header.size = bytes;
@@ -86,6 +130,11 @@ record scratch_allocator_header_r
 	{
 		case :alloc =>
 		{
+			if(!scratch_allocator_align_ok?(align))
+			{
+				^ nil;
+			}
+
 			^ scratch_allocator_alloc_impl(state, bytes, align);
 		}
 
@@ -104,6 +153,11 @@ record scratch_allocator_header_r
 
 		case :realloc =>
 		{
+			if(!scratch_allocator_align_ok?(align))
+			{
+				^ nil;
+			}
+
 			if(nil?(ptr))
 			{
 				^ scratch_allocator_alloc_impl(state, bytes, align);
@@ -114,17 +168,29 @@ record scratch_allocator_header_r
 
 			if(ptr == state.last_ptr)
 			{
-				let resolved_align<size> = effective_align(align);
+				let placement_align<size> = scratch_allocator_placement_align(align);
 				let header_bytes<size> = typeinfo(scratch_allocator_header_r, :bytes);
 				let base_addr<size> = state.base ~~> size;
-				let payload_addr<size> = align_up(base_addr + header.block_start + header_bytes, resolved_align);
-				let payload_offset<size> = payload_addr - base_addr;
-				let end_offset<size> = payload_offset + bytes;
+				let payload_addr<size> = align_up(base_addr + header.block_start + header_bytes, placement_align);
 
-				if(end_offset > state.capacity)
+				if(payload_addr < base_addr)
 				{
 					^ nil;
 				}
+
+				let payload_offset<size> = payload_addr - base_addr;
+
+				if(payload_offset > state.capacity)
+				{
+					^ nil;
+				}
+
+				if(bytes > state.capacity - payload_offset)
+				{
+					^ nil;
+				}
+
+				let end_offset<size> = payload_offset + bytes;
 
 				header.size = bytes;
 				state.offset = end_offset;
